@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> FINAL FANTASY XIV 繁體中文版狩獵怪物工具 </title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc, getDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.FB = {
+            initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken,
+            getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc, getDoc, query
+        };
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .login-gradient { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+        .animate-in { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const VERSIONS = ["2.0", "3.0", "4.0", "5.0", "6.0", "7.0"];
+        const RANKS = ["None", "B", "A", "S", "SS"]; 
+        
+        const MAP_DATA = {
+            "2.0": ["中拉諾西亞", "拉諾西亞低地", "東拉諾西亞", "西拉諾西亞", "拉諾西亞高地", "拉諾西亞外地", "黑衣森林中央林區", "黑衣森林東部林區", "黑衣森林南部林區", "黑衣森林北部林區", "西薩納蘭", "中薩納蘭", "東薩納蘭", "南薩納蘭", "北薩納蘭", "庫爾札斯中央高地", "摩杜納"],
+            "3.0": ["庫爾札斯西部高地", "德拉瓦尼亞山麓地", "德拉瓦尼亞河谷地", "德拉瓦尼亞雲海", "阿巴拉提亞雲海", "魔大陸阿濟茲拉"],
+            "4.0": ["基拉巴尼亞邊區", "基拉巴尼亞山區", "基拉巴尼亞湖區", "紅玉海", "延夏", "太陽神草原"],
+            "5.0": ["雷克蘭", "珂露西亞島", "安姆阿蘭", "伊爾美格", "拉凱提卡大森林", "黑風海"],
+            "6.0": ["迷津", "薩維奈島", "加雷馬", "嘆息海", "厄爾庇斯", "天外天垓"],
+            "7.0": ["奧科帕查", "高地圖拉爾", "亞克泰爾村", "赫利特洛普", "沙阿洛尼", "生命之源"]
+        };
+
+        const ALL_REGIONS = Object.values(MAP_DATA).flat();
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDqiVItIUKXSqyBtqLqZTXJIAWPME7-hq8",
+            authDomain: "ff14-hunt-finder-bd466.firebaseapp.com",
+            projectId: "ff14-hunt-finder-bd466",
+            storageBucket: "ff14-hunt-finder-bd466.firebasestorage.app",
+            appId: "1:1070892149299:web:966fc39ab19a8e4d30d146"
+        };
+
+        const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : "ff14-hunt-finder-bd466";
+
+        const Icon = ({ name, size = 16, className = "", fill = "none" }) => {
+            const [svgContent, setSvgContent] = useState("");
+            useEffect(() => {
+                if (window.lucide && window.lucide.icons[name]) {
+                    const icon = window.lucide.icons[name];
+                    const content = icon.map(([tag, attrs]) => {
+                        const attrStr = Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(' ');
+                        return `<${tag} ${attrStr} />`;
+                    }).join('');
+                    setSvgContent(content);
+                }
+            }, [name]);
+            return (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: svgContent }} />
+            );
+        };
+
+        const VersionTag = ({ version }) => {
+            if (!version) return null;
+            const versionColors = {
+                "2.0": "bg-zinc-500",
+                "3.0": "bg-sky-700",
+                "4.0": "bg-red-700",
+                "5.0": "bg-indigo-800",
+                "6.0": "bg-emerald-700",
+                "7.0": "bg-amber-600",
+            };
+            const bgColor = versionColors[version] || "bg-blue-600";
+            return <span className={`text-[9px] font-black px-1.5 py-0.5 rounded text-white shrink-0 leading-none shadow-sm ${bgColor}`}>{version}</span>;
+        };
+
+        const RankTag = ({ rank }) => {
+            if (!rank || rank === "None") return null;
+            const colors = {
+                'B': 'bg-slate-400 text-white',
+                'A': 'bg-red-500 text-white',
+                'S': 'bg-amber-500 text-white shadow-sm',
+                'SS': 'bg-purple-600 text-white shadow-md animate-pulse'
+            };
+            return <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${colors[rank] || 'bg-slate-200'}`}>{rank}</span>;
+        };
+
+        const FateTag = ({ isFate }) => {
+            if (!isFate) return null;
+            return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-pink-500 text-white shrink-0 leading-none">FATE</span>;
+        };
+
+        function App() {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [virtualId, setVirtualId] = useState(""); 
+            const [loginForm, setLoginForm] = useState({ account: '', password: '' });
+            const [user, setUser] = useState(null); 
+            const [monsters, setMonsters] = useState([]);
+            const [userPins, setUserPins] = useState({});
+            const [customGroups, setCustomGroups] = useState([]);
+            const [view, setView] = useState('search');
+            const [fbReady, setFbReady] = useState(false);
+            const [selectedIds, setSelectedIds] = useState([]);
+
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterVer, setFilterVer] = useState('');
+            const [filterMap, setFilterMap] = useState('');
+            const [filterRank, setFilterRank] = useState('');
+            const [filterFate, setFilterFate] = useState(false);
+
+            const [kbSearchTerm, setKbSearchTerm] = useState('');
+            const [kbFilterVer, setKbFilterVer] = useState('');
+            const [kbFilterMap, setKbFilterMap] = useState('');
+
+            const [adminSearchTerm, setAdminSearchTerm] = useState('');
+            const [adminFilterVer, setAdminFilterVer] = useState('');
+            const [adminFilterMap, setAdminFilterMap] = useState('');
+            const [adminFilterRank, setAdminFilterRank] = useState('');
+            const [adminFilterFate, setAdminFilterFate] = useState(false);
+
+            const [expandedIds, setExpandedIds] = useState({});
+            const [mainExpandedIds, setMainExpandedIds] = useState({}); 
+            
+            const [isMainGlobalExpanded, setIsMainGlobalExpanded] = useState(false);
+            const [isKbGlobalExpanded, setIsKbGlobalExpanded] = useState(false);
+
+            const [showKanban, setShowKanban] = useState(true);
+            const [showEditor, setShowEditor] = useState(false);
+            const [editData, setEditData] = useState(null);
+            const [copyFeedback, setCopyFeedback] = useState(null);
+
+            useEffect(() => { setFilterMap(''); }, [filterVer]);
+            useEffect(() => { setKbFilterMap(''); }, [kbFilterVer]);
+            useEffect(() => { setAdminFilterMap(''); }, [adminFilterVer]);
+
+            useEffect(() => {
+                const checkFB = setInterval(() => {
+                    if (window.FB) { setFbReady(true); clearInterval(checkFB); }
+                }, 100);
+                return () => clearInterval(checkFB);
+            }, []);
+
+            useEffect(() => {
+                if (!fbReady) return;
+                const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged } = window.FB;
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                signInAnonymously(auth);
+                onAuthStateChanged(auth, u => setUser(u));
+                const savedAccount = localStorage.getItem('ff14_virtual_account');
+                if (savedAccount) { setVirtualId(savedAccount); setIsLoggedIn(true); }
+            }, [fbReady]);
+
+            useEffect(() => {
+                if (!isLoggedIn || !virtualId || !fbReady) return;
+                const { getFirestore, collection, doc, setDoc, onSnapshot } = window.FB;
+                const db = getFirestore();
+                
+                const mUn = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'monsters'), s => {
+                    setMonsters(s.docs.map(d => ({ rank: "None", ...d.data(), id: d.id })));
+                });
+
+                const pUn = onSnapshot(collection(db, 'artifacts', appId, 'users', virtualId, 'pins'), s => {
+                    const pins = {}; s.docs.forEach(d => { pins[d.id] = d.data().groupId; });
+                    setUserPins(pins);
+                });
+
+                const gUn = onSnapshot(collection(db, 'artifacts', appId, 'users', virtualId, 'groups'), s => {
+                    const groups = s.docs.map(d => ({ id: d.id, ...d.data() }));
+                    if (groups.length === 0) {
+                        setDoc(doc(db, 'artifacts', appId, 'users', virtualId, 'groups', 'default'), { name: '常用區域', order: 0, canDelete: false });
+                    } else { setCustomGroups(groups.sort((a, b) => a.order - b.order)); }
+                });
+                return () => { mUn(); pUn(); gUn(); };
+            }, [isLoggedIn, virtualId, fbReady]);
+
+            const proceedLogin = (acc) => {
+                localStorage.setItem('ff14_virtual_account', acc);
+                setVirtualId(acc);
+                setIsLoggedIn(true);
+            };
+
+            const handleTogglePin = async (mId) => {
+                const { getFirestore, doc, setDoc, deleteDoc } = window.FB;
+                const db = getFirestore();
+                const pinDoc = doc(db, 'artifacts', appId, 'users', virtualId, 'pins', mId);
+                
+                if (userPins[mId]) {
+                    await deleteDoc(pinDoc);
+                } else {
+                    setExpandedIds(prev => ({
+                        ...prev,
+                        [mId]: isKbGlobalExpanded
+                    }));
+                    await setDoc(pinDoc, { groupId: customGroups[0].id, updatedAt: Date.now() });
+                }
+            };
+
+            const copyToClipboard = (text, feedbackKey) => {
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el); el.select();
+                document.execCommand('copy'); document.body.removeChild(el);
+                setCopyFeedback(feedbackKey);
+                setTimeout(() => setCopyFeedback(null), 1000);
+            };
+
+            const applyFilter = (list, search, ver, map, rank, fate) => {
+                return list.filter(m => {
+                    const matchName = (m.name || '').toLowerCase().includes(search.toLowerCase());
+                    const matchVer = !ver || m.version === ver;
+                    const matchMap = !map || (m.locations || []).some(l => l.map === map);
+                    const matchRank = !rank || m.rank === rank;
+                    const matchFate = !fate || m.isFate === true;
+                    return matchName && matchVer && matchMap && matchRank && matchFate;
+                });
+            };
+
+            const filteredMonsters = useMemo(() => applyFilter(monsters, searchTerm, filterVer, filterMap, filterRank, filterFate), [monsters, searchTerm, filterVer, filterMap, filterRank, filterFate]);
+            const kbFilteredMonsters = useMemo(() => applyFilter(monsters, kbSearchTerm, kbFilterVer, kbFilterMap, '', false), [monsters, kbSearchTerm, kbFilterVer, kbFilterMap]);
+            const adminMonsters = useMemo(() => applyFilter(monsters, adminSearchTerm, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate), [monsters, adminSearchTerm, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate]);
+
+            const toggleSelect = (id) => {
+                setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+            };
+
+            const selectAllVisible = () => {
+                const allIds = adminMonsters.map(m => m.id);
+                if (selectedIds.length === allIds.length) setSelectedIds([]);
+                else setSelectedIds(allIds);
+            };
+
+            const getMapsForVersion = (ver) => ver && MAP_DATA[ver] ? MAP_DATA[ver] : ALL_REGIONS;
+
+            const toggleMainAllExpanded = () => {
+                const nextState = !isMainGlobalExpanded;
+                setIsMainGlobalExpanded(nextState);
+                const newStates = {};
+                filteredMonsters.forEach(m => { newStates[m.id] = nextState; });
+                setMainExpandedIds(newStates);
+            };
+
+            const toggleKbAllExpanded = () => {
+                const nextState = !isKbGlobalExpanded;
+                setIsKbGlobalExpanded(nextState);
+                const newStates = {};
+                monsters.forEach(m => { if (userPins[m.id]) newStates[m.id] = nextState; });
+                setExpandedIds(newStates);
+            };
+
+            // ⚡ 新增的批次解析函數
+            const handleBatchParse = (text) => {
+                if (!text.trim()) return;
+                // 正則：抓取 X:數字 Y:數字 (支援簡體/繁體冒號，忽略中間空格)
+                const regex = /[Xx][:：]\s*(\d+\.?\d*)\s*[,，]?\s*[Yy][:：]\s*(\d+\.?\d*)/g;
+                const matches = [...text.matchAll(regex)];
+                
+                if (matches.length === 0) return;
+
+                // 抓取目前第一個點位地圖或管理員篩選的地圖作為預設地圖
+                const currentDefaultMap = editData.locations[0]?.map || (adminFilterMap && MAP_DATA[editData.version].includes(adminFilterMap) ? adminFilterMap : MAP_DATA[editData.version][0]);
+
+                const newLocs = matches.map(m => ({
+                    map: currentDefaultMap,
+                    x: m[1],
+                    y: m[2]
+                }));
+
+                // 移除空點位並合併新解析出的點位
+                const cleanedOriginal = editData.locations.filter(l => l.x !== '' || l.y !== '');
+                setEditData({
+                    ...editData,
+                    locations: [...cleanedOriginal, ...newLocs]
+                });
+            };
+
+            if (!isLoggedIn) {
+                return (
+                    <div className="h-screen flex items-center justify-center login-gradient p-6">
+                        <div className="w-full max-w-md bg-white rounded-[2.5rem] p-10 space-y-8">
+                            <div className="text-center space-y-2">
+                                <div className="inline-block p-4 bg-blue-600 rounded-3xl text-white shadow-xl mb-4"><Icon name="Cloud" size={32}/></div>
+                                <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">Hunt Cloud</h1>
+                            </div>
+                            <div className="space-y-4">
+                                <input className="w-full px-6 py-4 bg-slate-100 rounded-2xl font-bold outline-none" placeholder="輸入帳號" value={loginForm.account} onChange={e => setLoginForm({...loginForm, account: e.target.value})}/>
+                                <input type="password" onKeyDown={e => e.key === 'Enter' && proceedLogin(loginForm.account)} className="w-full px-6 py-4 bg-slate-100 rounded-2xl font-bold outline-none" placeholder="輸入密碼" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})}/>
+                                <button onClick={() => proceedLogin(loginForm.account)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-transform">進入系統</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex flex-col h-screen bg-slate-50 overflow-hidden text-slate-800">
+                    <nav className="bg-slate-900 text-white p-3 flex justify-between items-center shrink-0 z-50">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-blue-600 p-1.5 rounded-lg"><Icon name="Zap" size={18}/></div>
+                            <div>
+                                <span className="font-black text-xs tracking-tighter uppercase"> FINAL FANTASY XIV 繁中狩獵工具 </span>
+                                <div className="text-[9px] text-blue-400 font-bold uppercase">{virtualId}</div>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setView('search')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${view === 'search' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>狩獵板</button>
+                            <button onClick={() => setView('admin')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${view === 'admin' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>管理員</button>
+                            <button onClick={() => { localStorage.removeItem('ff14_virtual_account'); setIsLoggedIn(false); }} className="p-1.5 text-slate-500 hover:text-red-400"><Icon name="LogOut" size={18}/></button>
+                        </div>
+                    </nav>
+
+                    <div className="flex-1 flex overflow-hidden relative">
+                        <div className={`flex-1 flex flex-col transition-all duration-300 ${showKanban ? 'mr-[380px]' : 'mr-0'}`}>
+                            <div className="p-4 bg-white border-b space-y-3 z-30 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="relative flex-1">
+                                        <Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                                        <input className="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-2xl text-xs outline-none font-bold" placeholder="搜尋怪物..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
+                                    </div>
+                                    <button onClick={toggleMainAllExpanded} className={`p-2.5 rounded-2xl flex items-center justify-center transition-all border ${isMainGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200'}`} title={isMainGlobalExpanded ? "目前為全部展開模式" : "目前為全部摺疊模式"}>
+                                        <Icon name={isMainGlobalExpanded ? "ChevronUp" : "ChevronDown"} size={18}/>
+                                    </button>
+                                    <button onClick={() => setShowKanban(!showKanban)} className={`px-4 py-2.5 rounded-2xl flex items-center gap-2 text-[12px] font-black transition-all ${showKanban ? 'bg-amber-100 text-amber-700' : 'bg-white border text-slate-500'}`}>
+                                        <Icon name="Layout" size={14} className={showKanban ? "text-amber-600" : "text-slate-400"}/> 
+                                        <span>追蹤板</span>
+                                    </button>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none" value={filterVer} onChange={e => setFilterVer(e.target.value)}>
+                                        <option value="">全版本</option>{VERSIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                                    </select>
+                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none flex-1" value={filterMap} onChange={e => setFilterMap(e.target.value)}>
+                                        <option value="">{filterVer ? `${filterVer} 所有地圖` : "所有地圖"}</option>
+                                        {getMapsForVersion(filterVer).map(r => <option key={r} value={r}>{r}</option>)}
+                                    </select>
+                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none" value={filterRank} onChange={e => setFilterRank(e.target.value)}>
+                                        <option value="">等級</option>
+                                        {RANKS.map(r => <option key={r} value={r}>{r === 'None' ? '一般' : `${r}級`}</option>)}
+                                    </select>
+                                    <button onClick={() => setFilterFate(!filterFate)} className={`px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all ${filterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>FATE</button>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
+                                    {filteredMonsters.map(m => {
+                                        const isMainExpanded = mainExpandedIds[m.id] === true;
+                                        return (
+                                            <div key={m.id} className="bg-white rounded-3xl border border-slate-200 hover:border-blue-400 transition-all group relative overflow-hidden shadow-sm">
+                                                <div className="p-4">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex flex-col flex-1 cursor-pointer" onClick={() => setMainExpandedIds(prev => ({...prev, [m.id]: !isMainExpanded}))}>
+                                                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                                                <Icon name={isMainExpanded ? "ChevronDown" : "ChevronRight"} size={12} className="text-slate-400"/>
+                                                                <h4 className="font-black text-slate-800 text-sm mr-0.5">{m.name}</h4>
+                                                                <VersionTag version={m.version} />
+                                                                <RankTag rank={m.rank}/><FateTag isFate={m.isFate}/>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleTogglePin(m.id)} className={`p-2 rounded-xl transition-all ${userPins[m.id] ? 'bg-amber-100 text-amber-600' : 'text-slate-200 hover:text-amber-300'}`}>
+                                                            <Icon name="Pin" size={14} fill={userPins[m.id] ? "currentColor" : "none"}/>
+                                                        </button>
+                                                    </div>
+                                                    {isMainExpanded && (
+                                                        <div className="space-y-1.5 animate-in">
+                                                            {m.locations?.map((loc, i) => (
+                                                                <button key={i} onClick={() => copyToClipboard(`${m.name} ${loc.map} (X: ${loc.x}, Y: ${loc.y})`, `${m.id}-${i}`)} className="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc">
+                                                                    <div className="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{loc.map}</div>
+                                                                    <div className="font-mono font-bold text-[10px]">X:{loc.x} Y:{loc.y}</div>
+                                                                    {copyFeedback === `${m.id}-${i}` && <div className="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse"><Icon name="Check" size={12} className="text-white"/></div>}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={`absolute right-0 top-0 bottom-0 w-[380px] bg-slate-100 border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 ${showKanban ? 'translate-x-0' : 'translate-x-full'}`}>
+                            <div className="p-4 bg-white border-b flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="font-black text-xs text-slate-800 uppercase tracking-widest shrink-0">追蹤看板</h2>
+                                    <button onClick={toggleKbAllExpanded} className={`p-1.5 rounded-lg flex items-center justify-center transition-all border ${isKbGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200'}`} title={isKbGlobalExpanded ? "目前為全部展開模式" : "目前為全部摺疊模式"}>
+                                        <Icon name={isKbGlobalExpanded ? "ChevronUp" : "ChevronDown"} size={14}/>
+                                    </button>
+                                </div>
+                                <button onClick={async () => {
+                                    const { getFirestore, doc, setDoc } = window.FB;
+                                    const id = `g_${Date.now()}`;
+                                    await setDoc(doc(getFirestore(), 'artifacts', appId, 'users', virtualId, 'groups', id), { name: '新分組', order: customGroups.length, canDelete: true });
+                                }} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"><Icon name="Plus" size={16}/></button>
+                            </div>
+
+                            <div className="p-3 bg-white border-b space-y-2 shadow-sm">
+                                <div className="relative">
+                                    <Icon name="Filter" size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"/>
+                                    <input className="w-full pl-7 pr-4 py-1.5 bg-slate-50 rounded-xl text-[12px] outline-none font-bold" placeholder="過濾追蹤內容..." value={kbSearchTerm} onChange={e => setKbSearchTerm(e.target.value)}/>
+                                </div>
+                                <div className="flex gap-2">
+                                    <select className="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border" value={kbFilterVer} onChange={e => setKbFilterVer(e.target.value)}>
+                                        <option value="">全版本</option>{VERSIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                                    </select>
+                                    <select className="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border flex-1" value={kbFilterMap} onChange={e => setKbFilterMap(e.target.value)}>
+                                        <option value="">{kbFilterVer ? `${kbFilterVer} 地圖` : "全地圖"}</option>
+                                        {getMapsForVersion(kbFilterVer).map(r => <option key={r} value={r}>{r}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar bg-slate-50">
+                                {customGroups.map(group => {
+                                    const groupMonsters = kbFilteredMonsters.filter(m => userPins[m.id] === group.id);
+                                    return (
+                                        <div key={group.id} onDragOver={e => e.preventDefault()} onDrop={async (e) => {
+                                            const mid = e.dataTransfer.getData("monsterId");
+                                            if (mid) {
+                                                const { getFirestore, doc, setDoc } = window.FB;
+                                                await setDoc(doc(getFirestore(), 'artifacts', appId, 'users', virtualId, 'pins', mid), { groupId: group.id }, { merge: true });
+                                            }
+                                        }} className="bg-white rounded-2xl border p-3 space-y-3 shadow-sm">
+                                            <div className="flex justify-between items-center px-1">
+                                                <input className="bg-transparent font-black text-[11px] outline-none text-slate-700 w-full p-1 focus:bg-slate-50 rounded" value={group.name} onChange={async (e) => {
+                                                    const { getFirestore, doc, updateDoc } = window.FB;
+                                                    await updateDoc(doc(getFirestore(), 'artifacts', appId, 'users', virtualId, 'groups', group.id), { name: e.target.value });
+                                                }} />
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-slate-100 text-slate-400 rounded-full">{groupMonsters.length}</span>
+                                                    {group.canDelete && (
+                                                        <button onClick={async () => {
+                                                            const { getFirestore, doc, deleteDoc } = window.FB;
+                                                            if(confirm('刪除分組？')) await deleteDoc(doc(getFirestore(), 'artifacts', appId, 'users', virtualId, 'groups', group.id));
+                                                        }} className="text-slate-300 hover:text-red-400"><Icon name="Trash2" size={12}/></button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                {groupMonsters.map(m => {
+                                                    const isExpanded = expandedIds[m.id] !== undefined ? expandedIds[m.id] : isKbGlobalExpanded;
+                                                    return (
+                                                        <div key={`kb-${m.id}`} draggable onDragStart={e => e.dataTransfer.setData("monsterId", m.id)} className={`border rounded-xl relative group/card cursor-grab active:cursor-grabbing shadow-sm transition-all ${m.rank === 'S' || m.rank === 'SS' ? 'bg-amber-50 border-amber-100' : 'bg-[#fdfcf0] border-orange-100'}`}>
+                                                            <div onClick={() => setExpandedIds(prev => ({ ...prev, [m.id]: !isExpanded }))} className="p-3 flex justify-between items-start cursor-pointer hover:bg-black/5 rounded-t-xl transition-colors">
+                                                                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 overflow-hidden">
+                                                                    <div className="text-[12px] font-black text-slate-800 truncate flex items-center gap-1 shrink-0">
+                                                                        <Icon name={isExpanded ? "ChevronDown" : "ChevronRight"} size={10} className="text-slate-400"/>
+                                                                        {m.name}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <VersionTag version={m.version} />
+                                                                        <RankTag rank={m.rank}/>
+                                                                        <FateTag isFate={m.isFate}/>
+                                                                    </div>
+                                                                </div>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleTogglePin(m.id); }} className="opacity-0 group-hover/card:opacity-100 text-red-400 hover:text-red-600 transition-all shrink-0 ml-1"><Icon name="X" size={14}/></button>
+                                                            </div>
+                                                            {isExpanded && (
+                                                                <div className="px-3 pb-3 grid grid-cols-1 gap-1 animate-in">
+                                                                    {m.locations?.map((loc, i) => (
+                                                                        <div key={i} onClick={() => copyToClipboard(`${m.name} ${loc.map} (X: ${loc.x}, Y: ${loc.y})`, `kb-${m.id}-${i}`)} className="p-1.5 bg-white/80 rounded-lg hover:bg-white cursor-pointer relative border border-transparent hover:border-orange-200">
+                                                                            <div className="flex justify-between items-center">
+                                                                                <span className="text-[11px] font-black text-slate-500">{loc.map}</span>
+                                                                                <span className="text-[11px] font-mono text-blue-500 font-bold">X:{loc.x} Y:{loc.y}</span>
+                                                                            </div>
+                                                                            {copyFeedback === `kb-${m.id}-${i}` && <div className="absolute inset-0 bg-green-500/10 rounded-lg flex items-center justify-center animate-pulse"><Icon name="Check" size={10} className="text-green-600"/></div>}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    {view === 'admin' && (
+                        <div className="fixed inset-0 bg-white z-[60] flex flex-col p-6 animate-in">
+                            <div className="flex justify-between items-center mb-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-slate-900 text-white rounded-2xl"><Icon name="Shield" size={24}/></div>
+                                    <h2 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">管理控制台</h2>
+                                </div>
+								<div className="flex gap-2">
+									<button onClick={() => { 
+                                            const v = adminFilterVer || '2.0';
+                                            const initialMap = MAP_DATA[v].includes(adminFilterMap) ? adminFilterMap : MAP_DATA[v][0];
+											setEditData({ name: '', version: v, rank: 'None', isFate: false, locations: [{ map: initialMap, x: '', y: '' }] }); 
+											setShowEditor(true); 
+										}} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all">新增怪物</button>
+									<button onClick={() => setView('search')} className="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-xl font-black text-xs hover:bg-slate-200 transition-all">返回狩獵板</button>
+								</div>
+                            </div>
+                            
+                            <div className="bg-slate-50 p-4 rounded-2xl mb-4 flex gap-4 items-center border border-slate-200">
+                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none" value={adminFilterVer} onChange={e => setAdminFilterVer(e.target.value)}>
+                                    <option value="">全版本</option>{VERSIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none w-48" value={adminFilterMap} onChange={e => setAdminFilterMap(e.target.value)}>
+                                    <option value="">{adminFilterVer ? `${adminFilterVer} 地圖` : "所有地圖"}</option>
+                                    {getMapsForVersion(adminFilterVer).map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none" value={adminFilterRank} onChange={e => setAdminFilterRank(e.target.value)}>
+                                    <option value="">等級</option>
+                                    {RANKS.map(r => <option key={r} value={r}>{r === 'None' ? '一般' : `${r}級`}</option>)}
+                                </select>
+                                <button onClick={() => setAdminFilterFate(!adminFilterFate)} className={`px-4 py-2 rounded-lg text-xs font-black border transition-all ${adminFilterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400 border-slate-200'}`}>FATE</button>
+                                <div className="relative flex-1">
+                                    <Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                                    <input className="w-full pl-10 pr-4 py-2 bg-white border rounded-lg text-xs font-bold outline-none focus:border-blue-500 transition-all" placeholder="搜尋名稱..." value={adminSearchTerm} onChange={e => setAdminSearchTerm(e.target.value)}/>
+                                </div>
+							</div>
+
+                            <div className="flex-1 overflow-y-auto border rounded-2xl bg-white shadow-inner">
+                                <table className="w-full text-left">
+                                    <thead className="bg-slate-50 sticky top-0 z-10 border-b">
+                                        <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            <th className="p-4 w-12 text-center">
+                                                <input type="checkbox" checked={adminMonsters.length > 0 && selectedIds.length === adminMonsters.length} onChange={selectAllVisible}/>
+                                            </th>
+                                            <th className="p-4">名稱 / 標籤</th>
+                                            <th className="p-4">區域</th>
+                                            <th className="p-4 text-right">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {adminMonsters.map(m => (
+                                            <tr key={m.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(m.id) ? 'bg-blue-50' : ''}`}>
+                                                <td className="p-4 text-center">
+                                                    <input type="checkbox" checked={selectedIds.includes(m.id)} onChange={() => toggleSelect(m.id)}/>
+                                                </td>
+                                                <td className="p-4 flex items-center gap-3">
+                                                    <span className="font-bold text-sm text-slate-800 mr-1">{m.name}</span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <VersionTag version={m.version} />
+                                                        <RankTag rank={m.rank}/><FateTag isFate={m.isFate}/>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex gap-1 flex-wrap">
+                                                        {m.locations?.map((l, idx) => <span key={idx} className="text-[9px] font-bold bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-md">{l.map}</span>)}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <button onClick={() => { setEditData(m); setShowEditor(true); }} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Icon name="Edit3" size={16}/></button>
+                                                    <button onClick={async () => { if(confirm(`刪除 [${m.name}]？`)) await window.FB.deleteDoc(window.FB.doc(window.FB.getFirestore(), 'artifacts', appId, 'public', 'data', 'monsters', m.id)); }} className="p-2 text-red-400 hover:bg-red-50 rounded-lg ml-1"><Icon name="Trash2" size={16}/></button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {showEditor && editData && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-xl font-black text-slate-900">編輯資料</h3>
+                                    <button onClick={() => setShowEditor(false)} className="p-2 bg-slate-100 rounded-full"><Icon name="X" size={16}/></button>
+                                </div>
+                                <div className="space-y-5">
+									<div>
+										<label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">等級與屬性</label>
+										<div className="flex gap-2 mt-2">
+											<div className="flex-1 flex gap-1">
+												{RANKS.map(r => (
+													<button key={r} onClick={() => setEditData({...editData, rank: r})} className={`flex-1 py-2 rounded-xl text-[10px] font-black border transition-all ${editData.rank === r ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-200'}`}>
+														{r === "None" ? "一般" : r}
+													</button>
+												))}
+											</div>
+											<button onClick={() => setEditData({...editData, isFate: !editData.isFate})} className={`px-4 py-2 rounded-xl text-[10px] font-black border transition-all ${editData.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400 border-slate-200'}`}>FATE</button>
+										</div>
+									</div>
+								
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="col-span-2">
+                                            <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">怪物名稱</label>
+                                            <input className="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})}/>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">版本</label>
+                                            <select className="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1" value={editData.version} onChange={e=>{
+                                                const newVer = e.target.value;
+                                                const validMaps = MAP_DATA[newVer];
+                                                const newLocations = editData.locations.map(loc => ({ ...loc, map: validMaps.includes(loc.map) ? loc.map : validMaps[0] }));
+                                                setEditData({...editData, version: newVer, locations: newLocations});
+                                            }}>
+                                                {VERSIONS.map(v => <option key={v} value={v}>{v}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                        {/* ⚡ 新增的批次匯入區塊 */}
+                                        <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-2">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className="p-1 bg-blue-500 rounded text-white"><Icon name="Zap" size={10}/></div>
+                                                <label className="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
+                                            </div>
+                                            <textarea 
+                                                className="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-[11px] font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
+                                                placeholder="在此貼上多筆座標文字...&#10;例如：地圖名稱 (X: 6.28, Y: 21.06)"
+                                                rows="2"
+                                                onChange={(e) => {
+                                                    handleBatchParse(e.target.value);
+                                                    e.target.value = ""; // 解析後清空以便再次貼上
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="h-px bg-slate-100 my-4"></div>
+
+                                        <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">座標點位 (僅顯示 {editData.version} 地圖)</label>
+                                        {editData.locations.map((loc, i) => (
+                                            <div key={i} className="flex gap-2 p-3 bg-slate-50 rounded-2xl border items-center">
+                                                <select className="flex-1 bg-white border p-2 rounded-xl text-[11px] font-bold outline-none" value={loc.map} onChange={e => { const ls = [...editData.locations]; ls[i].map = e.target.value; setEditData({...editData, locations: ls}); }}>
+                                                    {MAP_DATA[editData.version].map(r => <option key={r} value={r}>{r}</option>)}
+                                                </select>
+                                                <div className="flex gap-1 items-center">
+                                                    <span className="text-[10px] font-black text-slate-300">X</span>
+                                                    <input className="w-14 bg-white border p-2 rounded-xl text-center text-[11px] font-mono" value={loc.x} onChange={e => { const ls = [...editData.locations]; ls[i].x = e.target.value; setEditData({...editData, locations: ls}); }}/>
+                                                </div>
+                                                <div className="flex gap-1 items-center">
+                                                    <span className="text-[10px] font-black text-slate-300">Y</span>
+                                                    <input className="w-14 bg-white border p-2 rounded-xl text-center text-[11px] font-mono" value={loc.y} onChange={e => { const ls = [...editData.locations]; ls[i].y = e.target.value; setEditData({...editData, locations: ls}); }}/>
+                                                </div>
+                                                <button onClick={() => setEditData({...editData, locations: editData.locations.filter((_, idx) => idx !== i)})} className="p-2 text-slate-300 hover:text-red-500"><Icon name="Trash2" size={14}/></button>
+                                            </div>
+                                        ))}
+                                        <button onClick={() => {
+                                                const currentFilterMap = adminFilterMap;
+                                                const isValidMap = MAP_DATA[editData.version].includes(currentFilterMap);
+                                                const defaultMap = isValidMap ? currentFilterMap : MAP_DATA[editData.version][0];
+                                                setEditData({...editData, locations: [...editData.locations, { map: defaultMap, x: '', y: '' }] });
+                                            }} className="w-full p-4 border-2 border-dashed rounded-2xl text-slate-400 text-[10px] font-black">+ 新增座標</button>
+                                    </div>
+                                    
+                                    <div className="flex gap-3 pt-4">
+                                        <button onClick={() => setShowEditor(false)} className="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-xs">取消</button>
+                                        <button onClick={async () => {
+                                            const { getFirestore, doc, setDoc } = window.FB;
+                                            const id = editData.id || `m_${Date.now()}`;
+                                            await setDoc(doc(getFirestore(), 'artifacts', appId, 'public', 'data', 'monsters', id), { ...editData, id });
+                                            setShowEditor(false);
+                                        }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg">儲存</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
