@@ -991,10 +991,7 @@
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">版本</label>
                                             <select className="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1" value={editData.version} onChange={e=>{
-                                                const newVer = e.target.value;
-                                                const validMaps = MAP_DATA[newVer];
-                                                const newLocations = editData.locations.map(loc => ({ ...loc, map: validMaps.includes(loc.map) ? loc.map : validMaps[0] }));
-                                                setEditData({...editData, version: newVer, locations: newLocations});
+                                                setEditData({...editData, version: e.target.value});
                                             }}>
                                                 {VERSIONS.map(v => <option key={v} value={v}>{v}</option>)}
                                             </select>
@@ -1021,11 +1018,14 @@
 
                                         <div className="h-px bg-slate-100 my-4"></div>
 
-                                        <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">座標點位 (僅顯示 {editData.version} 地圖)</label>
+                                        <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">座標點位</label>
                                         {editData.locations.map((loc, i) => (
                                             <div key={i} className="flex gap-2 p-3 bg-slate-50 rounded-2xl border items-center">
                                                 <select className="flex-1 bg-white border p-2 rounded-xl text-[11px] font-bold outline-none" value={loc.map} onChange={e => { const ls = [...editData.locations]; ls[i].map = e.target.value; setEditData({...editData, locations: ls}); }}>
                                                     {MAP_DATA[editData.version].map(r => <option key={r} value={r}>{r}</option>)}
+                                                    {ALL_REGIONS.filter(r => !MAP_DATA[editData.version].includes(r)).length > 0 && <optgroup label="其他版本">
+                                                        {ALL_REGIONS.filter(r => !MAP_DATA[editData.version].includes(r)).map(r => <option key={r} value={r}>{r}</option>)}
+                                                    </optgroup>}
                                                 </select>
                                                 <div className="flex gap-1 items-center">
                                                     <span className="text-[10px] font-black text-slate-300">X</span>
@@ -1039,9 +1039,8 @@
                                             </div>
                                         ))}
                                         <button onClick={() => {
-                                                const currentFilterMap = adminFilterMap;
-                                                const isValidMap = MAP_DATA[editData.version].includes(currentFilterMap);
-                                                const defaultMap = isValidMap ? currentFilterMap : MAP_DATA[editData.version][0];
+                                                const validMaps = MAP_DATA[editData.version];
+                                                const defaultMap = (adminFilterMap && validMaps.includes(adminFilterMap)) ? adminFilterMap : validMaps[0];
                                                 setEditData({...editData, locations: [...editData.locations, { map: defaultMap, x: '', y: '' }] });
                                             }} className="w-full p-4 border-2 border-dashed rounded-2xl text-slate-400 text-[10px] font-black">+ 新增座標</button>
                                     </div>
