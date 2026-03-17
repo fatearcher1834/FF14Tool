@@ -13,11 +13,11 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc, getDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc, getDoc, query, where, getDocs, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         window.FB = {
             initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken,
-            getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc, getDoc, query
+            getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc, getDoc, query, where, getDocs, limit
         };
     </script>
 
@@ -151,6 +151,18 @@
             const [fbReady, setFbReady] = useState(false);
             const [selectedIds, setSelectedIds] = useState([]);
 
+            // 管理員頁面的分頁狀態
+            const [adminMonstersList, setAdminMonstersList] = useState([]);
+            const [adminCurrentPage, setAdminCurrentPage] = useState(1);
+            const [adminTotalCount, setAdminTotalCount] = useState(0);
+            const [adminPageSize, setAdminPageSize] = useState(100);
+            
+            // 搜尋看板的加載數量
+            const [searchLoadLimit, setSearchLoadLimit] = useState(1000);
+            // 搜尋看板的分頁狀態
+            const [searchCurrentPage, setSearchCurrentPage] = useState(1);
+            const [searchPageSize, setSearchPageSize] = useState(100);
+
             const [searchTerm, setSearchTerm] = useState('');
             const [filterVer, setFilterVer] = useState('');
             const [filterMap, setFilterMap] = useState('');
@@ -235,12 +247,13 @@
                 if (savedAccount) { setVirtualId(savedAccount); setIsLoggedIn(true); }
             }, [fbReady]);
 
-            useEffect(() => {
+                            useEffect(() => {
                 if (!isLoggedIn || !virtualId || !fbReady) return;
-                const { getFirestore, collection, doc, setDoc, onSnapshot } = window.FB;
+                const { getFirestore, collection, doc, setDoc, onSnapshot, query, limit } = window.FB;
                 const db = getFirestore();
                 
-                const mUn = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'monsters'), s => {
+                // 監聽狩獵板的怪物資料（加載所有記錄供分頁用）
+                const mUn = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'monsters')), s => {
                     setMonsters(s.docs.map(d => ({ rank: "None", ...d.data(), id: d.id })));
                 });
 
@@ -257,6 +270,62 @@
                 });
                 return () => { mUn(); pUn(); gUn(); };
             }, [isLoggedIn, virtualId, fbReady]);
+
+            // 查詢管理員頁面的怪物資料（支援分頁和篩選）
+            const queryAdminMonsters = async (pageNum = 1, filters = {}) => {
+                try {
+                    const { getFirestore, collection, getDocs, query, where, orderBy, limit, offset } = window.FB;
+                    const db = getFirestore();
+                    const monstersRef = collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
+                    
+                    // 構建查詢條件
+                    let constraints = [];
+                    if (filters.searchTerm) {
+                        // 名稱搜尋（簡單前綴匹配，Firestore 不支援 LIKE）
+                        constraints.push(where('name', '>=', filters.searchTerm));
+                        constraints.push(where('name', '<=', filters.searchTerm + '\uf8ff'));
+                    }
+                    
+                    // 先獲取符合條件的總數
+                    const countQuery = query(monstersRef, ...constraints);
+                    const countSnapshot = await getDocs(countQuery);
+                    const totalCount = countSnapshot.docs.length;
+                    
+                    // 再獲取該頁的數據 (Firestore 不支援 OFFSET，改用實記錄到記錄索引)
+                    const sortedDocs = countSnapshot.docs
+                        .map(d => ({ id: d.id, rank: "None", ...d.data() }))
+                        .sort((a, b) => a.name.localeCompare(b.name)); // 按名稱排序
+                    
+                    const pageSize = adminPageSize;
+                    const startIdx = (pageNum - 1) * pageSize;
+                    const endIdx = startIdx + pageSize;
+                    const pageData = sortedDocs.slice(startIdx, endIdx);
+                    const totalPages = Math.ceil(totalCount / pageSize);
+                    
+                    setAdminMonstersList(pageData);
+                    setAdminTotalCount(totalCount);
+                    setAdminCurrentPage(pageNum);
+                    
+                    return { data: pageData, total: totalCount, totalPages, currentPage: pageNum };
+                } catch (error) {
+                    console.error('查詢管理員怪物失敗:', error);
+                    return { data: [], total: 0, totalPages: 0, currentPage: 1 };
+                }
+            };
+
+            // 當進入管理員界面時，初始化查詢第 1 頁
+            useEffect(() => {
+                if (view === 'admin' && isLoggedIn) {
+                    queryAdminMonsters(1, {});
+                }
+            }, [view, isLoggedIn]);
+            
+            // 當管理員頁面大小改變時，重新查詢第 1 頁
+            useEffect(() => {
+                if (view === 'admin' && isLoggedIn) {
+                    queryAdminMonsters(1, { searchTerm: adminSearchTerm });
+                }
+            }, [adminPageSize]);
 
             const proceedLogin = (acc) => {
                 localStorage.setItem('ff14_virtual_account', acc);
@@ -311,6 +380,15 @@
             };
 
             const filteredMonsters = useMemo(() => applyFilter(monsters, searchTerm, filterVer, filterMap, filterRank, filterFate, filterJob), [monsters, searchTerm, filterVer, filterMap, filterRank, filterFate, filterJob]);
+            
+            // 批量擊取搜尋看板的當前頁數據
+            const searchPagedMonsters = useMemo(() => {
+                const startIdx = (searchCurrentPage - 1) * searchPageSize;
+                const endIdx = startIdx + searchPageSize;
+                return filteredMonsters.slice(startIdx, endIdx);
+            }, [filteredMonsters, searchCurrentPage, searchPageSize]);
+            
+            const searchTotalPages = Math.ceil(filteredMonsters.length / searchPageSize);
             const kbFilteredMonsters = useMemo(() => applyFilter(monsters, kbSearchTerm, kbFilterVer, kbFilterMap, '', false, kbFilterJob), [monsters, kbSearchTerm, kbFilterVer, kbFilterMap, kbFilterJob]);
             const adminMonsters = useMemo(() => applyFilter(monsters, adminSearchTerm, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate, adminFilterJob), [monsters, adminSearchTerm, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate, adminFilterJob]);
 
@@ -330,7 +408,7 @@
                 const nextState = !isMainGlobalExpanded;
                 setIsMainGlobalExpanded(nextState);
                 const newStates = {};
-                filteredMonsters.forEach(m => { newStates[m.id] = nextState; });
+                searchPagedMonsters.forEach(m => { newStates[m.id] = nextState; });
                 setMainExpandedIds(newStates);
             };
 
@@ -353,57 +431,66 @@
                 const { getFirestore, doc, setDoc } = window.FB;
                 const db = getFirestore();
                 for (const name of bulkParsedList) {
-                    // 從本地 monsters 陣列檢查是否已存在相同名字的怪物
-                    const existingMonster = monsters.find(m => m.name === name);
+                    // 直接查詢數據庫檢查是否已存在相同名字的怪物
+                    try {
+                        const monstersRef = window.FB.collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
+                        const q = window.FB.query(monstersRef, window.FB.where('name', '==', name));
+                        const querySnapshot = await window.FB.getDocs(q);
+                        const existingDoc = querySnapshot.docs[0];
+                        const existingMonster = existingDoc?.data() || null;
+                        const existingId = existingDoc?.id;
                     
-                    if (!existingMonster) {
-                        // 不存在，創建新怪物
-                        const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
-                            id,
-                            name,
-                            version: bulkConfig.version,
-                            rank: bulkConfig.rank,
-                            isFate: bulkConfig.isFate,
-                            jobs: bulkJobFinal ? [bulkJobFinal] : null,
-                            locations: [{ map: bulkConfig.map, x: '', y: '' }]
-                        });
-                    } else {
-                        // 存在，更新現有怪物（累加資料）
-                        // 合併討伐筆記標籤：優先保留現有的 jobs 陣列，或從舊 job 字符串轉換
-                        const newJobs = existingMonster.jobs || (existingMonster.job ? [existingMonster.job] : (bulkJobFinal ? [bulkJobFinal] : null));
-                        
-                        // 合併 isFate：只要有一方為 true 就保留 true
-                        const mergedIsFate = existingMonster.isFate || bulkConfig.isFate;
-                        
-                        // 合併 rank：保留現有的，因為同一隻怪物的等級應該一致
-                        const mergedRank = existingMonster.rank || bulkConfig.rank;
-                        
-                        // 合併位置：避免重複（根據 map, x, y 判斷）
-                        const newLocation = { map: bulkConfig.map, x: '', y: '' };
-                        const existingLocations = existingMonster.locations || [];
-                        let locations = [...existingLocations];
-                        
-                        // 只有當新位置有實際座標時，才檢查重複
-                        if (newLocation.x !== '' && newLocation.y !== '') {
-                            const locationExists = locations.some(
-                                loc => loc.map === newLocation.map && loc.x === newLocation.x && loc.y === newLocation.y
-                            );
+                        if (!existingMonster) {
+                            // 不存在，創建新怪物
+                            const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
+                                id,
+                                name,
+                                version: bulkConfig.version,
+                                rank: bulkConfig.rank,
+                                isFate: bulkConfig.isFate,
+                                jobs: bulkJobFinal ? [bulkJobFinal] : null,
+                                locations: [{ map: bulkConfig.map, x: '', y: '' }]
+                            });
+                        } else {
+                            // 存在，更新現有怪物（累加資料）
+                            // 合併討伐筆記標籤：優先保留現有的 jobs 陣列，或從舊 job 字符串轉換
+                            const newJobs = existingMonster.jobs || (existingMonster.job ? [existingMonster.job] : (bulkJobFinal ? [bulkJobFinal] : null));
                             
-                            if (!locationExists) {
-                                locations.push(newLocation);
+                            // 合併 isFate：只要有一方為 true 就保留 true
+                            const mergedIsFate = existingMonster.isFate || bulkConfig.isFate;
+                            
+                            // 合併 rank：保留現有的，因為同一隻怪物的等級應該一致
+                            const mergedRank = existingMonster.rank || bulkConfig.rank;
+                            
+                            // 合併位置：避免重複（根據 map, x, y 判斷）
+                            const newLocation = { map: bulkConfig.map, x: '', y: '' };
+                            const existingLocations = existingMonster.locations || [];
+                            let locations = [...existingLocations];
+                            
+                            // 只有當新位置有實際座標時，才檢查重複
+                            if (newLocation.x !== '' && newLocation.y !== '') {
+                                const locationExists = locations.some(
+                                    loc => loc.map === newLocation.map && loc.x === newLocation.x && loc.y === newLocation.y
+                                );
+                                
+                                if (!locationExists) {
+                                    locations.push(newLocation);
+                                }
                             }
+                            // 否則空座標不添加
+                            
+                            // 更新現有怪物
+                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', existingId), {
+                                ...existingMonster,
+                                jobs: newJobs,
+                                isFate: mergedIsFate,
+                                rank: mergedRank,
+                                locations: locations
+                            });
                         }
-                        // 否則空座標不添加
-                        
-                        // 更新現有怪物
-                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', existingMonster.id), {
-                            ...existingMonster,
-                            jobs: newJobs,
-                            isFate: mergedIsFate,
-                            rank: mergedRank,
-                            locations: locations
-                        });
+                    } catch (error) {
+                        console.error(`批量新增 [${name}] 失敗:`, error);
                     }
                 }
                 setShowBulkAdd(false);
@@ -479,7 +566,10 @@
                                 <div className="flex items-center gap-3">
                                     <div className="relative flex-1">
                                         <Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                                        <input className="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-2xl text-xs outline-none font-bold" placeholder="搜尋怪物..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
+                                        <input className="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-2xl text-xs outline-none font-bold" placeholder="搜尋怪物..." value={searchTerm} onChange={e => {
+                                            setSearchTerm(e.target.value);
+                                            setSearchCurrentPage(1);
+                                        }}/>
                                     </div>
                                     <button onClick={toggleMainAllExpanded} className={`p-2.5 rounded-2xl flex items-center justify-center transition-all border ${isMainGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200'}`} title={isMainGlobalExpanded ? "目前為全部展開模式" : "目前為全部摺疊模式"}>
                                         <Icon name={isMainGlobalExpanded ? "ChevronUp" : "ChevronDown"} size={18}/>
@@ -490,18 +580,30 @@
                                     </button>
                                 </div>
                                 <div className="flex gap-2 items-center">
-                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none" value={filterVer} onChange={e => setFilterVer(e.target.value)}>
+                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none" value={filterVer} onChange={e => {
+                                        setFilterVer(e.target.value);
+                                        setSearchCurrentPage(1);
+                                    }}>
                                         <option value="">全版本</option>{VERSIONS.map(v => <option key={v} value={v}>{v}</option>)}
                                     </select>
-                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none flex-1" value={filterMap} onChange={e => setFilterMap(e.target.value)}>
+                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none flex-1" value={filterMap} onChange={e => {
+                                        setFilterMap(e.target.value);
+                                        setSearchCurrentPage(1);
+                                    }}>
                                         <option value="">{filterVer ? `${filterVer} 所有地圖` : "所有地圖"}</option>
                                         {getMapsForVersion(filterVer).map(r => <option key={r} value={r}>{r}</option>)}
                                     </select>
-                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none" value={filterRank} onChange={e => setFilterRank(e.target.value)}>
+                                    <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none" value={filterRank} onChange={e => {
+                                        setFilterRank(e.target.value);
+                                        setSearchCurrentPage(1);
+                                    }}>
                                         <option value="">等級</option>
                                         {RANKS.map(r => <option key={r} value={r}>{r === 'None' ? '一般' : `${r}級`}</option>)}
                                     </select>
-                                    <button onClick={() => setFilterFate(!filterFate)} className={`px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all ${filterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>FATE</button>
+                                    <button onClick={() => {
+                                        setFilterFate(!filterFate);
+                                        setSearchCurrentPage(1);
+                                    }} className={`px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all ${filterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>FATE</button>
                                     <button onClick={() => {
                                         if (filterJob) {
                                             setFilterJob('');
@@ -510,9 +612,13 @@
                                             setFilterJob('*');
                                             setShowJobFilter(true);
                                         }
+                                        setSearchCurrentPage(1);
                                     }} className={`px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all ${filterJob ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>討伐筆記</button>
                                     {showJobFilter && (
-                                        <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none border" value={filterJob} onChange={e => setFilterJob(e.target.value)}>
+                                        <select className="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none border" value={filterJob} onChange={e => {
+                                            setFilterJob(e.target.value);
+                                            setSearchCurrentPage(1);
+                                        }}>
                                             <option value="*">全部</option>
                                             {JOB_BASE_NAMES.map(j => <option key={j} value={j}>{j}</option>)}
                                         </select>
@@ -520,9 +626,45 @@
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
-                                    {filteredMonsters.map(m => {
+                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col">
+                                {/* 搜尋看板分頁導航 */}
+                                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-3 border">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[12px] font-bold text-slate-600">
+                                            共 <span className="font-black text-slate-800">{filteredMonsters.length}</span> 筆 | 第 <span className="font-black text-slate-800">{searchCurrentPage}</span> 頁
+                                        </span>
+                                        <select className="bg-white border p-1.5 rounded text-[11px] font-black outline-none" value={searchPageSize} onChange={(e) => {
+                                            setSearchPageSize(parseInt(e.target.value));
+                                            setSearchCurrentPage(1);
+                                        }}>
+                                            <option value={20}>20筆</option>
+                                            <option value={50}>50筆</option>
+                                            <option value={100}>100筆</option>
+                                            <option value={300}>300筆</option>
+                                            <option value={500}>500筆</option>
+                                            <option value={1000}>1000筆</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => setSearchCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={searchCurrentPage === 1}
+                                            className="px-3 py-1.5 bg-white border rounded-lg text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                                        >
+                                            ← 上一頁
+                                        </button>
+                                        <button 
+                                            onClick={() => setSearchCurrentPage(prev => Math.min(prev + 1, searchTotalPages))}
+                                            disabled={searchCurrentPage >= searchTotalPages}
+                                            className="px-3 py-1.5 bg-white border rounded-lg text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                                        >
+                                            下一頁 →
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 items-start flex-1">
+                                    {searchPagedMonsters.map(m => {
                                         const isMainExpanded = mainExpandedIds[m.id] === true;
                                         return (
                                             <div key={m.id} className="bg-white rounded-3xl border border-slate-200 hover:border-blue-400 transition-all group relative overflow-hidden shadow-sm">
@@ -728,16 +870,53 @@
                                 )}
                                 <div className="relative flex-1">
                                     <Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                                    <input className="w-full pl-10 pr-4 py-2 bg-white border rounded-lg text-xs font-bold outline-none focus:border-blue-500 transition-all" placeholder="搜尋名稱..." value={adminSearchTerm} onChange={e => setAdminSearchTerm(e.target.value)}/>
+                                    <input className="w-full pl-10 pr-4 py-2 bg-white border rounded-lg text-xs font-bold outline-none focus:border-blue-500 transition-all" placeholder="搜尋名稱..." value={adminSearchTerm} onChange={async (e) => {
+                                        setAdminSearchTerm(e.target.value);
+                                        // 搜尋時重新查詢，回到第 1 頁
+                                        await queryAdminMonsters(1, { searchTerm: e.target.value });
+                                    }}/>
                                 </div>
 							</div>
 
-                            <div className="flex-1 overflow-y-auto border rounded-2xl bg-white shadow-inner">
-                                <table className="w-full text-left">
+                            {/* 分頁導航（上方） */}
+                            <div className="flex items-center justify-between p-4 bg-slate-50 border rounded-t-2xl space-y-0">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[12px] font-bold text-slate-600">
+                                        共 <span className="font-black text-slate-800">{adminTotalCount}</span> 筆 | 第 <span className="font-black text-slate-800">{adminCurrentPage}</span> 頁
+                                    </span>
+                                    <select className="bg-white border p-1.5 rounded text-[11px] font-black outline-none" value={adminPageSize} onChange={(e) => setAdminPageSize(parseInt(e.target.value))}>
+                                        <option value={20}>20筆</option>
+                                        <option value={50}>50筆</option>
+                                        <option value={100}>100筆</option>
+                                        <option value={300}>300筆</option>
+                                        <option value={500}>500筆</option>
+                                        <option value={1000}>1000筆</option>
+                                    </select>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => queryAdminMonsters(adminCurrentPage - 1, { searchTerm: adminSearchTerm })}
+                                        disabled={adminCurrentPage === 1}
+                                        className="px-3 py-1.5 bg-white border rounded-lg text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                                    >
+                                        ← 上一頁
+                                    </button>
+                                    <button 
+                                        onClick={() => queryAdminMonsters(adminCurrentPage + 1, { searchTerm: adminSearchTerm })}
+                                        disabled={adminCurrentPage * adminPageSize >= adminTotalCount}
+                                        className="px-3 py-1.5 bg-white border rounded-lg text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                                    >
+                                        下一頁 →
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* 表格 */}
+                            <div className="flex-1 overflow-y-auto border border-t-0 rounded-b-2xl bg-white shadow-inner flex flex-col">
+                                <table className="w-full text-left flex-shrink-0">
                                     <thead className="bg-slate-50 sticky top-0 z-10 border-b">
                                         <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                            <th className="p-4 w-12 text-center">
-                                                <input type="checkbox" checked={adminMonsters.length > 0 && selectedIds.length === adminMonsters.length} onChange={selectAllVisible}/>
+                                            <th className="p-4 w-12 text-center" style={{width: '48px'}}>
                                             </th>
                                             <th className="p-4">名稱 / 標籤</th>
                                             <th className="p-4">區域</th>
@@ -745,10 +924,9 @@
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {adminMonsters.map(m => (
-                                            <tr key={m.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(m.id) ? 'bg-blue-50' : ''}`}>
-                                                <td className="p-4 text-center">
-                                                    <input type="checkbox" checked={selectedIds.includes(m.id)} onChange={() => toggleSelect(m.id)}/>
+                                        {adminMonstersList.map(m => (
+                                            <tr key={m.id} className={`hover:bg-slate-50 transition-colors`}>
+                                                <td className="p-4 text-center" style={{width: '48px'}}>
                                                 </td>
                                                 <td className="p-4 flex items-center gap-3">
                                                     <span className="font-bold text-sm text-slate-800 mr-1">{m.name}</span>
@@ -1059,59 +1237,67 @@
                                             
                                             // 如果是新增（沒有 ID），檢查是否已存在相同名字的怪物
                                             if (!editData.id) {
-                                                const existingMonster = monsters.find(m => m.name === editData.name);
-                                                
-                                                if (existingMonster) {
-                                                    // 存在相同名字，執行合併
-                                                    // 合併討伐筆記標籤（支持多個）
-                                                    const existingJobs = existingMonster.jobs || (existingMonster.job ? [existingMonster.job] : []);
-                                                    const mergedJobs = [...existingJobs];
-                                                    editJobs.forEach(job => {
-                                                        if (!mergedJobs.includes(job)) {
-                                                            mergedJobs.push(job);
-                                                        }
-                                                    });
+                                                try {
+                                                    const monstersRef = window.FB.collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
+                                                    const q = window.FB.query(monstersRef, window.FB.where('name', '==', editData.name));
+                                                    const querySnapshot = await window.FB.getDocs(q);
+                                                    const existingDoc = querySnapshot.docs[0];
+                                                    const existingMonster = existingDoc?.data() || null;
                                                     
-                                                    // 合併 isFate：只要有一方為 true 就保留 true
-                                                    const mergedIsFate = existingMonster.isFate || editData.isFate;
-                                                    
-                                                    // 合併 rank：保留現有的，除非現有的是 "None" 而新增的不是
-                                                    const mergedRank = (existingMonster.rank && existingMonster.rank !== 'None') ? existingMonster.rank : editData.rank;
-                                                    
-                                                    // 合併位置
-                                                    const existingLocations = existingMonster.locations || [];
-                                                    let locations = [...existingLocations];
-                                                    
-                                                    // 添加新位置（避免重複，只比對有實際座標的位置）
-                                                    editData.locations.forEach(newLoc => {
-                                                        // 只有當新位置有實際座標時，才檢查重複
-                                                        if (newLoc.x !== '' && newLoc.y !== '') {
-                                                            const locationExists = locations.some(
-                                                                loc => loc.map === newLoc.map && loc.x === newLoc.x && loc.y === newLoc.y
-                                                            );
-                                                            if (!locationExists) {
-                                                                locations.push(newLoc);
+                                                    if (existingMonster) {
+                                                        // 存在相同名字，執行合併
+                                                        // 合併討伐筆記標籤（支持多個）
+                                                        const existingJobs = existingMonster.jobs || (existingMonster.job ? [existingMonster.job] : []);
+                                                        const mergedJobs = [...existingJobs];
+                                                        editJobs.forEach(job => {
+                                                            if (!mergedJobs.includes(job)) {
+                                                                mergedJobs.push(job);
                                                             }
-                                                        }
-                                                        // 否則空座標不添加
-                                                    });
-                                                    
-                                                    // 更新現有怪物
-                                                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', existingMonster.id), {
-                                                        ...existingMonster,
-                                                        jobs: mergedJobs.length > 0 ? mergedJobs : null,
-                                                        isFate: mergedIsFate,
-                                                        rank: mergedRank,
-                                                        locations: locations
-                                                    });
-                                                } else {
-                                                    // 不存在，創建新怪物
-                                                    const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-                                                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
-                                                        ...editData,
-                                                        jobs: editJobs.length > 0 ? editJobs : null,
-                                                        id
-                                                    });
+                                                        });
+                                                        
+                                                        // 合併 isFate：只要有一方為 true 就保留 true
+                                                        const mergedIsFate = existingMonster.isFate || editData.isFate;
+                                                        
+                                                        // 合併 rank：保留現有的，除非現有的是 "None" 而新增的不是
+                                                        const mergedRank = (existingMonster.rank && existingMonster.rank !== 'None') ? existingMonster.rank : editData.rank;
+                                                        
+                                                        // 合併位置
+                                                        const existingLocations = existingMonster.locations || [];
+                                                        let locations = [...existingLocations];
+                                                        
+                                                        // 添加新位置（避免重複，只比對有實際座標的位置）
+                                                        editData.locations.forEach(newLoc => {
+                                                            // 只有當新位置有實際座標時，才檢查重複
+                                                            if (newLoc.x !== '' && newLoc.y !== '') {
+                                                                const locationExists = locations.some(
+                                                                    loc => loc.map === newLoc.map && loc.x === newLoc.x && loc.y === newLoc.y
+                                                                );
+                                                                if (!locationExists) {
+                                                                    locations.push(newLoc);
+                                                                }
+                                                            }
+                                                            // 否則空座標不添加
+                                                        });
+                                                        
+                                                        // 更新現有怪物
+                                                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', existingDoc.id), {
+                                                            ...existingMonster,
+                                                            jobs: mergedJobs.length > 0 ? mergedJobs : null,
+                                                            isFate: mergedIsFate,
+                                                            rank: mergedRank,
+                                                            locations: locations
+                                                        });
+                                                    } else {
+                                                        // 不存在，創建新怪物
+                                                        const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                                                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
+                                                            ...editData,
+                                                            jobs: editJobs.length > 0 ? editJobs : null,
+                                                            id
+                                                        });
+                                                    }
+                                                } catch (error) {
+                                                    console.error('編輯保存失敗:', error);
                                                 }
                                             } else {
                                                 // 編輯現有怪物，直接更新
