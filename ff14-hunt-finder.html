@@ -94,7 +94,7 @@
                 "7.0": "bg-amber-600",
             };
             const bgColor = versionColors[version] || "bg-blue-600";
-            return <span className={`text-[9px] font-black px-1.5 py-0.5 rounded text-white shrink-0 leading-none shadow-sm ${bgColor}`}>{version}</span>;
+            return <span className={`text-[10px] font-black px-1.5 py-0.5 rounded text-white shrink-0 leading-none shadow-sm ${bgColor}`}>{version}</span>;
         };
 
         const RankTag = ({ rank }) => {
@@ -105,12 +105,12 @@
                 'S': 'bg-amber-500 text-white shadow-sm',
                 'SS': 'bg-purple-600 text-white shadow-md animate-pulse'
             };
-            return <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${colors[rank] || 'bg-slate-200'}`}>{rank}</span>;
+            return <span className={`text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${colors[rank] || 'bg-slate-200'}`}>{rank}</span>;
         };
 
         const FateTag = ({ isFate }) => {
             if (!isFate) return null;
-            return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-pink-500 text-white shrink-0 leading-none">FATE</span>;
+            return <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-pink-500 text-white shrink-0 leading-none">FATE</span>;
         };
 
         const JobTag = ({ job }) => {
@@ -129,7 +129,9 @@
                 '雙蛇黨': 'bg-fuchsia-600 text-white',
                 '恆輝隊': 'bg-cyan-500 text-white'
             };
-            return <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${jobColors[job] || 'bg-slate-400 text-white'}`}>{job}</span>;
+            // 提取基職業名稱（移除數字後綴）
+            const jobBase = JOB_BASE_NAMES.find(j => job.startsWith(j)) || '';
+            return <span className={`text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${jobColors[jobBase] || 'bg-slate-400 text-white'}`}>{job}</span>;
         };
 
         function App() {
