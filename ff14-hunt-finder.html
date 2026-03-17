@@ -147,6 +147,7 @@
             const [monsters, setMonsters] = useState([]);
             const [userPins, setUserPins] = useState({});
             const [customGroups, setCustomGroups] = useState([]);
+            const [isUserAdmin, setIsUserAdmin] = useState(false);
             const [view, setView] = useState('search');
             const [fbReady, setFbReady] = useState(false);
             const [selectedIds, setSelectedIds] = useState([]);
@@ -249,7 +250,7 @@
 
                             useEffect(() => {
                 if (!isLoggedIn || !virtualId || !fbReady) return;
-                const { getFirestore, collection, doc, setDoc, onSnapshot, query, limit } = window.FB;
+                const { getFirestore, collection, doc, setDoc, onSnapshot, query, limit, getDoc } = window.FB;
                 const db = getFirestore();
                 
                 // 監聽狩獵板的怪物資料（加載所有記錄供分頁用）
@@ -268,6 +269,24 @@
                         setDoc(doc(db, 'artifacts', appId, 'users', virtualId, 'groups', 'default'), { name: '常用區域', order: 0, canDelete: false });
                     } else { setCustomGroups(groups.sort((a, b) => a.order - b.order)); }
                 });
+                
+                // 查詢用戶權限
+                const checkAdminStatus = async () => {
+                    try {
+                        const userDocRef = doc(db, 'artifacts', appId, 'users', virtualId);
+                        const userDocSnap = await getDoc(userDocRef);
+                        if (userDocSnap.exists()) {
+                            setIsUserAdmin(userDocSnap.data().isAdmin === true);
+                        } else {
+                            setIsUserAdmin(false);
+                        }
+                    } catch (error) {
+                        console.error('查詢用戶權限失敗:', error);
+                        setIsUserAdmin(false);
+                    }
+                };
+                checkAdminStatus();
+                
                 return () => { mUn(); pUn(); gUn(); };
             }, [isLoggedIn, virtualId, fbReady]);
 
@@ -555,7 +574,9 @@
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setView('search')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${view === 'search' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>狩獵板</button>
-                            <button onClick={() => setView('admin')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${view === 'admin' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>管理員</button>
+                            {isUserAdmin && (
+                                <button onClick={() => setView('admin')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${view === 'admin' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>管理</button>
+                            )}
                             <button onClick={() => { localStorage.removeItem('ff14_virtual_account'); setIsLoggedIn(false); }} className="p-1.5 text-slate-500 hover:text-red-400"><Icon name="LogOut" size={18}/></button>
                         </div>
                     </nav>
