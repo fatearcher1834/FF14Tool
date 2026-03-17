@@ -210,6 +210,12 @@
             const [showEditorJobFilter, setShowEditorJobFilter] = useState(false);
             const [copyFeedback, setCopyFeedback] = useState(null);
 
+            // 排序狀態（分開欄位和方向）
+            const [searchSortField, setSearchSortField] = useState('name');
+            const [searchSortDir, setSearchSortDir] = useState('asc');
+            const [adminSortField, setAdminSortField] = useState('name');
+            const [adminSortDir, setAdminSortDir] = useState('asc');
+
             useEffect(() => { setFilterMap(''); }, [filterVer]);
             useEffect(() => { setKbFilterMap(''); }, [kbFilterVer]);
             useEffect(() => { setAdminFilterMap(''); }, [adminFilterVer]);
@@ -315,14 +321,14 @@
                         return true;
                     });
                     
-                    // 排序
-                    allDocs.sort((a, b) => a.name.localeCompare(b.name));
+                    // 應用排序
+                    const sortedAllDocs = sortMonsters(allDocs, adminSortField, adminSortDir);
                     
-                    const totalCount = allDocs.length;
+                    const totalCount = sortedAllDocs.length;
                     const pageSize = adminPageSize;
                     const startIdx = (pageNum - 1) * pageSize;
                     const endIdx = startIdx + pageSize;
-                    const pageData = allDocs.slice(startIdx, endIdx);
+                    const pageData = sortedAllDocs.slice(startIdx, endIdx);
                     const totalPages = Math.ceil(totalCount / pageSize);
                     
                     setAdminMonstersList(pageData);
@@ -343,12 +349,12 @@
                 }
             }, [view, isLoggedIn]);
             
-            // 當管理員頁面大小改變時，重新查詢第 1 頁
+            // 當管理員頁面大小改變或排序改變時，重新查詢第 1 頁
             useEffect(() => {
                 if (view === 'admin' && isLoggedIn) {
                     queryAdminMonsters(1, { searchTerm: adminSearchTerm });
                 }
-            }, [adminPageSize, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate, adminFilterJob]);
+            }, [adminPageSize, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate, adminFilterJob, adminSortField, adminSortDir]);
 
             const proceedLogin = (acc) => {
                 localStorage.setItem('ff14_virtual_account', acc);
@@ -402,18 +408,52 @@
                 });
             };
 
+            // 排序怪物列表
+            const sortMonsters = (list, field, direction) => {
+                if (!field) return list;
+                const sorted = [...list].sort((a, b) => {
+                    let aVal, bVal;
+                    
+                    if (field === 'name') {
+                        aVal = (a.name || '').toLowerCase();
+                        bVal = (b.name || '').toLowerCase();
+                    } else if (field === 'job') {
+                        // 排序討伐筆記編號（01, 02, ...）
+                        const aJobs = a.jobs || (a.job ? [a.job] : []);
+                        const bJobs = b.jobs || (b.job ? [b.job] : []);
+                        aVal = aJobs.length > 0 ? aJobs[0] : '';
+                        bVal = bJobs.length > 0 ? bJobs[0] : '';
+                    } else if (field === 'map') {
+                        // 排序地圖（取第一個位置）
+                        const aLocs = a.locations || [];
+                        const bLocs = b.locations || [];
+                        aVal = (aLocs.length > 0 ? aLocs[0].map : '').toLowerCase();
+                        bVal = (bLocs.length > 0 ? bLocs[0].map : '').toLowerCase();
+                    }
+                    
+                    if (direction === 'asc') {
+                        return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                    } else {
+                        return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                    }
+                });
+                return sorted;
+            };
+
             const filteredMonsters = useMemo(() => applyFilter(monsters, searchTerm, filterVer, filterMap, filterRank, filterFate, filterJob), [monsters, searchTerm, filterVer, filterMap, filterRank, filterFate, filterJob]);
             
-            // 批量擊取搜尋看板的當前頁數據
+            // 批量擊取搜尋看板的當前頁數據（應用排序）
+            const sortedFilteredMonsters = useMemo(() => sortMonsters(filteredMonsters, searchSortField, searchSortDir), [filteredMonsters, searchSortField, searchSortDir]);
             const searchPagedMonsters = useMemo(() => {
                 const startIdx = (searchCurrentPage - 1) * searchPageSize;
                 const endIdx = startIdx + searchPageSize;
-                return filteredMonsters.slice(startIdx, endIdx);
-            }, [filteredMonsters, searchCurrentPage, searchPageSize]);
+                return sortedFilteredMonsters.slice(startIdx, endIdx);
+            }, [sortedFilteredMonsters, searchCurrentPage, searchPageSize]);
             
             const searchTotalPages = Math.ceil(filteredMonsters.length / searchPageSize);
             const kbFilteredMonsters = useMemo(() => applyFilter(monsters, kbSearchTerm, kbFilterVer, kbFilterMap, '', false, kbFilterJob), [monsters, kbSearchTerm, kbFilterVer, kbFilterMap, kbFilterJob]);
             const adminMonsters = useMemo(() => applyFilter(monsters, adminSearchTerm, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate, adminFilterJob), [monsters, adminSearchTerm, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate, adminFilterJob]);
+            const sortedAdminMonsters = useMemo(() => sortMonsters(adminMonsters, adminSortField, adminSortDir), [adminMonsters, adminSortField, adminSortDir]);
 
             const toggleSelect = (id) => {
                 setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -669,6 +709,20 @@
                                             <option value={500}>500筆</option>
                                             <option value={1000}>1000筆</option>
                                         </select>
+                                        <select className="bg-white border p-1.5 rounded text-[11px] font-black outline-none" value={searchSortField} onChange={(e) => {
+                                            setSearchSortField(e.target.value);
+                                            setSearchCurrentPage(1);
+                                        }}>
+                                            <option value="name">名字</option>
+                                            <option value="job">討伐筆記</option>
+                                            <option value="map">地圖</option>
+                                        </select>
+                                        <button onClick={() => {
+                                            setSearchSortDir(searchSortDir === 'asc' ? 'desc' : 'asc');
+                                            setSearchCurrentPage(1);
+                                        }} className="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50">
+                                            {searchSortDir === 'asc' ? '↑' : '↓'}
+                                        </button>
                                     </div>
                                     <div className="flex gap-2">
                                         <button 
@@ -930,6 +984,20 @@
                                         <option value={500}>500筆</option>
                                         <option value={1000}>1000筆</option>
                                     </select>
+                                    <select className="bg-white border p-1.5 rounded text-[11px] font-black outline-none" value={adminSortField} onChange={(e) => {
+                                        setAdminSortField(e.target.value);
+                                        queryAdminMonsters(1, { searchTerm: adminSearchTerm });
+                                    }}>
+                                        <option value="name">名字</option>
+                                        <option value="job">討伐筆記</option>
+                                        <option value="map">地圖</option>
+                                    </select>
+                                    <button onClick={() => {
+                                        setAdminSortDir(adminSortDir === 'asc' ? 'desc' : 'asc');
+                                        queryAdminMonsters(adminCurrentPage, { searchTerm: adminSearchTerm });
+                                    }} className="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50">
+                                        {adminSortDir === 'asc' ? '↑' : '↓'}
+                                    </button>
                                 </div>
                                 <div className="flex gap-2">
                                     <button 
