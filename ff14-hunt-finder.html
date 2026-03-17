@@ -712,19 +712,21 @@
                                                 <td className="p-4 text-right">
                                                     <button onClick={() => { 
                                                         setEditData(m);
-                                                        // 解析job為jobBase和jobSuffix
+                                                        // 立即解析job為jobBase和jobSuffix
                                                         let base = '';
                                                         let suffix = '';
+                                                        let showDropdown = false;
                                                         if (m.job) {
                                                             const matchedJob = JOB_BASE_NAMES.find(j => m.job.startsWith(j));
                                                             if (matchedJob) {
                                                                 base = matchedJob;
                                                                 suffix = m.job.substring(matchedJob.length);
+                                                                showDropdown = true;
                                                             }
                                                         }
                                                         setEditJobBase(base);
                                                         setEditJobSuffix(suffix);
-                                                        setShowEditorJobFilter(false);
+                                                        setShowEditorJobFilter(showDropdown);
                                                         setShowEditor(true); 
                                                     }} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Icon name="Edit3" size={16}/></button>
                                                     <button onClick={async () => { if(confirm(`刪除 [${m.name}]？`)) await window.FB.deleteDoc(window.FB.doc(window.FB.getFirestore(), 'artifacts', appId, 'public', 'data', 'monsters', m.id)); }} className="p-2 text-red-400 hover:bg-red-50 rounded-lg ml-1"><Icon name="Trash2" size={16}/></button>
@@ -774,7 +776,7 @@
                                                 setShowBulkJobFilter(false);
                                             } else {
                                                 setShowBulkJobFilter(true);
-                                                setBulkConfig({...bulkConfig, jobBase: '劍術士', jobSuffix: '01'});
+                                                setBulkConfig({...bulkConfig, jobBase: '劍術師', jobSuffix: '01'});
                                             }
                                         }} 
                                         className={`px-3 py-1.5 rounded-2xl text-[14px] font-black border transition-all ${bulkJobFinal ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200'}`}>
@@ -849,7 +851,7 @@
 													setShowEditorJobFilter(false);
 												} else {
 													setShowEditorJobFilter(true);
-													setEditJobBase('劍術士');
+													setEditJobBase('劍術師');
 													setEditJobSuffix('01');
 												}
 											}} 
