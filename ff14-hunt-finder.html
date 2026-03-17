@@ -55,6 +55,9 @@
         };
 
         const ALL_REGIONS = Object.values(MAP_DATA).flat();
+        
+        // 管理員清單
+        const ADMINS = ["fatearcher"];
 
         const firebaseConfig = {
             apiKey: "AIzaSyDqiVItIUKXSqyBtqLqZTXJIAWPME7-hq8",
@@ -147,7 +150,6 @@
             const [monsters, setMonsters] = useState([]);
             const [userPins, setUserPins] = useState({});
             const [customGroups, setCustomGroups] = useState([]);
-            const [isUserAdmin, setIsUserAdmin] = useState(false);
             const [view, setView] = useState('search');
             const [fbReady, setFbReady] = useState(false);
             const [selectedIds, setSelectedIds] = useState([]);
@@ -250,7 +252,7 @@
 
                             useEffect(() => {
                 if (!isLoggedIn || !virtualId || !fbReady) return;
-                const { getFirestore, collection, doc, setDoc, onSnapshot, query, limit, getDoc } = window.FB;
+                const { getFirestore, collection, doc, setDoc, onSnapshot, query, limit } = window.FB;
                 const db = getFirestore();
                 
                 // 監聽狩獵板的怪物資料（加載所有記錄供分頁用）
@@ -269,31 +271,13 @@
                         setDoc(doc(db, 'artifacts', appId, 'users', virtualId, 'groups', 'default'), { name: '常用區域', order: 0, canDelete: false });
                     } else { setCustomGroups(groups.sort((a, b) => a.order - b.order)); }
                 });
-                
-                // 查詢用戶權限
-                const checkAdminStatus = async () => {
-                    try {
-                        const userDocRef = doc(db, 'artifacts', appId, 'users', virtualId);
-                        const userDocSnap = await getDoc(userDocRef);
-                        if (userDocSnap.exists()) {
-                            setIsUserAdmin(userDocSnap.data().isAdmin === true);
-                        } else {
-                            setIsUserAdmin(false);
-                        }
-                    } catch (error) {
-                        console.error('查詢用戶權限失敗:', error);
-                        setIsUserAdmin(false);
-                    }
-                };
-                checkAdminStatus();
-                
                 return () => { mUn(); pUn(); gUn(); };
             }, [isLoggedIn, virtualId, fbReady]);
 
             // 查詢管理員頁面的怪物資料（支援分頁和篩選）
             const queryAdminMonsters = async (pageNum = 1, filters = {}) => {
                 try {
-                    const { getFirestore, collection, getDocs, query, where, orderBy, limit, offset } = window.FB;
+                    const { getFirestore, collection, getDocs, query, where } = window.FB;
                     const db = getFirestore();
                     const monstersRef = collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
                     
@@ -308,17 +292,37 @@
                     // 先獲取符合條件的總數
                     const countQuery = query(monstersRef, ...constraints);
                     const countSnapshot = await getDocs(countQuery);
-                    const totalCount = countSnapshot.docs.length;
+                    let allDocs = countSnapshot.docs.map(d => ({ id: d.id, rank: "None", ...d.data() }));
                     
-                    // 再獲取該頁的數據 (Firestore 不支援 OFFSET，改用實記錄到記錄索引)
-                    const sortedDocs = countSnapshot.docs
-                        .map(d => ({ id: d.id, rank: "None", ...d.data() }))
-                        .sort((a, b) => a.name.localeCompare(b.name)); // 按名稱排序
+                    // 在客戶端應用篩選
+                    allDocs = allDocs.filter(m => {
+                        // 版本篩選
+                        if (adminFilterVer && m.version !== adminFilterVer) return false;
+                        // 地圖篩選
+                        if (adminFilterMap && !(m.locations || []).some(l => l.map === adminFilterMap)) return false;
+                        // 等級篩選
+                        if (adminFilterRank && m.rank !== adminFilterRank) return false;
+                        // FATE篩選
+                        if (adminFilterFate && !m.isFate) return false;
+                        // 職業篩選
+                        if (adminFilterJob && adminFilterJob !== '*') {
+                            const jobs = m.jobs || (m.job ? [m.job] : []);
+                            if (!jobs.some(j => j.startsWith(adminFilterJob))) return false;
+                        } else if (adminFilterJob === '*') {
+                            const jobs = m.jobs || (m.job ? [m.job] : []);
+                            if (jobs.length === 0) return false;
+                        }
+                        return true;
+                    });
                     
+                    // 排序
+                    allDocs.sort((a, b) => a.name.localeCompare(b.name));
+                    
+                    const totalCount = allDocs.length;
                     const pageSize = adminPageSize;
                     const startIdx = (pageNum - 1) * pageSize;
                     const endIdx = startIdx + pageSize;
-                    const pageData = sortedDocs.slice(startIdx, endIdx);
+                    const pageData = allDocs.slice(startIdx, endIdx);
                     const totalPages = Math.ceil(totalCount / pageSize);
                     
                     setAdminMonstersList(pageData);
@@ -344,7 +348,7 @@
                 if (view === 'admin' && isLoggedIn) {
                     queryAdminMonsters(1, { searchTerm: adminSearchTerm });
                 }
-            }, [adminPageSize]);
+            }, [adminPageSize, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate, adminFilterJob]);
 
             const proceedLogin = (acc) => {
                 localStorage.setItem('ff14_virtual_account', acc);
@@ -574,8 +578,8 @@
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setView('search')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${view === 'search' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>狩獵板</button>
-                            {isUserAdmin && (
-                                <button onClick={() => setView('admin')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${view === 'admin' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>管理</button>
+                            {ADMINS.includes(virtualId) && (
+                                <button onClick={() => setView('admin')} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${view === 'admin' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>管理員</button>
                             )}
                             <button onClick={() => { localStorage.removeItem('ff14_virtual_account'); setIsLoggedIn(false); }} className="p-1.5 text-slate-500 hover:text-red-400"><Icon name="LogOut" size={18}/></button>
                         </div>
@@ -862,18 +866,30 @@
                             </div>
                             
                             <div className="bg-slate-50 p-4 rounded-2xl mb-4 flex gap-4 items-center border border-slate-200">
-                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none" value={adminFilterVer} onChange={e => setAdminFilterVer(e.target.value)}>
+                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none" value={adminFilterVer} onChange={e => {
+                                    setAdminFilterVer(e.target.value);
+                                    queryAdminMonsters(1, { searchTerm: adminSearchTerm });
+                                }}>
                                     <option value="">全版本</option>{VERSIONS.map(v => <option key={v} value={v}>{v}</option>)}
                                 </select>
-                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none w-48" value={adminFilterMap} onChange={e => setAdminFilterMap(e.target.value)}>
+                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none w-48" value={adminFilterMap} onChange={e => {
+                                    setAdminFilterMap(e.target.value);
+                                    queryAdminMonsters(1, { searchTerm: adminSearchTerm });
+                                }}>
                                     <option value="">{adminFilterVer ? `${adminFilterVer} 地圖` : "所有地圖"}</option>
                                     {getMapsForVersion(adminFilterVer).map(r => <option key={r} value={r}>{r}</option>)}
                                 </select>
-                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none" value={adminFilterRank} onChange={e => setAdminFilterRank(e.target.value)}>
+                                <select className="bg-white border p-2 rounded-lg text-xs font-bold outline-none" value={adminFilterRank} onChange={e => {
+                                    setAdminFilterRank(e.target.value);
+                                    queryAdminMonsters(1, { searchTerm: adminSearchTerm });
+                                }}>
                                     <option value="">等級</option>
                                     {RANKS.map(r => <option key={r} value={r}>{r === 'None' ? '一般' : `${r}級`}</option>)}
                                 </select>
-                                <button onClick={() => setAdminFilterFate(!adminFilterFate)} className={`px-4 py-2 rounded-lg text-xs font-black border transition-all ${adminFilterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400 border-slate-200'}`}>FATE</button>
+                                <button onClick={() => {
+                                    setAdminFilterFate(!adminFilterFate);
+                                    queryAdminMonsters(1, { searchTerm: adminSearchTerm });
+                                }} className={`px-4 py-2 rounded-lg text-xs font-black border transition-all ${adminFilterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400 border-slate-200'}`}>FATE</button>
                                 <button onClick={() => {
                                     if (adminFilterJob) {
                                         setAdminFilterJob('');
@@ -882,6 +898,7 @@
                                         setAdminFilterJob('*');
                                         setShowAdminJobFilter(true);
                                     }
+                                    queryAdminMonsters(1, { searchTerm: adminSearchTerm });
                                 }} className={`px-4 py-2 rounded-lg text-xs font-black border transition-all ${adminFilterJob ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200'}`}>討伐筆記</button>
                                 {showAdminJobFilter && (
                                     <select className="bg-white border p-2 rounded-lg text-xs font-black outline-none" value={adminFilterJob} onChange={e => setAdminFilterJob(e.target.value)}>
