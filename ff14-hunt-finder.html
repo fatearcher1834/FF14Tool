@@ -1090,12 +1090,12 @@
                                 {/* 輸入與預覽區域 */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[380px]">
                                     <div className="flex flex-col space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">4. 名稱輸入</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">名稱輸入</label>
                                         <textarea className="flex-1 p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] font-bold text-sm resize-none" placeholder="一行一個名稱..." value={bulkInput} onChange={e => setBulkInput(e.target.value)} />
                                         <button onClick={handleBulkParseNames} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs">解析名稱 →</button>
                                     </div>
                                     <div className="flex flex-col space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">4. 預覽 ({bulkParsedList.length})</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">預覽 ({bulkParsedList.length})</label>
                                         <div className="flex-1 p-4 bg-slate-100 rounded-[2rem] overflow-y-auto space-y-2 border">
                                             {bulkParsedList.map((name, idx) => (
                                                 <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-2xl border shadow-sm">
