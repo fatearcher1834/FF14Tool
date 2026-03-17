@@ -42,7 +42,7 @@
         const VERSIONS = ["2.0", "3.0", "4.0", "5.0", "6.0", "7.0"];
         const RANKS = ["None", "B", "A", "S", "SS"];
         const JOBS = ["劍術師", "格鬥家", "斧術師", "槍術師", "弓箭手", "幻術師", "咒術師", "秘術師", "雙劍師", "黑渦團", "雙蛇黨", "恆輝隊"];
-        const JOB_BASE_NAMES = JOBS; // 用於下拉菜單的基礎職業名稱
+        const JOB_BASE_NAMES = JOBS; // 用於下拉菜單的討伐筆記名稱
         const JOB_SUFFIXES = Array.from({length: 50}, (_, i) => String(i + 1).padStart(2, '0')); // 01~50
         
         const MAP_DATA = {
@@ -113,8 +113,8 @@
             return <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-pink-500 text-white shrink-0 leading-none">FATE</span>;
         };
 
-        const JobTag = ({ job }) => {
-            if (!job) return null;
+        const JobTag = ({ jobs = [] }) => {
+            if (!jobs || jobs.length === 0) return null;
             const jobColors = {
                 '劍術師': 'bg-blue-600 text-white',
                 '格鬥家': 'bg-red-600 text-white',
@@ -129,9 +129,14 @@
                 '雙蛇黨': 'bg-fuchsia-600 text-white',
                 '恆輝隊': 'bg-cyan-500 text-white'
             };
-            // 提取基職業名稱（移除數字後綴）
-            const jobBase = JOB_BASE_NAMES.find(j => job.startsWith(j)) || '';
-            return <span className={`text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${jobColors[jobBase] || 'bg-slate-400 text-white'}`}>{job}</span>;
+            return (
+                <>
+                    {jobs.map((job, idx) => {
+                        const jobBase = JOB_BASE_NAMES.find(j => job.startsWith(j)) || '';
+                        return <span key={idx} className={`text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none ${jobColors[jobBase] || 'bg-slate-400 text-white'}`}>{job}</span>;
+                    })}
+                </>
+            );
         };
 
         function App() {
@@ -184,6 +189,7 @@
             const [showKanban, setShowKanban] = useState(true);
             const [showEditor, setShowEditor] = useState(false);
             const [editData, setEditData] = useState(null);
+            const [editJobs, setEditJobs] = useState([]);
             const [editJobBase, setEditJobBase] = useState('');
             const [editJobSuffix, setEditJobSuffix] = useState('');
             const [showEditorJobFilter, setShowEditorJobFilter] = useState(false);
@@ -294,9 +300,11 @@
                     if (!job) {
                         matchJob = true;
                     } else if (job === '*') {
-                        matchJob = !!m.job;
+                        const jobs = m.jobs || (m.job ? [m.job] : []);
+                        matchJob = jobs.length > 0;
                     } else {
-                        matchJob = (m.job || '').startsWith(job);
+                        const jobs = m.jobs || (m.job ? [m.job] : []);
+                        matchJob = jobs.some(j => j.startsWith(job));
                     }
                     return matchName && matchVer && matchMap && matchRank && matchFate && matchJob;
                 });
@@ -345,16 +353,58 @@
                 const { getFirestore, doc, setDoc } = window.FB;
                 const db = getFirestore();
                 for (const name of bulkParsedList) {
-                    const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
-                        id,
-                        name,
-                        version: bulkConfig.version,
-                        rank: bulkConfig.rank,
-                        isFate: bulkConfig.isFate,
-                        job: bulkJobFinal || null,
-                        locations: [{ map: bulkConfig.map, x: '', y: '' }]
-                    });
+                    // 從本地 monsters 陣列檢查是否已存在相同名字的怪物
+                    const existingMonster = monsters.find(m => m.name === name);
+                    
+                    if (!existingMonster) {
+                        // 不存在，創建新怪物
+                        const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
+                            id,
+                            name,
+                            version: bulkConfig.version,
+                            rank: bulkConfig.rank,
+                            isFate: bulkConfig.isFate,
+                            jobs: bulkJobFinal ? [bulkJobFinal] : null,
+                            locations: [{ map: bulkConfig.map, x: '', y: '' }]
+                        });
+                    } else {
+                        // 存在，更新現有怪物（累加資料）
+                        // 合併討伐筆記標籤：優先保留現有的 jobs 陣列，或從舊 job 字符串轉換
+                        const newJobs = existingMonster.jobs || (existingMonster.job ? [existingMonster.job] : (bulkJobFinal ? [bulkJobFinal] : null));
+                        
+                        // 合併 isFate：只要有一方為 true 就保留 true
+                        const mergedIsFate = existingMonster.isFate || bulkConfig.isFate;
+                        
+                        // 合併 rank：保留現有的，因為同一隻怪物的等級應該一致
+                        const mergedRank = existingMonster.rank || bulkConfig.rank;
+                        
+                        // 合併位置：避免重複（根據 map, x, y 判斷）
+                        const newLocation = { map: bulkConfig.map, x: '', y: '' };
+                        const existingLocations = existingMonster.locations || [];
+                        let locations = [...existingLocations];
+                        
+                        // 只有當新位置有實際座標時，才檢查重複
+                        if (newLocation.x !== '' && newLocation.y !== '') {
+                            const locationExists = locations.some(
+                                loc => loc.map === newLocation.map && loc.x === newLocation.x && loc.y === newLocation.y
+                            );
+                            
+                            if (!locationExists) {
+                                locations.push(newLocation);
+                            }
+                        }
+                        // 否則空座標不添加
+                        
+                        // 更新現有怪物
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', existingMonster.id), {
+                            ...existingMonster,
+                            jobs: newJobs,
+                            isFate: mergedIsFate,
+                            rank: mergedRank,
+                            locations: locations
+                        });
+                    }
                 }
                 setShowBulkAdd(false);
                 setBulkInput('');
@@ -483,7 +533,7 @@
                                                                 <Icon name={isMainExpanded ? "ChevronDown" : "ChevronRight"} size={12} className="text-slate-400"/>
                                                                 <h4 className="font-black text-slate-800 text-sm mr-0.5">{m.name}</h4>
                                                                 <VersionTag version={m.version} />
-                                                                <RankTag rank={m.rank}/><FateTag isFate={m.isFate}/><JobTag job={m.job}/>
+                                                                <RankTag rank={m.rank}/><FateTag isFate={m.isFate}/><JobTag jobs={m.jobs || []}/>
                                                             </div>
                                                         </div>
                                                         <button onClick={() => handleTogglePin(m.id)} className={`p-2 rounded-xl transition-all ${userPins[m.id] ? 'bg-amber-100 text-amber-600' : 'text-slate-200 hover:text-amber-300'}`}>
@@ -596,7 +646,7 @@
                                                                         <VersionTag version={m.version} />
                                                                         <RankTag rank={m.rank}/>
                                                                         <FateTag isFate={m.isFate}/>
-                                                                        <JobTag job={m.job}/>
+                                                                        <JobTag jobs={m.jobs || []}/>
                                                                     </div>
                                                                 </div>
                                                                 <button onClick={(e) => { e.stopPropagation(); handleTogglePin(m.id); }} className="opacity-0 group-hover/card:opacity-100 text-red-400 hover:text-red-600 transition-all shrink-0 ml-1"><Icon name="X" size={14}/></button>
@@ -637,7 +687,8 @@
 							</button>									<button onClick={() => { 
                                             const v = adminFilterVer || '2.0';
                                             const initialMap = MAP_DATA[v].includes(adminFilterMap) ? adminFilterMap : MAP_DATA[v][0];
-											setEditData({ name: '', version: v, rank: 'None', isFate: false, job: '', locations: [{ map: initialMap, x: '', y: '' }] });
+											setEditData({ name: '', version: v, rank: 'None', isFate: false, jobs: [], locations: [{ map: initialMap, x: '', y: '' }] });
+											setEditJobs([]);
 											setEditJobBase('');
 											setEditJobSuffix('');
 											setShowEditorJobFilter(false);
@@ -703,7 +754,7 @@
                                                     <span className="font-bold text-sm text-slate-800 mr-1">{m.name}</span>
                                                     <div className="flex items-center gap-1.5">
                                                         <VersionTag version={m.version} />
-                                                        <RankTag rank={m.rank}/><FateTag isFate={m.isFate}/><JobTag job={m.job}/>
+                                                        <RankTag rank={m.rank}/><FateTag isFate={m.isFate}/><JobTag jobs={m.jobs || (m.job ? [m.job] : [])}/>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
@@ -714,21 +765,10 @@
                                                 <td className="p-4 text-right">
                                                     <button onClick={() => { 
                                                         setEditData(m);
-                                                        // 立即解析job為jobBase和jobSuffix
-                                                        let base = '';
-                                                        let suffix = '';
-                                                        let showDropdown = false;
-                                                        if (m.job) {
-                                                            const matchedJob = JOB_BASE_NAMES.find(j => m.job.startsWith(j));
-                                                            if (matchedJob) {
-                                                                base = matchedJob;
-                                                                suffix = m.job.substring(matchedJob.length);
-                                                                showDropdown = true;
-                                                            }
-                                                        }
-                                                        setEditJobBase(base);
-                                                        setEditJobSuffix(suffix);
-                                                        setShowEditorJobFilter(showDropdown);
+                                                        setEditJobs(m.jobs || (m.job ? [m.job] : []));
+                                                        setEditJobBase('');
+                                                        setEditJobSuffix('');
+                                                        setShowEditorJobFilter(false);
                                                         setShowEditor(true); 
                                                     }} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Icon name="Edit3" size={16}/></button>
                                                     <button onClick={async () => { if(confirm(`刪除 [${m.name}]？`)) await window.FB.deleteDoc(window.FB.doc(window.FB.getFirestore(), 'artifacts', appId, 'public', 'data', 'monsters', m.id)); }} className="p-2 text-red-400 hover:bg-red-50 rounded-lg ml-1"><Icon name="Trash2" size={16}/></button>
@@ -755,39 +795,62 @@
                                     }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><Icon name="X" size={16}/></button>
                                 </div>
                                 {/* 配置區域：版本、地圖、等級、FATE */}
-                                <div className="bg-slate-50 p-4 rounded-[2rem] border border-slate-200 flex flex-wrap gap-3 items-center">
-                                    <select className="flex-1 p-3 bg-white border rounded-2xl font-bold text-sm min-w-32" value={bulkConfig.version} onChange={e => {
-                                        const v = e.target.value;
-                                        setBulkConfig({...bulkConfig, version: v, map: MAP_DATA[v][0]});
-                                    }}>
-                                        {VERSIONS.map(v => <option key={v} value={v}>版本 {v}</option>)}
-                                    </select>
-                                    <select className="flex-[2] p-3 bg-white border rounded-2xl font-bold text-sm min-w-32" value={bulkConfig.map} onChange={e => setBulkConfig({...bulkConfig, map: e.target.value})}>
-                                        {MAP_DATA[bulkConfig.version].map(m => <option key={m} value={m}>{m}</option>)}
-                                    </select>
-                                    <div className="flex bg-white p-1 border rounded-2xl shadow-sm min-w-min">
-                                        {['None', 'B', 'A', 'S', 'SS'].map(r => (
-                                            <button key={r} onClick={() => setBulkConfig({...bulkConfig, rank: r})} className={`px-3 py-1.5 rounded-xl text-[12px] font-black ${bulkConfig.rank === r ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>{r === "None" ? "一般" : r}</button>
-                                        ))}
+                                <div className="bg-slate-50 p-4 rounded-[2rem] border border-slate-200 space-y-3">
+                                    {/* 版本和地圖 */}
+                                    <div className="flex gap-3">
+                                        <select className="flex-1 p-3 bg-white border rounded-2xl font-bold text-sm" value={bulkConfig.version} onChange={e => {
+                                            const v = e.target.value;
+                                            setBulkConfig({...bulkConfig, version: v, map: MAP_DATA[v][0]});
+                                        }}>
+                                            {VERSIONS.map(v => <option key={v} value={v}>版本 {v}</option>)}
+                                        </select>
+                                        <select className="flex-[2] p-3 bg-white border rounded-2xl font-bold text-sm" value={bulkConfig.map} onChange={e => setBulkConfig({...bulkConfig, map: e.target.value})}>
+                                            {MAP_DATA[bulkConfig.version].map(m => <option key={m} value={m}>{m}</option>)}
+                                        </select>
                                     </div>
-                                    <button onClick={() => setBulkConfig({...bulkConfig, isFate: !bulkConfig.isFate})} className={`px-3 py-1.5 rounded-2xl text-[14px] font-black border ${bulkConfig.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400'}`}>FATE</button>
-                                    <button 
-                                        onClick={() => {
-                                            if (bulkConfig.jobBase) {
-                                                setBulkConfig({...bulkConfig, jobBase: '', jobSuffix: ''});
-                                                setShowBulkJobFilter(false);
-                                            } else {
-                                                setShowBulkJobFilter(true);
-                                                setBulkConfig({...bulkConfig, jobBase: '劍術師', jobSuffix: '01'});
-                                            }
-                                        }} 
-                                        className={`px-3 py-1.5 rounded-2xl text-[14px] font-black border transition-all ${bulkJobFinal ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200'}`}>
-                                        {bulkJobFinal || '討伐筆記'}
-                                    </button>
+
+                                    {/* 等級和 FATE */}
+                                    <div className="flex gap-3 items-center">
+                                        <div className="flex-1 flex bg-white p-1 border rounded-2xl shadow-sm">
+                                            {['None', 'B', 'A', 'S', 'SS'].map(r => (
+                                                <button key={r} onClick={() => setBulkConfig({...bulkConfig, rank: r})} className={`flex-1 py-2 rounded-xl text-[12px] font-black ${bulkConfig.rank === r ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>{r === "None" ? "一般" : r}</button>
+                                            ))}
+                                        </div>
+                                        <button onClick={() => setBulkConfig({...bulkConfig, isFate: !bulkConfig.isFate})} className={`px-4 py-2 rounded-2xl text-[14px] font-black border ${bulkConfig.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400'}`}>FATE</button>
+                                    </div>
+
+                                    {/* 討伐筆記標籤列表 */}
+                                    <div className="flex flex-wrap gap-2 items-center">
+                                        {bulkJobFinal && (
+                                            <div className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-black">
+                                                <span>{bulkJobFinal}</span>
+                                                <button 
+                                                    onClick={() => setBulkConfig({...bulkConfig, jobBase: '', jobSuffix: ''})}
+                                                    className="ml-1 hover:bg-blue-600 rounded-full p-0.5"
+                                                >
+                                                    <Icon name="X" size={12}/>
+                                                </button>
+                                            </div>
+                                        )}
+                                        {/* 添加討伐筆記按鈕 */}
+                                        <button 
+                                            onClick={() => {
+                                                setShowBulkJobFilter(!showBulkJobFilter);
+                                                if (!showBulkJobFilter) {
+                                                    setBulkConfig({...bulkConfig, jobBase: '劍術師', jobSuffix: '01'});
+                                                }
+                                            }}
+                                            className="px-3 py-1 rounded-full text-xs font-black border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50"
+                                        >
+                                            + 討伐筆記
+                                        </button>
+                                    </div>
+
+                                    {/* 討伐筆記選擇器 */}
                                     {showBulkJobFilter && (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-2xl border border-blue-100">
                                             <select 
-                                                className="bg-white border rounded-lg p-2 text-[12px] font-black outline-none" 
+                                                className="flex-1 bg-white border rounded-lg p-2 text-[12px] font-black outline-none" 
                                                 value={bulkConfig.jobBase} 
                                                 onChange={e => setBulkConfig({...bulkConfig, jobBase: e.target.value})}>
                                                 {JOB_BASE_NAMES.map(j => <option key={j} value={j}>{j}</option>)}
@@ -798,6 +861,12 @@
                                                 onChange={e => setBulkConfig({...bulkConfig, jobSuffix: e.target.value})}>
                                                 {JOB_SUFFIXES.map(s => <option key={s} value={s}>{s}</option>)}
                                             </select>
+                                            <button 
+                                                onClick={() => setShowBulkJobFilter(false)}
+                                                className="px-3 py-2 bg-slate-200 text-slate-600 rounded-lg text-xs font-black shrink-0"
+                                            >
+                                                確認
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -816,7 +885,7 @@
                                                 <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-2xl border shadow-sm">
                                                     <span className="text-sm font-black text-slate-700">{name}</span>
                                                     <div className="flex gap-1 items-center scale-75 origin-right">
-                                                        <VersionTag version={bulkConfig.version} /><RankTag rank={bulkConfig.rank}/><FateTag isFate={bulkConfig.isFate}/>{bulkJobFinal && <JobTag job={bulkJobFinal}/>}
+                                                        <VersionTag version={bulkConfig.version} /><RankTag rank={bulkConfig.rank}/><FateTag isFate={bulkConfig.isFate}/>{bulkJobFinal && <JobTag jobs={[bulkJobFinal]}/>}
                                                     </div>
                                                 </div>
                                             ))}
@@ -836,7 +905,8 @@
                                     <button onClick={() => setShowEditor(false)} className="p-2 bg-slate-100 rounded-full"><Icon name="X" size={16}/></button>
                                 </div>
                                 <div className="space-y-5">
-									<div className="flex gap-3 items-end">
+									{/* 等級和 FATE 按鈕 */}
+									<div className="flex gap-3 items-center">
 										<div className="flex-1 flex bg-white p-1 border rounded-2xl shadow-sm">
 											{RANKS.map(r => (
 												<button key={r} onClick={() => setEditData({...editData, rank: r})} className={`flex-1 py-2 rounded-xl text-[12px] font-black ${editData.rank === r ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>
@@ -845,38 +915,73 @@
 											))}
 										</div>
 										<button onClick={() => setEditData({...editData, isFate: !editData.isFate})} className={`px-4 py-2 rounded-2xl text-[14px] font-black border ${editData.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400'}`}>FATE</button>
+									</div>
+
+									{/* 討伐筆記標籤列表 */}
+									<div className="flex flex-wrap gap-2 items-center">
+										{editJobs.map((job, idx) => (
+											<div key={idx} className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-black">
+												<span>{job}</span>
+												<button 
+													onClick={() => setEditJobs(editJobs.filter((_, i) => i !== idx))}
+													className="ml-1 hover:bg-blue-600 rounded-full p-0.5"
+												>
+													<Icon name="X" size={12}/>
+												</button>
+											</div>
+										))}
+										{/* 添加討伐筆記按鈕 */}
 										<button 
 											onClick={() => {
-												if (editJobBase) {
-													setEditJobBase('');
-													setEditJobSuffix('');
-													setShowEditorJobFilter(false);
-												} else {
-													setShowEditorJobFilter(true);
+												setShowEditorJobFilter(!showEditorJobFilter);
+												if (!showEditorJobFilter) {
 													setEditJobBase('劍術師');
 													setEditJobSuffix('01');
 												}
-											}} 
-											className={`px-4 py-2 rounded-2xl text-[14px] font-black border transition-all ${editJobBase ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200'}`}>
-											{editJobBase + editJobSuffix || '討伐筆記'}
+											}}
+											className="px-3 py-1 rounded-full text-xs font-black border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50"
+										>
+											+ 討伐筆記
 										</button>
-										{showEditorJobFilter && (
-											<div className="flex items-center gap-2">
-												<select 
-													className="bg-white border rounded-lg p-2 text-[12px] font-black outline-none" 
-													value={editJobBase} 
-													onChange={e => setEditJobBase(e.target.value)}>
-													{JOB_BASE_NAMES.map(j => <option key={j} value={j}>{j}</option>)}
-												</select>
-												<select 
-													className="bg-white border rounded-lg p-2 text-[12px] font-black outline-none" 
-													value={editJobSuffix} 
-													onChange={e => setEditJobSuffix(e.target.value)}>
-													{JOB_SUFFIXES.map(s => <option key={s} value={s}>{s}</option>)}
-												</select>
-											</div>
-										)}
 									</div>
+
+									{/* 討伐筆記選擇器 */}
+									{showEditorJobFilter && (
+										<div className="flex items-center gap-2 bg-blue-50 p-3 rounded-2xl border border-blue-100">
+											<select 
+												className="flex-1 bg-white border rounded-lg p-2 text-[12px] font-black outline-none" 
+												value={editJobBase} 
+												onChange={e => setEditJobBase(e.target.value)}>
+												{JOB_BASE_NAMES.map(j => <option key={j} value={j}>{j}</option>)}
+											</select>
+											<select 
+												className="bg-white border rounded-lg p-2 text-[12px] font-black outline-none" 
+												value={editJobSuffix} 
+												onChange={e => setEditJobSuffix(e.target.value)}>
+												{JOB_SUFFIXES.map(s => <option key={s} value={s}>{s}</option>)}
+											</select>
+											<button 
+												onClick={() => {
+													const newJob = editJobBase + editJobSuffix;
+													if (!editJobs.includes(newJob)) {
+														setEditJobs([...editJobs, newJob]);
+													}
+													setShowEditorJobFilter(false);
+													setEditJobBase('');
+													setEditJobSuffix('');
+												}}
+												className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-black shrink-0"
+											>
+												確認
+											</button>
+											<button 
+												onClick={() => setShowEditorJobFilter(false)}
+												className="px-3 py-2 bg-slate-200 text-slate-600 rounded-lg text-xs font-black shrink-0"
+											>
+												取消
+											</button>
+										</div>
+									)}
 								
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="col-span-2">
@@ -945,14 +1050,79 @@
                                         <button onClick={() => {
                                             setShowEditor(false);
                                             setShowEditorJobFilter(false);
+                                            setEditJobs([]);
                                             setEditJobBase('');
                                             setEditJobSuffix('');
                                         }} className="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-xs">取消</button>
                                         <button onClick={async () => {
                                             const { getFirestore, doc, setDoc } = window.FB;
-                                            const id = editData.id || `m_${Date.now()}`;
-                                            const finalJob = editJobBase ? `${editJobBase}${editJobSuffix}` : null;
-                                            await setDoc(doc(getFirestore(), 'artifacts', appId, 'public', 'data', 'monsters', id), { ...editData, job: finalJob, id });
+                                            const db = getFirestore();
+                                            
+                                            // 如果是新增（沒有 ID），檢查是否已存在相同名字的怪物
+                                            if (!editData.id) {
+                                                const existingMonster = monsters.find(m => m.name === editData.name);
+                                                
+                                                if (existingMonster) {
+                                                    // 存在相同名字，執行合併
+                                                    // 合併討伐筆記標籤（支持多個）
+                                                    const existingJobs = existingMonster.jobs || (existingMonster.job ? [existingMonster.job] : []);
+                                                    const mergedJobs = [...existingJobs];
+                                                    editJobs.forEach(job => {
+                                                        if (!mergedJobs.includes(job)) {
+                                                            mergedJobs.push(job);
+                                                        }
+                                                    });
+                                                    
+                                                    // 合併 isFate：只要有一方為 true 就保留 true
+                                                    const mergedIsFate = existingMonster.isFate || editData.isFate;
+                                                    
+                                                    // 合併 rank：保留現有的，除非現有的是 "None" 而新增的不是
+                                                    const mergedRank = (existingMonster.rank && existingMonster.rank !== 'None') ? existingMonster.rank : editData.rank;
+                                                    
+                                                    // 合併位置
+                                                    const existingLocations = existingMonster.locations || [];
+                                                    let locations = [...existingLocations];
+                                                    
+                                                    // 添加新位置（避免重複，只比對有實際座標的位置）
+                                                    editData.locations.forEach(newLoc => {
+                                                        // 只有當新位置有實際座標時，才檢查重複
+                                                        if (newLoc.x !== '' && newLoc.y !== '') {
+                                                            const locationExists = locations.some(
+                                                                loc => loc.map === newLoc.map && loc.x === newLoc.x && loc.y === newLoc.y
+                                                            );
+                                                            if (!locationExists) {
+                                                                locations.push(newLoc);
+                                                            }
+                                                        }
+                                                        // 否則空座標不添加
+                                                    });
+                                                    
+                                                    // 更新現有怪物
+                                                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', existingMonster.id), {
+                                                        ...existingMonster,
+                                                        jobs: mergedJobs.length > 0 ? mergedJobs : null,
+                                                        isFate: mergedIsFate,
+                                                        rank: mergedRank,
+                                                        locations: locations
+                                                    });
+                                                } else {
+                                                    // 不存在，創建新怪物
+                                                    const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                                                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
+                                                        ...editData,
+                                                        jobs: editJobs.length > 0 ? editJobs : null,
+                                                        id
+                                                    });
+                                                }
+                                            } else {
+                                                // 編輯現有怪物，直接更新
+                                                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', editData.id), {
+                                                    ...editData,
+                                                    jobs: editJobs.length > 0 ? editJobs : null,
+                                                    id: editData.id
+                                                });
+                                            }
+                                            
                                             setShowEditor(false);
                                             setShowEditorJobFilter(false);
                                         }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg">儲存</button>
