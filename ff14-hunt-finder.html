@@ -200,6 +200,7 @@
             const [bulkParsedList, setBulkParsedList] = useState([]);
             const [bulkConfig, setBulkConfig] = useState({ version: '2.0', map: '', rank: 'None', isFate: false, jobBase: '', jobSuffix: '' });
             const [showBulkJobFilter, setShowBulkJobFilter] = useState(false);
+            const [similarityThreshold, setSimilarityThreshold] = useState(50);
 
             const [showKanban, setShowKanban] = useState(true);
             const [showEditor, setShowEditor] = useState(false);
@@ -237,6 +238,13 @@
                     });
                 }
             }, [showBulkAdd, adminFilterVer, adminFilterMap, adminFilterRank, adminFilterFate, adminFilterJob]);
+
+            // 當編輯數據改變時重置相似度閾值
+            useEffect(() => {
+                if (editData) {
+                    setSimilarityThreshold(50);
+                }
+            }, [editData?.id]);
 
             useEffect(() => {
                 const checkFB = setInterval(() => {
@@ -283,25 +291,19 @@
             // 查詢管理員頁面的怪物資料（支援分頁和篩選）
             const queryAdminMonsters = async (pageNum = 1, filters = {}) => {
                 try {
-                    const { getFirestore, collection, getDocs, query, where } = window.FB;
+                    const { getFirestore, collection, getDocs, query } = window.FB;
                     const db = getFirestore();
                     const monstersRef = collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
                     
-                    // 構建查詢條件
-                    let constraints = [];
-                    if (filters.searchTerm) {
-                        // 名稱搜尋（簡單前綴匹配，Firestore 不支援 LIKE）
-                        constraints.push(where('name', '>=', filters.searchTerm));
-                        constraints.push(where('name', '<=', filters.searchTerm + '\uf8ff'));
-                    }
-                    
-                    // 先獲取符合條件的總數
-                    const countQuery = query(monstersRef, ...constraints);
+                    // 先獲取所有怪物，然後在客戶端應用篩選（支持包含匹配，類似狩獵板）
+                    const countQuery = query(monstersRef);
                     const countSnapshot = await getDocs(countQuery);
                     let allDocs = countSnapshot.docs.map(d => ({ id: d.id, rank: "None", ...d.data() }));
                     
                     // 在客戶端應用篩選
                     allDocs = allDocs.filter(m => {
+                        // 名稱搜尋（支持包含匹配，類似狩獵板，解決「搜甲搜不到花甲蟲」的問題）
+                        if (filters.searchTerm && !(m.name || '').toLowerCase().includes(filters.searchTerm.toLowerCase())) return false;
                         // 版本篩選
                         if (adminFilterVer && m.version !== adminFilterVer) return false;
                         // 地圖篩選
@@ -562,23 +564,142 @@
                 setShowBulkJobFilter(false);
             };
 
-            // ⚡ 新增的批次解析函數
+            // 簡體中文繁化文字BIG5編碼地區名稱映射表
+            const simplifiedToTraditionalRegions = {
+                '中': '中', '拉': '拉', '诺': '諾', '西': '西', '亚': '亞', '梦': '夢',
+                '黑': '黑', '衣': '衣', '森': '森', '林': '林', '东': '東', '南': '南', '北': '北',
+                '库': '庫', '尔': '爾', '札': '札', '斯': '斯', '中': '中', '央': '央', '高': '高', '地': '地',
+                '摩': '摩', '杜': '杜', '纳': '納', '雾': '霧', '德': '德', '拉': '拉', '瓦': '瓦', '尼': '尼',
+                '亚': '亞', '雅': '雅', '云': '雲', '海': '海', '魔': '魔', '大': '大', '陆': '陸', '阿': '阿',
+                '滋': '滋', '拉': '拉', '基': '基', '巴': '巴', '尼': '尼', '亚': '亞', '山': '山', '区': '區',
+                '湖': '湖', '红': '紅', '玉': '玉', '延': '延', '夏': '夏', '太': '太', '阳': '陽', '神': '神',
+                '草': '草', '原': '原', '雷': '雷', '克': '克', '兰': '蘭', '珂': '珂', '露': '露', '西': '西',
+                '亚': '亞', '岛': '島', '安': '安', '姆': '姆', '阿': '阿', '兰': '蘭', '伊': '伊', '尔': '爾',
+                '美': '美', '格': '格', '拉': '拉', '凯': '凱', '撒': '撒', '维': '維', '纳': '納',
+                '黑': '黑', '风': '風', '海': '海', '迷': '迷', '津': '津', '薩': '薩', '維': '維', '奧': '奧',
+                '高': '高', '地': '地', '圖': '圖', '拉': '拉', '爾': '爾', '亞': '亞', '克': '克', '泰': '泰',
+                '爾': '爾', '村': '村', '赫': '赫', '利': '利', '特': '特', '洛': '洛', '普': '普', '沙': '沙',
+                '阿': '阿', '洛': '洛', '尼': '尼', '生': '生', '命': '命', '之': '之', '源': '源'
+            };
+
+            // 簡體中文轉繁體（BIG5編碼）- 使用字符級映射
+            const simplifiedToTraditional = (text) => {
+                if (!text) return text;
+                let result = text;
+                
+                // 字符級簡繁轉換（針對 FF14 常用字符）
+                const charMap = {
+                    '诺': '諾', '萨': '薩', '纳': '納', '库': '庫', '尔': '爾',
+                    '札': '札', '摩': '摩', '杜': '杜', '德': '德', '拉': '拉',
+                    '瓦': '瓦', '尼': '尼', '亚': '亞', '云': '雲', '海': '海',
+                    '魔': '魔', '大': '大', '陆': '陸', '阿': '阿', '滋': '滋',
+                    '基': '基', '巴': '巴', '山': '山', '区': '區', '湖': '湖',
+                    '红': '紅', '玉': '玉', '延': '延', '夏': '夏', '太': '太',
+                    '阳': '陽', '神': '神', '草': '草', '原': '原', '雷': '雷',
+                    '克': '克', '兰': '蘭', '珂': '珂', '露': '露', '西': '西',
+                    '美': '美', '格': '格', '凯': '凱', '撒': '撒', '维': '維',
+                    '风': '風', '迷': '迷', '津': '津', '圖': '圖', '爾': '爾',
+                    '泰': '泰', '村': '村', '赫': '赫', '利': '利', '特': '特',
+                    '洛': '洛', '普': '普', '沙': '沙', '命': '命', '之': '之',
+                    '源': '源', '东': '東', '南': '南', '北': '北', '衣': '衣',
+                    '森': '森', '林': '林', '雾': '霧', '梦': '夢', '岛': '島',
+                    '安': '安', '姆': '姆', '伊': '伊', '雅': '雅', '高': '高',
+                    '地': '地', '中': '中', '央': '央', '拉': '拉', '斯': '斯'
+                };
+                
+                // 先進行字符級轉換
+                for (let i = 0; i < result.length; i++) {
+                    if (charMap[result[i]]) {
+                        result = result.substring(0, i) + charMap[result[i]] + result.substring(i + 1);
+                    }
+                }
+                
+                // 再進行短語級轉換（處理特殊情況）
+                const phraseReplacements = [
+                    ['黑衣森林', '黑衣森林'],
+                    ['迷津', '迷津'],
+                    ['厄爾庇斯', '厄爾庇斯'],
+                    ['天外天', '天外天'],
+                    ['赫利特洛普', '赫利特洛普']
+                ];
+                
+                phraseReplacements.forEach(([simp, trad]) => {
+                    result = result.replace(new RegExp(simp, 'g'), trad);
+                });
+                
+                return result;
+            };
+
+            // ⚡ Levenshtein 距離算法（計算字符串相似度）
+            const levenshteinDistance = (str1, str2) => {
+                const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(0));
+                for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+                for (let i = 0; i <= str2.length; i++) matrix[i][0] = i;
+                
+                for (let i = 1; i <= str2.length; i++) {
+                    for (let j = 1; j <= str1.length; j++) {
+                        matrix[i][j] = str1[j-1] === str2[i-1] 
+                            ? matrix[i-1][j-1] 
+                            : Math.min(matrix[i-1][j], matrix[i][j-1], matrix[i-1][j-1]) + 1;
+                    }
+                }
+                return matrix[str2.length][str1.length];
+            };
+
+            // 計算相似度百分比 (0 - 100)
+            const calculateSimilarity = (str1, str2) => {
+                const maxLen = Math.max(str1.length, str2.length);
+                if (maxLen === 0) return 100;
+                const distance = levenshteinDistance(str1, str2);
+                return Math.round(((maxLen - distance) / maxLen) * 100);
+            };
+
+            // 找到最相似的地圖名稱
+            const findBestMapMatch = (inputMapName, version, threshold) => {
+                const availableMaps = MAP_DATA[version];
+                const similarities = availableMaps.map(map => ({
+                    map,
+                    similarity: calculateSimilarity(inputMapName, map)
+                })).sort((a, b) => b.similarity - a.similarity);
+                
+                // 優先返回 100% 匹配
+                if (similarities[0].similarity === 100) {
+                    return similarities[0].map;
+                }
+                
+                // 如果最相似度超過閾值，返回最相似的；否則返回該版本的第一個地圖
+                if (similarities[0].similarity >= threshold) {
+                    return similarities[0].map;
+                }
+                return availableMaps[0];
+            };
+
+            // ⚡ 新增的批次解析函數（支持地圖名 + 座標）
             const handleBatchParse = (text) => {
                 if (!text.trim()) return;
-                // 正則：抓取 X:數字 Y:數字 (支援簡體/繁體冒號，忽略中間空格)
-                const regex = /[Xx][:：]\s*(\d+\.?\d*)\s*[,，]?\s*[Yy][:：]\s*(\d+\.?\d*)/g;
-                const matches = [...text.matchAll(regex)];
+                
+                // 簡化邏輯：直接用正則同時提取地圖名和座標
+                // 模式：一個或多個中文字符 + 可選空格 + 可選括號 + X/x + : 或 ： + 數字...
+                const locationPattern = /([\u4E00-\u9FFF]+)\s*\(?\s*[Xx][:：]\s*([0-9.]+)\s*[,，]?\s*[Yy][:：]\s*([0-9.]+)\s*\)?/g;
+                const matches = [...text.matchAll(locationPattern)];
                 
                 if (matches.length === 0) return;
 
-                // 抓取目前第一個點位地圖或管理員篩選的地圖作為預設地圖
-                const currentDefaultMap = editData.locations[0]?.map || (adminFilterMap && MAP_DATA[editData.version].includes(adminFilterMap) ? adminFilterMap : MAP_DATA[editData.version][0]);
-
-                const newLocs = matches.map(m => ({
-                    map: currentDefaultMap,
-                    x: m[1],
-                    y: m[2]
-                }));
+                const newLocs = matches.map(m => {
+                    const inputMapName = m[1].trim();
+                    
+                    // 先轉換簡體到繁體
+                    const convertedMapName = simplifiedToTraditional(inputMapName);
+                    
+                    // 使用模糊匹配找到最佳的地圖名稱
+                    const bestMap = findBestMapMatch(convertedMapName, editData.version, similarityThreshold);
+                    
+                    return {
+                        map: bestMap,
+                        x: m[2],
+                        y: m[3]
+                    };
+                });
 
                 // 移除空點位並合併新解析出的點位
                 const cleanedOriginal = editData.locations.filter(l => l.x !== '' || l.y !== '');
@@ -1284,14 +1405,39 @@
                                     
                                     <div className="space-y-3">
                                         {/* ⚡ 新增的批次匯入區塊 */}
-                                        <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-2">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <div className="p-1 bg-blue-500 rounded text-white"><Icon name="Zap" size={10}/></div>
-                                                <label className="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
+                                        <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-3">
+                                            <div className="flex items-center gap-2 justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="p-1 bg-blue-500 rounded text-white"><Icon name="Zap" size={10}/></div>
+                                                    <label className="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
+                                                </div>
+                                                <div className="text-[9px] font-black text-blue-500 bg-white px-2 py-1 rounded">{similarityThreshold}% 相似度</div>
                                             </div>
+                                            
+                                            {/* 相似度滑塊 */}
+                                            <div className="bg-white/60 p-2.5 rounded-xl border border-blue-100">
+                                                <input 
+                                                    type="range" 
+                                                    min="50" 
+                                                    max="100" 
+                                                    step="10" 
+                                                    value={similarityThreshold}
+                                                    onChange={(e) => setSimilarityThreshold(parseInt(e.target.value))}
+                                                    className="w-full h-1.5 bg-gradient-to-r from-blue-300 to-blue-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                                    style={{
+                                                        background: `linear-gradient(to right, #93c5fd 0%, #2563eb ${((similarityThreshold - 50) / 50) * 100}%, #e0e7ff ${((similarityThreshold - 50) / 50) * 100}%, #e0e7ff 100%)`
+                                                    }}
+                                                />
+                                                <div className="flex justify-between text-[8px] font-black text-slate-400 mt-2 px-1">
+                                                    <span>50% 寬鬆</span>
+                                                    <span>70% 預設</span>
+                                                    <span>100% 完全</span>
+                                                </div>
+                                            </div>
+                                            
                                             <textarea 
                                                 className="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-[11px] font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
-                                                placeholder="在此貼上多筆座標文字...&#10;例如：地圖名稱 (X: 6.28, Y: 21.06)"
+                                                placeholder="在此貼上多筆座標文字...&#10;例如：黑衣森林中央林區(X: 6.28, Y: 21.06)"
                                                 rows="2"
                                                 onChange={(e) => {
                                                     handleBatchParse(e.target.value);
