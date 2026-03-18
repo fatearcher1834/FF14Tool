@@ -575,6 +575,7 @@
                 setBulkInput('');
                 setBulkParsedList([]);
                 setShowBulkJobFilter(false);
+                queryAdminMonsters(1, { searchTerm: adminSearchTerm });
             };
 
             // 簡體中文繁化文字BIG5編碼地區名稱映射表
@@ -1584,6 +1585,7 @@
                                             
                                             setShowEditor(false);
                                             setShowEditorJobFilter(false);
+                                            queryAdminMonsters(1, { searchTerm: adminSearchTerm });
                                         }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg">儲存</button>
                                     </div>
                                 </div>
