@@ -431,6 +431,14 @@
                         const bLocs = b.locations || [];
                         aVal = (aLocs.length > 0 ? aLocs[0].map : '').toLowerCase();
                         bVal = (bLocs.length > 0 ? bLocs[0].map : '').toLowerCase();
+                    } else if (field === 'createdAt') {
+                        // 排序新增時間
+                        aVal = a.createdAt || 0;
+                        bVal = b.createdAt || 0;
+                    } else if (field === 'updatedAt') {
+                        // 排序修改時間
+                        aVal = a.updatedAt || 0;
+                        bVal = b.updatedAt || 0;
                     }
                     
                     if (direction === 'asc') {
@@ -508,6 +516,7 @@
                         if (!existingMonster) {
                             // 不存在，創建新怪物
                             const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                            const now = Date.now();
                             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
                                 id,
                                 name,
@@ -515,7 +524,9 @@
                                 rank: bulkConfig.rank,
                                 isFate: bulkConfig.isFate,
                                 jobs: bulkJobFinal ? [bulkJobFinal] : null,
-                                locations: [{ map: bulkConfig.map, x: '', y: '' }]
+                                locations: [{ map: bulkConfig.map, x: '', y: '' }],
+                                createdAt: now,
+                                updatedAt: now
                             });
                         } else {
                             // 存在，更新現有怪物（累加資料）
@@ -551,7 +562,9 @@
                                 jobs: newJobs,
                                 isFate: mergedIsFate,
                                 rank: mergedRank,
-                                locations: locations
+                                locations: locations,
+                                createdAt: existingMonster.createdAt || Date.now(),
+                                updatedAt: Date.now()
                             });
                         }
                     } catch (error) {
@@ -1112,6 +1125,8 @@
                                         <option value="name">名字</option>
                                         <option value="job">討伐筆記</option>
                                         <option value="map">地圖</option>
+                                        <option value="createdAt">新增時間</option>
+                                        <option value="updatedAt">修改時間</option>
                                     </select>
                                     <button onClick={() => {
                                         setAdminSortDir(adminSortDir === 'asc' ? 'desc' : 'asc');
@@ -1537,15 +1552,20 @@
                                                             jobs: mergedJobs.length > 0 ? mergedJobs : null,
                                                             isFate: mergedIsFate,
                                                             rank: mergedRank,
-                                                            locations: locations
+                                                            locations: locations,
+                                                            createdAt: existingMonster.createdAt || Date.now(),
+                                                            updatedAt: Date.now()
                                                         });
                                                     } else {
                                                         // 不存在，創建新怪物
                                                         const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                                                        const now = Date.now();
                                                         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
                                                             ...editData,
                                                             jobs: editJobs.length > 0 ? editJobs : null,
-                                                            id
+                                                            id,
+                                                            createdAt: now,
+                                                            updatedAt: now
                                                         });
                                                     }
                                                 } catch (error) {
@@ -1556,7 +1576,9 @@
                                                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', editData.id), {
                                                     ...editData,
                                                     jobs: editJobs.length > 0 ? editJobs : null,
-                                                    id: editData.id
+                                                    id: editData.id,
+                                                    createdAt: editData.createdAt || Date.now(),
+                                                    updatedAt: Date.now()
                                                 });
                                             }
                                             
