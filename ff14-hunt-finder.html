@@ -856,7 +856,7 @@
                                             setSearchSortDir(searchSortDir === 'asc' ? 'desc' : 'asc');
                                             setSearchCurrentPage(1);
                                         }} className="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50">
-                                            {searchSortDir === 'asc' ? '↑' : '↓'}
+                                            {searchSortDir === 'asc' ? '↓' : '↑'}
                                         </button>
                                     </div>
                                     <div className="flex gap-2">
@@ -1135,7 +1135,7 @@
                                         setAdminSortDir(adminSortDir === 'asc' ? 'desc' : 'asc');
                                         queryAdminMonsters(adminCurrentPage, { searchTerm: adminSearchTerm });
                                     }} className="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50">
-                                        {adminSortDir === 'asc' ? '↑' : '↓'}
+                                        {adminSortDir === 'asc' ? '↓' : '↑'}
                                     </button>
                                 </div>
                                 <div className="flex gap-2">

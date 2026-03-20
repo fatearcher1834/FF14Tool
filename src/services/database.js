@@ -1,0 +1,417 @@
+/**
+ * 數據庫操作服務層
+ * 所有 Firestore 操作都在這裡進行
+ */
+
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  onSnapshot,
+  Timestamp
+} from "firebase/firestore";
+import { getDb } from "./firebase";
+import { DB_PATHS, APP_ID } from "../config/firebase.config";
+
+/**
+ * 從數據庫中讀取用戶數據
+ */
+export async function getUserFromDatabase(userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    // 從 users 集合讀取用戶文檔
+    const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
+    const userSnapshot = await getDoc(userDocRef);
+    
+    if (userSnapshot.exists()) {
+      return userSnapshot.data();
+    }
+    
+    console.log(`⚠ 用戶 [${userId}] 的數據不存在`);
+    return null;
+  } catch (error) {
+    console.error(`✗ 讀取用戶 [${userId}] 失敗:`, error);
+    throw error;
+  }
+}
+
+/**
+ * 獲取所有怪物數據
+ */
+export async function getAllMonsters(appId = APP_ID) {
+  try {
+    const db = getDb();
+    const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'monsters'));
+    
+    const monsters = snapshot.docs.map(doc => ({
+      id: doc.id,
+      rank: "None",
+      ...doc.data()
+    }));
+
+    console.log(`✓ 加載 ${monsters.length} 隻怪物`);
+    return monsters;
+  } catch (error) {
+    console.error("✗ 加載怪物數據失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 實時監聽怪物數據變化
+ */
+export function watchMonsters(appId = APP_ID, callback) {
+  try {
+    const db = getDb();
+    console.log('watchMonsters 被調用，appId:', appId);
+    
+    const monstersRef = collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
+    console.log('Collection reference created');
+    
+    const unsubscribe = onSnapshot(monstersRef, (snapshot) => {
+      console.log('onSnapshot triggered, docs count:', snapshot.docs.length);
+      const monsters = snapshot.docs.map(doc => ({
+        id: doc.id,
+        rank: "None",
+        ...doc.data()
+      }));
+      console.log('Monsters mapped:', monsters.length);
+      callback(monsters);
+    }, (error) => {
+      console.error('onSnapshot error:', error);
+    });
+
+    console.log("✓ 開始監聽怪物數據");
+    return unsubscribe;
+  } catch (error) {
+    console.error("✗ 監聽怪物數據失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 根據名稱搜尋怪物
+ */
+export async function searchMonsterByName(name, appId = APP_ID) {
+  try {
+    const db = getDb();
+    
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'monsters'), where("name", "==", name));
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error(`✗ 搜尋怪物 [${name}] 失敗:`, error);
+    throw error;
+  }
+}
+
+/**
+ * 新增怪物
+ */
+export async function addMonster(monsterData, appId = APP_ID) {
+  try {
+    const db = getDb();
+    const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const now = Timestamp.now();
+
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
+      id,
+      ...monsterData,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    console.log(`✓ 成功新增怪物: ${monsterData.name}`);
+    return id;
+  } catch (error) {
+    console.error("✗ 新增怪物失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 更新怪物
+ */
+export async function updateMonster(monsterId, updates, appId = APP_ID) {
+  try {
+    const db = getDb();
+    
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId), {
+      ...updates,
+      updatedAt: Timestamp.now()
+    });
+
+    console.log(`✓ 成功更新怪物: ${monsterId}`);
+  } catch (error) {
+    console.error("✗ 更新怪物失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 刪除怪物
+ */
+export async function deleteMonster(monsterId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    
+    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId));
+    console.log(`✓ 成功刪除怪物: ${monsterId}`);
+  } catch (error) {
+    console.error("✗ 刪除怪物失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 獲取用戶的收藏
+ */
+export async function getUserPins(userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    const snapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'pins'));
+    
+    const pins = {};
+    snapshot.docs.forEach(doc => {
+      pins[doc.id] = doc.data().groupId;
+    });
+
+    return pins;
+  } catch (error) {
+    console.error("✗ 加載用戶收藏失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 實時監聽用戶收藏
+ */
+export function watchUserPins(userId, appId = APP_ID, callback) {
+  try {
+    const db = getDb();
+    
+    const unsubscribe = onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'pins'), (snapshot) => {
+      const pins = {};
+      snapshot.docs.forEach(doc => {
+        pins[doc.id] = doc.data().groupId;
+      });
+      callback(pins);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error("✗ 監聽用戶收藏失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 添加收藏
+ */
+export async function addPin(monsterId, groupId, userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    
+    await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'pins', monsterId), {
+      groupId,
+      updatedAt: Timestamp.now()
+    });
+
+    console.log(`✓ 成功收藏怪物: ${monsterId}`);
+  } catch (error) {
+    console.error("✗ 添加收藏失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 移除收藏
+ */
+export async function removePin(monsterId, userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    
+    await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'pins', monsterId));
+    console.log(`✓ 成功取消收藏: ${monsterId}`);
+  } catch (error) {
+    console.error("✗ 移除收藏失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 獲取用戶的分組
+ */
+export async function getUserGroups(userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    const snapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'groups'));
+    
+    const groups = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    // 按 order 排序
+    groups.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    return groups;
+  } catch (error) {
+    console.error("✗ 加載用戶分組失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 實時監聽用戶分組
+ */
+export function watchUserGroups(userId, appId = APP_ID, callback) {
+  try {
+    const db = getDb();
+    
+    const unsubscribe = onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'groups'), (snapshot) => {
+      const groups = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      groups.sort((a, b) => (a.order || 0) - (b.order || 0));
+      callback(groups);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error("✗ 監聽用戶分組失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 建立默認分組
+ */
+export async function createDefaultGroup(userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    const groupId = "default";
+    
+    await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'groups', groupId), {
+      name: "常用區域",
+      order: 0,
+      canDelete: false,
+      createdAt: Timestamp.now()
+    });
+
+    console.log("✓ 成功建立默認分組");
+    return groupId;
+  } catch (error) {
+    console.error("✗ 建立默認分組失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 新增分組
+ */
+export async function addGroup(groupName, userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    const groupId = `g_${Date.now()}`;
+    
+    // 先獲取現有分組數量
+    const groups = await getUserGroups(userId, appId);
+    
+    await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'groups', groupId), {
+      name: groupName,
+      order: groups.length,
+      canDelete: true,
+      createdAt: Timestamp.now()
+    });
+
+    console.log(`✓ 成功新增分組: ${groupName}`);
+    return groupId;
+  } catch (error) {
+    console.error("✗ 新增分組失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 更新分組
+ */
+export async function updateGroup(groupId, updates, userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    
+    await updateDoc(doc(db, 'artifacts', appId, 'users', userId, 'groups', groupId), updates);
+    console.log(`✓ 成功更新分組: ${groupId}`);
+  } catch (error) {
+    console.error("✗ 更新分組失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 刪除分組
+ */
+export async function deleteGroup(groupId, userId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    
+    await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'groups', groupId));
+    console.log(`✓ 成功刪除分組: ${groupId}`);
+  } catch (error) {
+    console.error("✗ 刪除分組失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 從 Firestore 同步遊戲數據 (版本、地圖、職業等)
+ * 這允許在後台更新遊戲數據而無需重新部署
+ */
+export async function syncGameMetadata(appId = APP_ID) {
+  try {
+    const db = getDb();
+    const metadataDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'metadata', 'gamedata'));
+    
+    if (metadataDoc.exists()) {
+      console.log("✓ 成功同步遊戲元數據");
+      return metadataDoc.data();
+    }
+    
+    console.log("⚠ 遊戲元數據不存在，使用本地數據");
+    return null;
+  } catch (error) {
+    console.error("✗ 同步遊戲元數據失敗:", error);
+    return null;
+  }
+}
+
+export default {
+  getAllMonsters,
+  watchMonsters,
+  searchMonsterByName,
+  addMonster,
+  updateMonster,
+  deleteMonster,
+  getUserPins,
+  watchUserPins,
+  addPin,
+  removePin,
+  getUserGroups,
+  watchUserGroups,
+  createDefaultGroup,
+  addGroup,
+  updateGroup,
+  deleteGroup,
+  syncGameMetadata
+};

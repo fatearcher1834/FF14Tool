@@ -1,0 +1,700 @@
+<template>
+  <div class="flex flex-col h-full bg-slate-50 overflow-hidden">
+    <!-- Navbar -->
+    <nav class="bg-slate-900 text-white p-3 flex justify-between items-center shrink-0 z-50">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 p-1.5 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+        </div>
+        <div>
+          <span class="font-black text-xs tracking-tighter uppercase">FINAL FANTASY XIV 繁中狩獵工具</span>
+          <div class="text-[9px] text-blue-400 font-bold uppercase">{{ userStore.virtualId }}</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <RouterLink
+          v-if="userStore.isAdmin"
+          to="/admin"
+          class="px-4 py-1.5 rounded-xl text-xs font-bold transition-all bg-white text-slate-900 shadow-md"
+        >
+          管理員
+        </RouterLink>
+        <button
+          @click="logout"
+          class="p-1.5 text-slate-500 hover:text-red-400 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="flex-1 flex overflow-hidden relative">
+      <!-- 左邊 - 搜尋看板 -->
+      <div :class="['flex-1 flex flex-col transition-all duration-300', showKanban ? 'mr-[380px]' : 'mr-0']">
+        <!-- 搜尋工具欄 -->
+        <div class="p-4 bg-white border-b space-y-3 z-30 shadow-sm">
+          <div class="flex items-center gap-3">
+            <div class="relative flex-1">
+              <Search size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                v-model="searchTerm"
+                @input="searchCurrentPage = 1"
+                class="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-2xl text-xs outline-none font-bold"
+                placeholder="搜尋怪物..."
+              />
+            </div>
+            <button
+              @click="toggleMainAllExpanded"
+              :class="['p-2.5 rounded-2xl flex items-center justify-center transition-all border', isMainGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200']"
+            >
+              <ChevronUp v-if="isMainGlobalExpanded" size="18" />
+              <ChevronDown v-else size="18" />
+            </button>
+            <button
+              @click="showKanban = !showKanban"
+              :class="['px-4 py-2.5 rounded-2xl flex items-center gap-2 text-[12px] font-black transition-all', showKanban ? 'bg-amber-100 text-amber-700' : 'bg-white border text-slate-500']"
+            >
+              <Layout :size="14" :class="showKanban ? 'text-amber-600' : 'text-slate-400'" />
+              <span>追蹤板</span>
+            </button>
+          </div>
+
+          <!-- 篩選條件 -->
+          <div class="flex gap-2 items-center flex-wrap">
+            <select
+              v-model="filterVer"
+              @change="searchCurrentPage = 1"
+              class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none"
+            >
+              <option value="">全版本</option>
+              <option v-for="v in VERSIONS" :key="v" :value="v">{{ v }}</option>
+            </select>
+
+            <select
+              v-model="filterMap"
+              @change="searchCurrentPage = 1"
+              class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none"
+            >
+              <option value="">{{ filterVer ? `${filterVer} 所有地圖` : '所有地圖' }}</option>
+              <option v-for="m in getMapsForVersion(filterVer)" :key="m" :value="m">{{ m }}</option>
+            </select>
+
+            <select
+              v-model="filterRank"
+              @change="searchCurrentPage = 1"
+              class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none"
+            >
+              <option value="">等級</option>
+              <option v-for="r in RANKS" :key="r" :value="r">{{ r === 'None' ? '一般' : `${r}級` }}</option>
+            </select>
+
+            <button
+              @click="filterFate = !filterFate; searchCurrentPage = 1"
+              :class="['px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all', filterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
+            >
+              FATE
+            </button>
+
+            <button
+              @click="toggleJobFilter"
+              :class="['px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all', filterJob ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
+            >
+              討伐筆記
+            </button>
+
+            <select
+              v-if="showJobFilter"
+              v-model="filterJob"
+              @change="searchCurrentPage = 1"
+              class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none border"
+            >
+              <option value="*">全部</option>
+              <option v-for="j in JOB_BASE_NAMES" :key="j" :value="j">{{ j }}</option>
+            </select>
+          </div>
+        </div>
+        <!-- 沐窗區域 -->
+        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          <!-- 分頁導航 -->
+          <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-2 border">
+          <div class="flex items-center gap-3">
+            <span class="text-[12px] font-bold text-slate-600">
+              共 <span class="font-black text-slate-800">{{ filteredMonsters.length }}</span> 筆 | 第
+              <span class="font-black text-slate-800">{{ searchCurrentPage }}</span> 頁
+            </span>
+            <select
+              v-model.number="searchPageSize"
+              @change="searchCurrentPage = 1"
+              class="bg-white border p-1.5 rounded text-[11px] font-black outline-none"
+            >
+              <option value="20">20筆</option>
+              <option value="50">50筆</option>
+              <option value="100">100筆</option>
+              <option value="300">300筆</option>
+              <option value="500">500筆</option>
+              <option value="1000">1000筆</option>
+            </select>
+            <select
+              v-model="searchSortField"
+              @change="searchCurrentPage = 1"
+              class="bg-white border p-1.5 rounded text-[11px] font-black outline-none"
+            >
+              <option value="name">名字</option>
+              <option value="job">討伐筆記</option>
+              <option value="map">地圖</option>
+            </select>
+            <button
+              @click="searchSortDir = searchSortDir === 'asc' ? 'desc' : 'asc'; searchCurrentPage = 1"
+              class="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50"
+            >
+              {{ searchSortDir === 'asc' ? '↑' : '↓' }}
+            </button>
+          </div>
+          <div class="flex gap-2">
+            <button
+              @click="searchCurrentPage = Math.max(searchCurrentPage - 1, 1)"
+              :disabled="searchCurrentPage === 1"
+              class="px-3 py-1.5 bg-white border rounded-lg text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              ← 上一頁
+            </button>
+            <button
+              @click="searchCurrentPage = Math.min(searchCurrentPage + 1, searchTotalPages)"
+              :disabled="searchCurrentPage >= searchTotalPages"
+              class="px-3 py-1.5 bg-white border rounded-lg text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              下一頁 →
+            </button>
+          </div>
+        </div>
+
+        <!-- 怪物卡片網格 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 p-4">
+            <div
+              v-for="m in searchPagedMonsters"
+              :key="m.id"
+              class="bg-white rounded-3xl border border-slate-200 hover:border-blue-400 transition-all overflow-hidden shadow-sm"
+            >
+              <div class="p-4">
+                <!-- 怪物名稱和標籤 -->
+                <div class="flex justify-between items-start mb-2">
+                  <div class="flex flex-col flex-1 cursor-pointer" @click="toggleMainExpanded(m.id)">
+                    <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                      <ChevronDown v-if="mainExpandedIds[m.id]" size="12" class="text-slate-400" />
+                      <ChevronRight v-else size="12" class="text-slate-400" />
+                      <h4 class="font-black text-slate-800 text-sm mr-0.5">{{ m.name }}</h4>
+                      <VersionTag :version="m.version" />
+                      <RankTag :rank="m.rank" />
+                      <FateTag :isFate="m.isFate" />
+                      <JobTag :jobs="m.jobs || []" />
+                    </div>
+                  </div>
+                  <button
+                    @click="handleTogglePin(m.id)"
+                    :class="['p-2 rounded-xl transition-all', userPins[m.id] ? 'bg-amber-100 text-amber-600' : 'text-slate-200 hover:text-amber-300']"
+                  >
+                    <Pin size="14" :fill="userPins[m.id] ? 'currentColor' : 'none'" />
+                  </button>
+                </div>
+
+                <!-- 展開的位置列表 -->
+                <div v-if="mainExpandedIds[m.id] && m.locations && m.locations.length > 0" class="space-y-1.5">
+                  <button
+                    v-for="(loc, i) in m.locations"
+                    :key="i"
+                    @click="handleCopyLocation(m.name, loc, `${m.id}-${i}`)"
+                    class="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc"
+                  >
+                    <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
+                    <div class="font-mono font-bold text-[10px]">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                    <div
+                      v-if="copyFeedback === `${m.id}-${i}`"
+                      class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse"
+                    >
+                      <Check size="12" class="text-white" />
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右邊 - 追蹤看板 -->
+      <div :class="['absolute right-0 top-0 bottom-0 w-[380px] bg-slate-100 border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 overflow-hidden', showKanban ? 'translate-x-0' : 'translate-x-full']">
+        <!-- 追蹤看板頭部 -->
+        <div class="p-4 bg-white border-b flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <h2 class="font-black text-xs text-slate-800 uppercase tracking-widest shrink-0">追蹤看板</h2>
+            <button
+              @click="toggleKbAllExpanded"
+              :class="['p-1.5 rounded-lg flex items-center justify-center transition-all border', isKbGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200']"
+            >
+              <ChevronUp v-if="isKbGlobalExpanded" size="14" />
+              <ChevronDown v-else size="14" />
+            </button>
+          </div>
+          <button
+            @click="addNewGroup"
+            class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
+          >
+            <Plus size="16" />
+          </button>
+        </div>
+
+        <!-- 追蹤看板篩選 -->
+        <div class="p-3 bg-white border-b space-y-2 shadow-sm">
+          <div class="relative">
+            <Filter size="10" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              v-model="kbSearchTerm"
+              class="w-full pl-7 pr-4 py-1.5 bg-slate-50 rounded-xl text-[12px] outline-none font-bold"
+              placeholder="過濾追蹤內容..."
+            />
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <select
+              v-model="kbFilterVer"
+              class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
+            >
+              <option value="">全版本</option>
+              <option v-for="v in VERSIONS" :key="v" :value="v">{{ v }}</option>
+            </select>
+            <select
+              v-model="kbFilterMap"
+              class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border flex-1 min-w-[100px]"
+            >
+              <option value="">{{ kbFilterVer ? `${kbFilterVer} 地圖` : '全地圖' }}</option>
+              <option v-for="m in getMapsForVersion(kbFilterVer)" :key="m" :value="m">{{ m }}</option>
+            </select>
+            <button
+              @click="toggleKbJobFilter"
+              :class="['px-2 py-1 rounded-lg text-[12px] font-black border transition-all', kbFilterJob ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
+            >
+              討伐筆記
+            </button>
+            <select
+              v-if="showKbJobFilter"
+              v-model="kbFilterJob"
+              class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
+            >
+              <option value="*">全部</option>
+              <option v-for="j in JOB_BASE_NAMES" :key="j" :value="j">{{ j }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 分組列表 -->
+        <div class="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar bg-slate-50">
+          <div
+            v-for="group in customGroups"
+            :key="group.id"
+            @dragover.prevent
+            @drop="handleGroupDrop($event, group.id)"
+            class="bg-white rounded-2xl border p-3 space-y-3 shadow-sm"
+          >
+            <!-- 分組頭部 -->
+            <div class="flex justify-between items-center px-1">
+              <input
+                :value="group.name"
+                @input="updateGroupName(group.id, $event.target.value)"
+                class="bg-transparent font-black text-[11px] outline-none text-slate-700 w-full p-1 focus:bg-slate-50 rounded"
+              />
+              <div class="flex items-center gap-2">
+                <span class="text-[9px] font-black px-1.5 py-0.5 bg-slate-100 text-slate-400 rounded-full">
+                  {{ getGroupMonsters(group.id).length }}
+                </span>
+                <button
+                  v-if="group.canDelete"
+                  @click="deleteGroup(group.id)"
+                  class="text-slate-300 hover:text-red-400"
+                >
+                  <Trash2 size="12" />
+                </button>
+              </div>
+            </div>
+
+            <!-- 分組內的怪物 -->
+            <div class="flex flex-col gap-2">
+              <div
+                v-for="m in getGroupMonsters(group.id)"
+                :key="`kb-${m.id}`"
+                :class="['border rounded-xl relative group/card cursor-grab active:cursor-grabbing shadow-sm transition-all', m.rank === 'S' || m.rank === 'SS' ? 'bg-amber-50 border-amber-100' : 'bg-[#fdfcf0] border-orange-100']"
+                draggable
+                @dragstart="$event.dataTransfer.setData('monsterId', m.id)"
+              >
+                <div
+                  @click="toggleKbExpanded(m.id)"
+                  class="p-3 flex justify-between items-start cursor-pointer hover:bg-black/5 rounded-t-xl transition-colors"
+                >
+                  <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 overflow-hidden">
+                    <div class="text-[12px] font-black text-slate-800 truncate flex items-center gap-1 shrink-0">
+                      <ChevronDown v-if="expandedIds[m.id]" size="10" class="text-slate-400" />
+                      <ChevronRight v-else size="10" class="text-slate-400" />
+                      {{ m.name }}
+                      <VersionTag :version="m.version" />
+                      <RankTag :rank="m.rank" />
+                      <FateTag :isFate="m.isFate" />
+                      <JobTag :jobs="m.jobs || []" />
+                    </div>
+                  </div>
+                  <!-- 取消釘選按鈕 -->
+                  <button
+                    @click.stop="pinsStore.removePin(m.id)"
+                    class="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-500 bg-white rounded-full shadow transition-all"
+                    title="取消釘選"
+                  >
+                    <Trash2 size="14" />
+                  </button>
+                </div>
+
+                <!-- 位置列表 -->
+                <div v-if="expandedIds[m.id] && m.locations && m.locations.length > 0" class="p-3 bg-slate-50 space-y-1 text-[10px] border-t">
+                  <div v-for="(loc, i) in m.locations" :key="i" class="flex items-center gap-2">
+                    <div class="font-bold text-slate-700">{{ loc.map }}</div>
+                    <div class="font-mono text-slate-600">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                    <button
+                      @click="handleCopyLocation(m.name, loc, `kb-${m.id}-${i}`)"
+                      class="p-1 bg-white rounded hover:bg-blue-600 hover:text-white text-xs font-black border border-blue-100 transition-all"
+                      title="複製座標"
+                    >
+                      <Check v-if="copyFeedback === `kb-${m.id}-${i}`" size="12" class="text-green-600" />
+                      <span v-else>複製</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  Search,
+  Layout,
+  Pin,
+  Filter,
+  Plus,
+  Trash2,
+  Check
+} from 'lucide-vue-next'
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
+import { getFirebaseInstance } from '@/services/firebase'
+import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
+import { applyFilter, sortMonsters, getMapsForVersion, copyToClipboard } from '@/services/hunterUtils'
+import { useUserStore } from '@/stores/user.store'
+import { useMonstersStore } from '@/stores/monsters.store'
+import { useUserPinsStore } from '@/stores/user-pins.store'
+import VersionTag from '@/components/VersionTag.vue'
+import RankTag from '@/components/RankTag.vue'
+import FateTag from '@/components/FateTag.vue'
+import JobTag from '@/components/JobTag.vue'
+
+const userStore = useUserStore()
+const monstersStore = useMonstersStore()
+const pinsStore = useUserPinsStore()
+const router = useRouter()
+
+// 搜尋狀態
+const searchTerm = ref('')
+const filterVer = ref('')
+const filterMap = ref('')
+const filterRank = ref('')
+const filterFate = ref(false)
+const filterJob = ref('')
+const showJobFilter = ref(false)
+
+// 追蹤看板狀態
+const showKanban = ref(true)
+const kbSearchTerm = ref('')
+const kbFilterVer = ref('')
+const kbFilterMap = ref('')
+const kbFilterJob = ref('')
+const showKbJobFilter = ref(false)
+
+// 分頁狀態
+const searchCurrentPage = ref(1)
+const searchPageSize = ref(100)
+const searchSortField = ref('name')
+const searchSortDir = ref('asc')
+
+// 展開狀態
+const mainExpandedIds = ref({})
+const expandedIds = ref({})
+const isMainGlobalExpanded = ref(false)
+const isKbGlobalExpanded = ref(false)
+
+// 複製反饋
+const copyFeedback = ref(null)
+
+// 自訂分組
+const customGroups = ref([])
+
+// 用戶 PIN
+const userPins = computed(() => pinsStore.pins)
+
+// 計算過濾的怪物
+const filteredMonsters = computed(() => {
+  if (!monstersStore.monsters || monstersStore.monsters.length === 0) {
+    return []
+  }
+  return applyFilter(
+    monstersStore.monsters,
+    searchTerm.value,
+    filterVer.value,
+    filterMap.value,
+    filterRank.value,
+    filterFate.value,
+    filterJob.value
+  )
+})
+
+// 排序和分頁
+const sortedFilteredMonsters = computed(() =>
+  sortMonsters(filteredMonsters.value, searchSortField.value, searchSortDir.value)
+)
+
+const searchPagedMonsters = computed(() => {
+  const startIdx = (searchCurrentPage.value - 1) * searchPageSize.value
+  const endIdx = startIdx + searchPageSize.value
+  return sortedFilteredMonsters.value.slice(startIdx, endIdx)
+})
+
+const searchTotalPages = computed(() =>
+  Math.ceil(filteredMonsters.value.length / searchPageSize.value)
+)
+
+// 追蹤看板過濾
+const kbFilteredMonsters = computed(() => {
+  if (!monstersStore.monsters || monstersStore.monsters.length === 0) {
+    return []
+  }
+  return applyFilter(
+    monstersStore.monsters.filter(m => userPins.value[m.id]),
+    kbSearchTerm.value,
+    kbFilterVer.value,
+    kbFilterMap.value,
+    '',
+    false,
+    kbFilterJob.value
+  )
+})
+
+// 獲取分組內的怪物
+const getGroupMonsters = groupId =>
+  kbFilteredMonsters.value.filter(m => userPins.value[m.id] === groupId)
+
+// PIN 切換
+const handleTogglePin = async mId => {
+  if (userPins.value[mId]) {
+    await pinsStore.removePin(mId)
+  } else {
+    expandedIds.value[mId] = isKbGlobalExpanded.value
+    await pinsStore.addPin(mId, customGroups.value[0]?.id)
+  }
+}
+
+// 複製位置
+const handleCopyLocation = async (name, loc, key) => {
+  const text = `${name} ${loc.map} (X: ${loc.x}, Y: ${loc.y})`
+  await copyToClipboard(text)
+  copyFeedback.value = key
+  setTimeout(() => (copyFeedback.value = null), 1000)
+}
+
+// 全部展開 / 摺疊
+const toggleMainAllExpanded = () => {
+  isMainGlobalExpanded.value = !isMainGlobalExpanded.value
+  const newStates = {}
+  searchPagedMonsters.value.forEach(m => {
+    newStates[m.id] = isMainGlobalExpanded.value
+  })
+  mainExpandedIds.value = newStates
+}
+
+const toggleKbAllExpanded = () => {
+  isKbGlobalExpanded.value = !isKbGlobalExpanded.value
+  const newStates = {}
+  monstersStore.monsters.forEach(m => {
+    if (userPins.value[m.id]) newStates[m.id] = isKbGlobalExpanded.value
+  })
+  expandedIds.value = newStates
+}
+
+// 切換展開
+const toggleMainExpanded = id => {
+  mainExpandedIds.value[id] = !mainExpandedIds.value[id]
+}
+
+const toggleKbExpanded = id => {
+  expandedIds.value[id] = !expandedIds.value[id]
+}
+
+// 職業過濾切換
+const toggleJobFilter = () => {
+  if (filterJob.value) {
+    filterJob.value = ''
+    showJobFilter.value = false
+  } else {
+    filterJob.value = '*'
+    showJobFilter.value = true
+  }
+  searchCurrentPage.value = 1
+}
+
+const toggleKbJobFilter = () => {
+  if (kbFilterJob.value) {
+    kbFilterJob.value = ''
+    showKbJobFilter.value = false
+  } else {
+    kbFilterJob.value = '*'
+    showKbJobFilter.value = true
+  }
+}
+
+// 追蹤看板操作
+const addNewGroup = async () => {
+  const id = `g_${Date.now()}`
+  const db = getFirestore()
+  await setDoc(
+    doc(
+      db,
+      'artifacts',
+      userStore.appId,
+      'users',
+      userStore.virtualId,
+      'groups',
+      id
+    ),
+    { name: '新分組', order: customGroups.value.length, canDelete: true }
+  )
+}
+
+const updateGroupName = async (groupId, name) => {
+  const db = getFirestore()
+  await updateDoc(
+    doc(
+      db,
+      'artifacts',
+      userStore.appId,
+      'users',
+      userStore.virtualId,
+      'groups',
+      groupId
+    ),
+    { name }
+  )
+}
+
+const deleteGroup = async groupId => {
+  if (!confirm('刪除分組？')) return
+  const db = getFirestore()
+  await deleteDoc(
+    doc(
+      db,
+      'artifacts',
+      userStore.appId,
+      'users',
+      userStore.virtualId,
+      'groups',
+      groupId
+    )
+  )
+}
+
+const handleGroupDrop = async (e, groupId) => {
+  const monsterId = e.dataTransfer.getData('monsterId')
+  if (monsterId) {
+    await pinsStore.movePin(monsterId, groupId)
+  }
+}
+
+const logout = async () => {
+  await userStore.logout()
+  await router.push('/login')
+}
+
+// 初始化
+onMounted(async () => {
+  console.log('🔍 SearchPage mounted')
+  console.log('AppID:', userStore.appId)
+  console.log('VirtualID:', userStore.virtualId)
+  
+  // 先一次性加載所有怪物數據
+  console.log('📡 配置加載怪物數據...')
+  try {
+    await monstersStore.initializeMonsters()
+    console.log(`✅ 怪物初始化完成，當前怪物數: ${monstersStore.monsters.length}`)
+  } catch (err) {
+    console.error('❌ 初始化怪物失敗:', err)
+  }
+  
+  // 然後啟動實時監聽
+  console.log('📡 啟動怪物數據實時監聽...')
+  try {
+    monstersStore.watchMonsters()
+    console.log('✅ 怪物監聽已啟動')
+  } catch (err) {
+    console.error('❌ 啟動監聽失敗:', err)
+  }
+
+  // 監聽分組
+  const { db } = getFirebaseInstance()
+  onSnapshot(
+    collection(db, 'artifacts', userStore.appId, 'users', userStore.virtualId, 'groups'),
+    snapshot => {
+      const groups = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      if (groups.length === 0) {
+        setDoc(
+          doc(
+            db,
+            'artifacts',
+            userStore.appId,
+            'users',
+            userStore.virtualId,
+            'groups',
+            'default'
+          ),
+          { name: '常用區域', order: 0, canDelete: false }
+        )
+      } else {
+        customGroups.value = groups.sort((a, b) => a.order - b.order)
+      }
+    }
+  )
+})
+</script>
+
+<style scoped>
+.animate-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
