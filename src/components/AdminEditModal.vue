@@ -114,6 +114,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { X } from 'lucide-vue-next'
 import { GAME_VERSIONS, MAP_DATA, VERSIONS, ALL_REGIONS } from '@/config/constants'
 // 取得非當前版本地圖
 const otherRegions = (version) => {
