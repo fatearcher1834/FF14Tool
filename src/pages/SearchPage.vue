@@ -299,9 +299,10 @@
           <div
             v-for="group in customGroups"
             :key="group.id"
-            @dragover.prevent
+            @dragover.prevent="dragOverMonsterId = 'group-' + group.id"
+            @dragleave="dragOverMonsterId === 'group-' + group.id && (dragOverMonsterId = null)"
             @drop="handleGroupDrop($event, group.id)"
-            class="bg-white rounded-2xl border p-3 space-y-3 shadow-sm"
+            :class="['bg-white rounded-2xl border p-3 space-y-3 shadow-sm transition-all', dragOverMonsterId === 'group-' + group.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200']"
           >
             <!-- 分組頭部 -->
             <div class="flex justify-between items-center px-1">
@@ -329,9 +330,13 @@
               <div
                 v-for="m in getGroupMonsters(group.id)"
                 :key="`kb-${m.id}`"
-                :class="['border rounded-xl relative group/card cursor-grab active:cursor-grabbing shadow-sm transition-all', m.rank === 'S' || m.rank === 'SS' ? 'bg-amber-50 border-amber-100' : 'bg-[#fdfcf0] border-orange-100']"
-                draggable
-                @dragstart="$event.dataTransfer.setData('monsterId', m.id)"
+                :class="['border rounded-xl relative group/card cursor-grab active:cursor-grabbing shadow-sm transition-all', 
+                  m.rank === 'S' || m.rank === 'SS' ? 'bg-amber-50 border-amber-100' : 'bg-[#fdfcf0] border-orange-100']"
+                draggable="true"
+                @dragstart="handleMonsterDragStart($event, m.id)"
+                @dragover="handleMonsterDragOver($event, m.id)"
+                @dragleave="handleMonsterDragLeave()"
+                @drop="handleMonsterDrop($event, m.id, group.id)"
               >
                 <div
                   @click="toggleKbExpanded(m.id)"
@@ -627,7 +632,41 @@ const deleteGroup = async groupId => {
 const handleGroupDrop = async (e, groupId) => {
   const monsterId = e.dataTransfer.getData('monsterId')
   if (monsterId) {
-    await pinsStore.movePin(monsterId, groupId)
+    await pinsStore.movePin(monsterId, groupId, userStore.virtualId)
+  }
+}
+
+// 怪物排序相關
+const draggedMonsterId = ref(null)
+const dragOverMonsterId = ref(null)
+
+const handleMonsterDragStart = (e, monsterId) => {
+  draggedMonsterId.value = monsterId
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('monsterId', monsterId)
+}
+
+const handleMonsterDragOver = (e, monsterId) => {
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  dragOverMonsterId.value = monsterId
+}
+
+const handleMonsterDragLeave = () => {
+  dragOverMonsterId.value = null
+}
+
+const handleMonsterDrop = async (e, targetMonsterId, groupId) => {
+  e.preventDefault()
+  const sourceMonsterId = e.dataTransfer.getData('monsterId') || draggedMonsterId.value
+  
+  if (sourceMonsterId && sourceMonsterId !== targetMonsterId) {
+    // 同分組內排序 - 互換位置
+    draggedMonsterId.value = null
+    dragOverMonsterId.value = null
+    
+    // 這裡可以實現排序邏輯，暫時只支持分組間拖曳
+    // 後續可添加排序 order 字段的更新邏輯
   }
 }
 
