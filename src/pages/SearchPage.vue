@@ -212,13 +212,15 @@
                     @click="handleCopyLocation(m.name, loc, `${m.id}-${i}`)"
                     class="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc"
                   >
-                    <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
-                    <div class="font-mono font-bold text-[10px]">X:{{ loc.x }} Y:{{ loc.y }}</div>
-                    <div
-                      v-if="copyFeedback === `${m.id}-${i}`"
-                      class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse"
-                    >
-                      <Check size="12" class="text-white" />
+                    <div class="flex items-center gap-2">
+                      <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
+                      <div class="font-mono font-bold text-[10px]">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                      <div
+                        v-if="copyFeedback === `${m.id}-${i}`"
+                        class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse"
+                      >
+                        <Check size="12" class="text-white" />
+                      </div>
                     </div>
                   </button>
                 </div>
@@ -348,7 +350,7 @@
                   </div>
                   <!-- 取消釘選按鈕 -->
                   <button
-                    @click.stop="pinsStore.removePin(m.id)"
+                    @click.stop="pinsStore.removePin(m.id, userStore.virtualId)"
                     class="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-500 bg-white rounded-full shadow transition-all"
                     title="取消釘選"
                   >
@@ -359,15 +361,18 @@
                 <!-- 位置列表 -->
                 <div v-if="expandedIds[m.id] && m.locations && m.locations.length > 0" class="p-3 bg-slate-50 space-y-1 text-[10px] border-t">
                   <div v-for="(loc, i) in m.locations" :key="i" class="flex items-center gap-2">
-                    <div class="font-bold text-slate-700">{{ loc.map }}</div>
-                    <div class="font-mono text-slate-600">X:{{ loc.x }} Y:{{ loc.y }}</div>
                     <button
                       @click="handleCopyLocation(m.name, loc, `kb-${m.id}-${i}`)"
-                      class="p-1 bg-white rounded hover:bg-blue-600 hover:text-white text-xs font-black border border-blue-100 transition-all"
+                      class="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc text-[10px]"
                       title="複製座標"
                     >
-                      <Check v-if="copyFeedback === `kb-${m.id}-${i}`" size="12" class="text-green-600" />
-                      <span v-else>複製</span>
+                    <div class="flex items-center gap-2">
+                      <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
+                      <div class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                      <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse">
+                        <Check size="12" class="text-white" />
+                      </div>
+                    </div>
                     </button>
                   </div>
                 </div>
@@ -504,10 +509,10 @@ const getGroupMonsters = groupId =>
 // PIN 切換
 const handleTogglePin = async mId => {
   if (userPins.value[mId]) {
-    await pinsStore.removePin(mId)
+    await pinsStore.removePin(mId, userStore.virtualId)
   } else {
     expandedIds.value[mId] = isKbGlobalExpanded.value
-    await pinsStore.addPin(mId, customGroups.value[0]?.id)
+    await pinsStore.addPin(mId, userStore.virtualId, customGroups.value[0]?.id)
   }
 }
 
