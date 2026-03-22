@@ -47,13 +47,12 @@
         FATE
       </button>
 
-      <button @click="toggleJobFilter" :class="['px-4 py-2 rounded-lg text-xs font-black border transition-all', adminFilterJob ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200']">
+      <button @click="toggleJobsFilter" :class="['px-4 py-2 rounded-lg text-xs font-black border transition-all', adminFilterJobs ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200']">
         討伐筆記
       </button>
-
-      <select v-if="showAdminJobFilter" v-model="adminFilterJob" @change="refreshMonsters(1)" class="bg-white border p-2 rounded-lg text-xs font-black outline-none">
+      <select v-if="showAdminJobsFilter" v-model="adminFilterJobs" @change="refreshMonsters(1)" class="bg-white border p-2 rounded-lg text-xs font-black outline-none">
         <option value="*">全部</option>
-        <option v-for="j in JOB_BASE_NAMES" :key="j" :value="j">{{ j }}</option>
+        <option v-for="j in (JOB_BASE_NAMES || [])" :key="j" :value="j">{{ j }}</option>
       </select>
 
       <div class="relative flex-1 min-w-60">
@@ -79,12 +78,17 @@
           <option :value="500">500筆</option>
           <option :value="1000">1000筆</option>
         </select>
-        <select v-model="adminSortField" @change="refreshMonsters(1)" class="bg-white border p-1.5 rounded text-[11px] font-black outline-none">
+        <select v-model="adminSortField" @change="onAdminSortFieldChange" class="bg-white border p-1.5 rounded text-[11px] font-black outline-none">
           <option value="name">名字</option>
           <option value="job">討伐筆記</option>
           <option value="map">地圖</option>
           <option value="createdAt">新增時間</option>
           <option value="updatedAt">修改時間</option>
+        </select>
+
+        <select v-if="adminSortField === 'job'" v-model="adminSortJobs" @change="refreshMonsters(1)" class="bg-white border p-1.5 rounded text-[11px] font-black outline-none">
+          <option value="*">全部職業</option>
+          <option v-for="j in (JOB_BASE_NAMES || [])" :key="j" :value="j">{{ j }}</option>
         </select>
         <button @click="adminSortDir = adminSortDir === 'asc' ? 'desc' : 'asc'; refreshMonsters(adminCurrentPage)" class="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50">
           {{ adminSortDir === 'asc' ? '↑' : '↓' }}
@@ -112,7 +116,7 @@
           </tr>
         </thead>
         <tbody class="divide-y">
-          <tr v-for="m in adminMonstersList" :key="m.id" class="hover:bg-slate-50 transition-colors">
+          <tr v-for="m in (adminMonstersList || [])" :key="m.id" class="hover:bg-slate-50 transition-colors">
             <td class="p-4 text-center" style="width: 48px"></td>
             <td class="p-4 flex items-center gap-3">
               <span class="font-bold text-sm text-slate-800 mr-1">{{ m.name }}</span>
@@ -120,7 +124,7 @@
                 <VersionTag :version="m.version" />
                 <RankTag :rank="m.rank" />
                 <FateTag :is-fate="m.isFate" />
-                <JobTag :jobs="m.jobs || (m.job ? [m.job] : [])" />
+                <JobTag :jobs="m.jobs || []" />
               </div>
             </td>
             <td class="p-4">
@@ -167,7 +171,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+// ...所有變數宣告之後...
+
+
+
+// --- 變數宣告區塊結束後，這裡插入 watch 監聽 ---
 import { useRouter } from 'vue-router';
 import { useMonstersStore } from '../stores/monsters.store';
 import { useUserStore } from '../stores/user.store';
@@ -191,20 +200,46 @@ const adminFilterVer = ref('');
 const adminFilterMap = ref('');
 const adminFilterRank = ref('');
 const adminFilterFate = ref(false);
-const adminFilterJob = ref('');
-const showAdminJobFilter = ref(false);
+const adminFilterJobs = ref(''); // 篩選用
+const showAdminJobsFilter = ref(false);
+const adminSortJobs = ref('*'); // 排序用
 const adminSearchTerm = ref('');
+
 
 // Admin pagination
 const adminCurrentPage = ref(1);
-const adminPageSize = ref(20);
+const adminPageSize = ref(300);
 const adminSortField = ref('name');
 const adminSortDir = ref('asc');
 const adminTotalCount = ref(0);
 const adminMonstersList = ref([]);
 
+// 當排序欄位切換時，若不是 job，清空職業篩選
+const onAdminSortFieldChange = () => {
+  if (adminSortField.value !== 'job') {
+    adminSortJobs.value = '*';
+  } else if (!adminSortJobs.value) {
+    adminSortJobs.value = '*';
+  }
+  refreshMonsters(1);
+};
+
 const showBulkAddModal = ref(false);
 const editingMonster = ref(null);
+
+// 監聽 adminFilterJobs 變動，當排序欄位為 job 且 adminSortJobs 未選擇時自動預設
+watch(
+  () => adminFilterJobs.value,
+  (val) => {
+    if (
+      adminSortField.value === 'job' &&
+      (!adminSortJobs.value || adminSortJobs.value === '*') &&
+      val && val !== '*'
+    ) {
+      adminSortJobs.value = val;
+    }
+  }
+);
 
 // Pagination and filtering logic
 const refreshMonsters = (page = 1) => {
@@ -218,13 +253,13 @@ const refreshMonsters = (page = 1) => {
     adminFilterMap.value,
     adminFilterRank.value,
     adminFilterFate.value ? 'yes' : '',
-    adminFilterJob.value
+    adminFilterJobs.value // 只用於篩選
   );
 
   adminTotalCount.value = filtered.length;
 
   // Sort
-  const sorted = sortMonsters(filtered, adminSortField.value, adminSortDir.value);
+  const sorted = sortMonsters(filtered, adminSortField.value, adminSortDir.value, adminSortJobs.value); // 排序用 adminSortJobs
 
   // Paginate
   const start = (page - 1) * adminPageSize.value;
@@ -232,15 +267,27 @@ const refreshMonsters = (page = 1) => {
   adminMonstersList.value = sorted.slice(start, end);
 };
 
-const toggleJobFilter = () => {
-  if (adminFilterJob.value) {
-    // 已有篩選，取消篩選並隱藏下拉選單
-    adminFilterJob.value = '';
-    showAdminJobFilter.value = false;
+const toggleJobsFilter = () => {
+  if (showAdminJobsFilter.value) {
+    // 關閉時清除篩選
+    showAdminJobsFilter.value = false;
+    adminFilterJobs.value = '';
   } else {
-    // 沒有篩選，顯示下拉選單並設置為 '*'（所有有討伐筆記的怪物）
-    adminFilterJob.value = '*';
-    showAdminJobFilter.value = true;
+    // 開啟時預設 *
+    showAdminJobsFilter.value = true;
+    if (!adminFilterJobs.value) {
+      adminFilterJobs.value = '*';
+    }
+    // 若排序欄位不是 job，則自動切換排序欄位為 job
+    if (adminSortField.value !== 'job') {
+      adminSortField.value = 'job';
+    }
+    // 預設 adminSortJobs
+    if (adminFilterJobs.value && adminFilterJobs.value !== '*') {
+      adminSortJobs.value = adminFilterJobs.value;
+    } else {
+      adminSortJobs.value = '*';
+    }
   }
   refreshMonsters(1);
 };

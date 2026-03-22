@@ -7,31 +7,31 @@ import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
 /**
  * 怪物篩選
  */
-export const applyFilter = (list, search, ver, map, rank, fate, job) => {
+export const applyFilter = (list, search, ver, map, rank, fate, jobs) => {
   return list.filter(m => {
     const matchName = (m.name || '').toLowerCase().includes(search.toLowerCase())
     const matchVer = !ver || m.version === ver
     const matchMap = !map || (m.locations || []).some(l => l.map === map)
     const matchRank = !rank || m.rank === rank
     const matchFate = !fate || m.isFate === true
-    let matchJob
-    if (!job) {
-      matchJob = true
-    } else if (job === '*') {
-      const jobs = m.jobs || (m.job ? [m.job] : [])
-      matchJob = jobs.length > 0
+    let matchJobs
+    // 保證 arr 一定是陣列且無空值
+    const arr = Array.isArray(m.jobs) ? m.jobs.filter(Boolean) : (typeof m.jobs === 'string' && m.jobs ? [m.jobs] : [])
+    if (!jobs) {
+      matchJobs = true
+    } else if (jobs === '*') {
+      matchJobs = arr.length > 0
     } else {
-      const jobs = m.jobs || (m.job ? [m.job] : [])
-      matchJob = jobs.some(j => j.startsWith(job))
+      matchJobs = arr.some(j => typeof j === 'string' && j.startsWith(jobs))
     }
-    return matchName && matchVer && matchMap && matchRank && matchFate && matchJob
+    return matchName && matchVer && matchMap && matchRank && matchFate && matchJobs
   })
 }
 
 /**
  * 排序怪物列表
  */
-export const sortMonsters = (list, field, direction) => {
+export const sortMonsters = (list, field, direction, jobsFilter) => {
   if (!field) return list
   const sorted = [...list].sort((a, b) => {
     let aVal, bVal
@@ -40,10 +40,24 @@ export const sortMonsters = (list, field, direction) => {
       aVal = (a.name || '').toLowerCase()
       bVal = (b.name || '').toLowerCase()
     } else if (field === 'job') {
-      const aJobs = a.jobs || (a.job ? [a.job] : [])
-      const bJobs = b.jobs || (b.job ? [b.job] : [])
-      aVal = aJobs.length > 0 ? aJobs[0] : ''
-      bVal = bJobs.length > 0 ? bJobs[0] : ''
+      // 精準職業排序
+      const aJobs = a.jobs || []
+      const bJobs = b.jobs || []
+      if (jobsFilter && jobsFilter !== '*') {
+        // 找出該職業的順序數字，沒有該職業的，升序排最前，降序排最後
+        const aJobObj = aJobs.map(j => ({j, n: parseInt(j.replace(/[^0-9]/g, '') || '0', 10)})).find(j => j.j.startsWith(jobsFilter))
+        const bJobObj = bJobs.map(j => ({j, n: parseInt(j.replace(/[^0-9]/g, '') || '0', 10)})).find(j => j.j.startsWith(jobsFilter))
+        if (direction === 'asc') {
+          aVal = aJobObj ? aJobObj.n : -1
+          bVal = bJobObj ? bJobObj.n : -1
+        } else {
+          aVal = aJobObj ? aJobObj.n : 9999
+          bVal = bJobObj ? bJobObj.n : 9999
+        }
+      } else {
+        aVal = aJobs.length > 0 ? aJobs[0] : ''
+        bVal = bJobs.length > 0 ? bJobs[0] : ''
+      }
     } else if (field === 'map') {
       const aLocs = a.locations || []
       const bLocs = b.locations || []

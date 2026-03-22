@@ -628,6 +628,7 @@ const toggleJobFilter = () => {
   } else {
     filterJob.value = '*'
     showJobFilter.value = true
+    searchSortField.value = 'job'
   }
   searchCurrentPage.value = 1
 }
