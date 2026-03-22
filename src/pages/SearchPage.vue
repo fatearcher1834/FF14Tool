@@ -254,13 +254,20 @@
 
         <!-- 追蹤看板篩選 -->
         <div class="p-3 bg-white border-b space-y-2 shadow-sm">
-          <div class="relative">
+          <div class="relative flex items-center">
             <Filter size="10" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               v-model="kbSearchTerm"
               class="w-full pl-7 pr-4 py-1.5 bg-slate-50 rounded-xl text-[12px] outline-none font-bold"
               placeholder="過濾追蹤內容..."
             />
+            <button
+              @click="handleCopyAllLocations"
+              class="ml-2 p-1.5 rounded-full bg-slate-100 hover:bg-blue-500 hover:text-white text-blue-500 transition-all border border-blue-100"
+              title="一鍵複製所有怪物位置"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>
+            </button>
           </div>
           <div class="flex gap-2 flex-wrap">
             <select
@@ -354,13 +361,22 @@
                     </div>
                   </div>
                   <!-- 取消釘選按鈕 -->
-                  <button
-                    @click.stop="pinsStore.removePin(m.id, userStore.virtualId)"
-                    class="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-500 bg-white rounded-full shadow transition-all"
-                    title="取消釘選"
-                  >
-                    <Trash2 size="14" />
-                  </button>
+                  <div class="absolute top-2 right-2 flex gap-1">
+                    <button
+                      @click.stop="handleCopyMonsterLocations(m)"
+                      class="p-1 text-blue-400 hover:text-white hover:bg-blue-500 bg-white rounded-full shadow transition-all"
+                      title="複製所有位置座標"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>
+                    </button>
+                    <button
+                      @click.stop="pinsStore.removePin(m.id, userStore.virtualId)"
+                      class="p-1 text-slate-300 hover:text-red-500 bg-white rounded-full shadow transition-all"
+                      title="取消釘選"
+                    >
+                      <Trash2 size="14" />
+                    </button>
+                  </div>
                 </div>
 
                 <!-- 位置列表 -->
@@ -391,6 +407,24 @@
 </template>
 
 <script setup>
+// 複製單一怪物所有位置座標
+const handleCopyMonsterLocations = async (monster) => {
+  if (!monster.locations || !monster.locations.length) return
+  // 按地圖分組
+  const mapGroups = {}
+  monster.locations.forEach(loc => {
+    if (!mapGroups[loc.map]) mapGroups[loc.map] = []
+    mapGroups[loc.map].push(`(X: ${loc.x}, Y: ${loc.y})`)
+  })
+  // 組合
+  const mapStr = Object.entries(mapGroups)
+    .map(([map, coords]) => `${map} ${coords.join(' ')}`)
+    .join(' ')
+  const text = `${monster.name} ${mapStr}`.trim()
+  await copyToClipboard(text)
+  copyFeedback.value = `monster-${monster.id}`
+  setTimeout(() => { if (copyFeedback.value === `monster-${monster.id}`) copyFeedback.value = null }, 1000)
+}
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -456,6 +490,35 @@ const copyFeedback = ref(null)
 
 // 自訂分組
 const customGroups = ref([])
+
+// 一鍵複製所有怪物位置
+const handleCopyAllLocations = async () => {
+  // 取得所有已釘選怪物（已過濾）
+  const monsters = kbFilteredMonsters.value
+  if (!monsters.length) return
+
+  // 每個怪物一行，格式：
+  // 怪物名 地圖1 (X: , Y: ) (X: , Y: ) 地圖2 (X: , Y: ) ...
+  const lines = monsters.map(m => {
+    if (!m.locations || !m.locations.length) return m.name
+    // 按地圖分組
+    const mapGroups = {}
+    m.locations.forEach(loc => {
+      if (!mapGroups[loc.map]) mapGroups[loc.map] = []
+      mapGroups[loc.map].push(`(X: ${loc.x}, Y: ${loc.y})`)
+    })
+    // 組合
+    const mapStr = Object.entries(mapGroups)
+      .map(([map, coords]) => `${map} ${coords.join(' ')}`)
+      .join(' ')
+    return `${m.name} ${mapStr}`.trim()
+  })
+  const text = lines.join('\n')
+  await copyToClipboard(text)
+  copyFeedback.value = 'all-locations'
+  // 1 秒後清除提示
+  setTimeout(() => { if (copyFeedback.value === 'all-locations') copyFeedback.value = null }, 1000)
+}
 
 // 用戶 PIN
 const userPins = computed(() => pinsStore.pins)
