@@ -143,12 +143,21 @@
             </select>
             <select
               v-model="searchSortField"
-              @change="searchCurrentPage = 1"
+              @change="onSearchSortFieldChange"
               class="bg-white border p-1.5 rounded text-[11px] font-black outline-none"
             >
               <option value="name">名字</option>
               <option value="job">討伐筆記</option>
               <option value="map">地圖</option>
+            </select>
+            <select
+              v-if="searchSortField === 'job'"
+              v-model="searchSortJobs"
+              @change="searchCurrentPage = 1"
+              class="bg-white border p-1.5 rounded text-[11px] font-black outline-none"
+            >
+              <option value="*">全部職業</option>
+              <option v-for="j in JOB_BASE_NAMES" :key="j" :value="j">{{ j }}</option>
             </select>
             <button
               @click="searchSortDir = searchSortDir === 'asc' ? 'desc' : 'asc'; searchCurrentPage = 1"
@@ -425,7 +434,7 @@ const handleCopyMonsterLocations = async (monster) => {
   copyFeedback.value = `monster-${monster.id}`
   setTimeout(() => { if (copyFeedback.value === `monster-${monster.id}`) copyFeedback.value = null }, 1000)
 }
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ChevronDown,
@@ -478,6 +487,7 @@ const searchCurrentPage = ref(1)
 const searchPageSize = ref(100)
 const searchSortField = ref('name')
 const searchSortDir = ref('asc')
+const searchSortJobs = ref('*') // 排序用職業
 
 // 展開狀態
 const mainExpandedIds = ref({})
@@ -541,7 +551,7 @@ const filteredMonsters = computed(() => {
 
 // 排序和分頁
 const sortedFilteredMonsters = computed(() =>
-  sortMonsters(filteredMonsters.value, searchSortField.value, searchSortDir.value)
+  sortMonsters(filteredMonsters.value, searchSortField.value, searchSortDir.value, searchSortJobs.value)
 )
 
 const searchPagedMonsters = computed(() => {
@@ -619,6 +629,30 @@ const toggleMainExpanded = id => {
 const toggleKbExpanded = id => {
   expandedIds.value[id] = !expandedIds.value[id]
 }
+
+// 排序欄位切換時，若不是 job，清空排序職業
+const onSearchSortFieldChange = () => {
+  if (searchSortField.value !== 'job') {
+    searchSortJobs.value = '*'
+  } else if (!searchSortJobs.value) {
+    searchSortJobs.value = '*'
+  }
+  searchCurrentPage.value = 1
+}
+
+// 監聽 filterJob 變動，當排序欄位為 job 且 searchSortJobs 未選擇時自動預設
+watch(
+  () => filterJob.value,
+  (val) => {
+    if (
+      searchSortField.value === 'job' &&
+      (!searchSortJobs.value || searchSortJobs.value === '*') &&
+      val && val !== '*'
+    ) {
+      searchSortJobs.value = val
+    }
+  }
+)
 
 // 職業過濾切換
 const toggleJobFilter = () => {
