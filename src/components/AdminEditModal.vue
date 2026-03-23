@@ -1,5 +1,10 @@
 <template>
-  <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+  <div
+    ref="modalRef"
+    class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+    tabindex="0"
+    @keydown.esc="closeModal"
+  >
     <div class="bg-white rounded-[2.5rem] w-full max-w-lg p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-black text-slate-900">新增怪物</h3>
@@ -112,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { X } from 'lucide-vue-next'
 import { GAME_VERSIONS, MAP_DATA, VERSIONS, ALL_REGIONS } from '@/config/constants'
 // 取得非當前版本地圖
@@ -130,18 +135,31 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save'])
 
+const modalRef = ref(null)
+
 const JOB_BASE_NAMES = [
   '劍術師', '格鬥家', '斧術師', '槍術師', '弓箭手', '幻術師', '咒術師', '秘術師', '雙劍師', '黑渦團', '雙蛇黨', '恆輝隊'
 ]
 const jobSuffixes = Array.from({ length: 50 }, (_, i) => String(i + 1).padStart(2, '0'))
 
 const form = ref({
+  id: props.monster.id || null,
   name: props.monster.name || '',
   rank: props.monster.rank || 'None',
   isFate: props.monster.isFate || false,
-  jobs: Array.isArray(props.monster.jobs) ? props.monster.jobs : [],
+  jobs: Array.isArray(props.monster.jobs) ? [...props.monster.jobs] : [],
   version: props.monster.version || VERSIONS[0],
-  locations: Array.isArray(props.monster.locations) ? props.monster.locations : [],
+  locations: Array.isArray(props.monster.locations) ? [...props.monster.locations] : [],
+})
+
+const closeModal = () => {
+  emit('close')
+}
+
+onMounted(() => {
+  if (modalRef.value) {
+    modalRef.value.focus()
+  }
 })
 const showJobPicker = ref(false)
 const selectedJobBase = ref(null)
@@ -168,7 +186,7 @@ const confirmJobWithLevel = (jobBase, level) => {
 
 const submit = () => {
   emit('save', form.value)
-  emit('close')
+  closeModal()
 }
 
 const addLocation = () => {

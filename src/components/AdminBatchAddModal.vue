@@ -1,5 +1,10 @@
 <template>
-  <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+  <div
+    ref="modalRef"
+    class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+    tabindex="0"
+    @keydown.esc="closeModal"
+  >
     <div class="bg-white rounded-[2.5rem] w-full max-w-4xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-2xl font-black text-slate-900 tracking-tighter uppercase">批量新增列表</h3>
@@ -127,18 +132,19 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { X } from 'lucide-vue-next'
 import { VERSIONS, JOB_BASE_NAMES, JOB_SUFFIXES, MAP_DATA } from '@/config/constants'
 import { useUserStore } from '@/stores/user.store'
 import { getDb } from '@/services/firebase'
-import { doc, setDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, setDoc, updateDoc, doc } from 'firebase/firestore'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 
 const emit = defineEmits(['close', 'save'])
 
+const modalRef = ref(null)
 const userStore = useUserStore()
 const bulkInput = ref('')
 const showJobPicker = ref(false)
@@ -157,12 +163,22 @@ const config = ref({
   jobs: []
 })
 
+const closeModal = () => {
+  emit('close')
+}
+
+onMounted(() => {
+  if (modalRef.value) {
+    modalRef.value.focus()
+  }
+})
+
 const getMapsForVersion = (version) => {
   return MAP_DATA[version] || []
 }
 
 const canSubmit = computed(() => {
-  return config.value.map && bulkParsedList.value.length > 0
+  return bulkParsedList.value.length > 0
 })
 
 const confirmJobWithLevel = (jobBase, level) => {
@@ -211,25 +227,53 @@ const submit = async () => {
     let successCount = 0
 
     for (const name of bulkParsedList.value) {
-      const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
-      
-      await setDoc(doc(db, 'artifacts', userStore.appId, 'public', 'data', 'monsters', id), {
-        id,
-        name,
-        version: config.value.version,
-        rank: config.value.rank,
-        isFate: config.value.isFate,
-        jobs: config.value.jobs.length > 0 ? config.value.jobs : null,
-        locations: config.value.map ? [{ map: config.value.map, x: 0, y: 0 }] : [],
-        createdAt: now,
-        updatedAt: now
-      })
-      
+      const monsterQuery = query(
+        collection(db, 'artifacts', userStore.appId, 'public', 'data', 'monsters'),
+        where('name', '==', name)
+      )
+      const snapshot = await getDocs(monsterQuery)
+
+      if (!snapshot.empty) {
+        for (const existingDoc of snapshot.docs) {
+          const existing = existingDoc.data()
+          const mergeJobs = Array.isArray(existing.jobs) ? [...existing.jobs] : []
+          config.value.jobs.forEach(job => {
+            if (!mergeJobs.includes(job)) mergeJobs.push(job)
+          })
+
+          const updatedLocations = Array.isArray(existing.locations) ? [...existing.locations] : []
+          if (config.value.map && !updatedLocations.some(l => l.map === config.value.map)) {
+            updatedLocations.push({ map: config.value.map, x: 0, y: 0 })
+          }
+
+          await updateDoc(existingDoc.ref, {
+            rank: config.value.rank || existing.rank || 'None',
+            isFate: existing.isFate || config.value.isFate,
+            jobs: mergeJobs.length > 0 ? mergeJobs : null,
+            locations: updatedLocations.length > 0 ? updatedLocations : [],
+            updatedAt: now
+          })
+        }
+      } else {
+        const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
+        await setDoc(doc(db, 'artifacts', userStore.appId, 'public', 'data', 'monsters', id), {
+          id,
+          name,
+          version: config.value.version,
+          rank: config.value.rank,
+          isFate: config.value.isFate,
+          jobs: config.value.jobs.length > 0 ? config.value.jobs : null,
+          locations: config.value.map ? [{ map: config.value.map, x: 0, y: 0 }] : [],
+          createdAt: now,
+          updatedAt: now
+        })
+      }
       successCount++
     }
 
-    alert(`成功新增 ${successCount} 隻怪物`)
+    // 完成後關閉視窗並刷新
     emit('save')
+    closeModal()
   } catch (error) {
     console.error('Batch add failed:', error)
     alert('批量新增失敗: ' + error.message)

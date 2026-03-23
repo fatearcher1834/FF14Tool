@@ -158,7 +158,7 @@
       v-if="editingMonster" 
       :monster="editingMonster" 
       @close="editingMonster = null"
-      @save="refreshMonsters(adminCurrentPage)"
+      @save="handleSaveMonster"
     />
 
     <!-- 批量新增模態框 -->
@@ -171,7 +171,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 // ...所有變數宣告之後...
 
 
@@ -322,8 +322,51 @@ const deleteMonster = async (monster) => {
   }
 };
 
+const handleSaveMonster = async (monster) => {
+  try {
+    if (!monster.name || !monster.version) {
+      alert('怪物名稱與版本為必填');
+      return;
+    }
+
+    if (monster.id) {
+      const updates = {
+        name: monster.name,
+        version: monster.version,
+        rank: monster.rank || 'None',
+        isFate: !!monster.isFate,
+        jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
+        locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
+      };
+      await monstersStore.updateMonster(monster.id, updates);
+    } else {
+      const payload = {
+        name: monster.name,
+        version: monster.version,
+        rank: monster.rank || 'None',
+        isFate: !!monster.isFate,
+        jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
+        locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
+      };
+      await monstersStore.addMonster(payload);
+    }
+
+    await monstersStore.initializeMonsters();
+    await refreshMonsters(adminCurrentPage.value);
+    editingMonster.value = null;
+  } catch (error) {
+    console.error('Save monster failed:', error);
+    alert('儲存怪物失敗');
+  }
+};
+
 // Load initial data
-refreshMonsters(1);
+onMounted(async () => {
+  await monstersStore.initializeMonsters();
+  monstersStore.watchMonsters();
+  refreshMonsters(1);
+});
+
 </script>
 
 <style scoped>
