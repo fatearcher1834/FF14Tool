@@ -84,10 +84,15 @@
         <div class="space-y-3">
           <div class="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-3">
             <label class="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
+            <div class="flex items-center gap-2 text-[12px] text-slate-500">
+              <span class="whitespace-nowrap">匹配精確度：</span>
+              <input type="range" min="50" max="100" step="1" v-model="matchAccuracy" class="w-full" />
+              <span class="w-10 text-right">{{ matchAccuracy }}%</span>
+            </div>
             <textarea
   ref="batchInput"
   class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
-  placeholder="在此貼上多筆座標文字...例如：黑衣森林中央林區(X: 6.28, Y: 21.06)"
+  placeholder="例如：劍術師01 黑衣森林中央林區(X: 6.28, Y: 21.06)"
   rows="2"
   @paste.prevent="handleBatchParseFromPaste($event)"
   @change="handleBatchParse($event.target.value); $event.target.value=''"
@@ -159,6 +164,8 @@ const form = ref({
   version: props.monster.version || VERSIONS[0],
   locations: Array.isArray(props.monster.locations) ? [...props.monster.locations] : [],
 })
+const matchAccuracy = ref(90)
+
 
 const closeModal = () => {
   emit('close')
@@ -199,6 +206,7 @@ const simplifiedToTraditional = {
   '东拉诺西亚': '東拉諾西亞',
   '西拉诺西亚': '西拉諾西亞',
   '拉诺西亚高地': '拉諾西亞高地',
+  '拉诺西亚外地': '拉諾西亞外地',
   '黑衣森林中央林区': '黑衣森林中央林區',
   '黑衣森林东部林区': '黑衣森林東部林區',
   '黑衣森林南部林区': '黑衣森林南部林區',
@@ -237,6 +245,30 @@ const simplifiedJobBaseMap = {
   '恆輝隊': '恆輝隊',
   '恒辉队': '恆輝隊'
 }
+const fuzzyMapMatch = (rawMap) => {
+  const norm = rawMap.replace(/[\s]/g, '')
+  if (simplifiedToTraditional[norm]) return simplifiedToTraditional[norm]
+    const allMapList = Object.values(MAP_DATA).flat()
+  const exact = allMapList.find(m => m.replace(/[\s]/g, '').toLowerCase() === norm.toLowerCase())
+  if (exact) return exact
+
+  // 依 matchAccuracy 決定寬鬆度
+  const threshold = matchAccuracy.value / 100
+
+  const includes = allMapList.find(m => {
+    const has1 = norm.toLowerCase().includes(m.replace(/[\s]/g, '').toLowerCase())
+    const has2 = m.replace(/[\s]/g, '').toLowerCase().includes(norm.toLowerCase())
+    if (has1 || has2) return true
+    if (threshold < 1) {
+      const len = Math.max(norm.length, m.replace(/[\s]/g, '').length)
+      const same = (norm.match(new RegExp(m.replace(/[\s]/g, ''), 'i')) || []).length > 0
+      return same && threshold <= 0.95
+    }
+    return false
+  })
+  return includes || rawMap
+}
+
 const extractLocationFromLine = (line) => {
   // 優先處理制表符分隔資料（人為輸入可能包含多欄）
   const parts = line.split(/\t+/).map(p => p.trim()).filter(Boolean)
@@ -286,10 +318,7 @@ const extractLocationFromLine = (line) => {
     return null
   }
 
-  if (simplifiedToTraditional[map]) {
-    map = simplifiedToTraditional[map]
-  }
-
+  map = fuzzyMapMatch(map)
   return { map, x, y }
 }
 
