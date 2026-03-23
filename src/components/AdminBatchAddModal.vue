@@ -60,7 +60,6 @@
             </div>
             <!-- 職業九宮格 -->
             <div v-if="!selectedJobBase" class="space-y-3">
-              <h5 class="text-sm font-black text-slate-500">第一步：選擇職業</h5>
               <div class="grid grid-cols-3 gap-2">
                 <button v-for="job in JOB_BASE_NAMES" :key="job" @click="selectedJobBase = job" class="py-3 px-2 bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white rounded-xl text-xs font-bold transition-all">
                   {{ job }}
