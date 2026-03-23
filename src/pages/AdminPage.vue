@@ -12,15 +12,24 @@
       </div>
 
       <div class="flex gap-2">
-        <button @click="showBulkAddModal = true" class="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-2">
+        <button
+          @click="showBulkAddModal = true"
+          class="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-2"
+        >
           批量新增列表
         </button>
 
-        <button @click="newMonster" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all">
+        <button
+          @click="newMonster"
+          class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all"
+        >
           新增怪物
         </button>
 
-        <button @click="$router.push('/search')" class="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-xl font-black text-xs hover:bg-slate-200 transition-all">
+        <button
+          @click="$router.push('/search')"
+          class="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-xl font-black text-xs hover:bg-slate-200 transition-all"
+        >
           返回狩獵板
         </button>
       </div>
@@ -28,22 +37,40 @@
 
     <!-- Filters -->
     <div class="bg-slate-50 p-4 rounded-2xl mb-4 flex gap-4 items-center border border-slate-200 flex-wrap">
-      <select v-model="adminFilterVer" @change="refreshMonsters(1)" class="bg-white border p-2 rounded-lg text-xs font-bold outline-none">
+      <select
+        v-model="adminFilterVer"
+        @change="refreshMonsters(1)"
+        class="bg-white border p-2 rounded-lg text-xs font-bold outline-none"
+      >
         <option value="">全版本</option>
         <option v-for="v in VERSIONS" :key="v" :value="v">{{ v }}</option>
       </select>
 
-      <select v-model="adminFilterMap" @change="refreshMonsters(1)" class="bg-white border p-2 rounded-lg text-xs font-bold outline-none w-48">
-        <option value="">{{ adminFilterVer ? `${adminFilterVer} 地圖` : "所有地圖" }}</option>
+      <select
+        v-model="adminFilterMap"
+        @change="refreshMonsters(1)"
+        class="bg-white border p-2 rounded-lg text-xs font-bold outline-none w-48"
+      >
+        <option value="">{{ adminFilterVer ? `${adminFilterVer} 地圖` : '所有地圖' }}</option>
         <option v-for="map in getMapsForVersion(adminFilterVer)" :key="map" :value="map">{{ map }}</option>
       </select>
 
-      <select v-model="adminFilterRank" @change="refreshMonsters(1)" class="bg-white border p-2 rounded-lg text-xs font-bold outline-none">
+      <select
+        v-model="adminFilterRank"
+        @change="refreshMonsters(1)"
+        class="bg-white border p-2 rounded-lg text-xs font-bold outline-none"
+      >
         <option value="">等級</option>
         <option v-for="r in RANKS" :key="r" :value="r">{{ r === 'None' ? '一般' : `${r}級` }}</option>
       </select>
 
-      <button @click="adminFilterFate = !adminFilterFate; refreshMonsters(1);" :class="['px-4 py-2 rounded-lg text-xs font-black border transition-all', adminFilterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400 border-slate-200']">
+      <button
+        @click="adminFilterFate = !adminFilterFate; refreshMonsters(1);"
+        :class="[
+          'px-4 py-2 rounded-lg text-xs font-black border transition-all',
+          adminFilterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400 border-slate-200'
+        ]"
+      >
         FATE
       </button>
 

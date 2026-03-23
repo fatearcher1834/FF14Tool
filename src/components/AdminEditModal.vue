@@ -16,19 +16,44 @@
         <!-- 九宮格等級按鈕與FATE -->
         <div class="flex gap-3 items-center">
           <div class="flex-1 flex bg-white p-1 border rounded-2xl shadow-sm">
-            <button v-for="r in ['None','B','A','S','SS']" :key="r" @click="form.rank = r" :class="['flex-1 py-2 rounded-xl text-xs font-black', form.rank === r ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50']">{{ r === 'None' ? '一般' : r }}</button>
+            <button
+              v-for="r in ['None','B','A','S','SS']"
+              :key="r"
+              @click="form.rank = r"
+              :class="[
+                'flex-1 py-2 rounded-xl text-xs font-black',
+                form.rank === r ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'
+              ]"
+            >
+              {{ r === 'None' ? '一般' : r }}
+            </button>
           </div>
-          <button @click="form.isFate = !form.isFate" :class="['px-4 py-2 rounded-2xl text-xs font-black border', form.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400']">FATE</button>
+          <button
+            @click="form.isFate = !form.isFate"
+            :class="[
+              'px-4 py-2 rounded-2xl text-xs font-black border',
+              form.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400'
+            ]"
+          >
+            FATE
+          </button>
         </div>
         <!-- 討伐筆記 -->
         <div class="flex flex-wrap gap-2 items-center">
-          <div v-for="(job, idx) in form.jobs" :key="idx" class="flex items-center gap-1 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-black w-fit">
+          <div
+            v-for="(job, idx) in form.jobs"
+            :key="idx"
+            class="flex items-center gap-1 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-black w-fit"
+          >
             <span>{{ job }}</span>
             <button @click="removeJob(idx)" class="ml-1 hover:bg-blue-600 rounded-full p-0.5">
               <X :size="12" />
             </button>
           </div>
-          <button @click="showJobPicker = true" class="px-3 py-1 rounded-full text-xs font-black border border-dashed border-blue-300 text-blue-600 hover:bg-blue-50">
+          <button
+            @click="showJobPicker = true"
+            class="px-3 py-1 rounded-full text-xs font-black border border-dashed border-blue-300 text-blue-600 hover:bg-blue-50"
+          >
             + 討伐筆記
           </button>
         </div>
@@ -71,11 +96,17 @@
         <div class="grid grid-cols-3 gap-4">
           <div class="col-span-2">
             <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">怪物名稱</label>
-            <input v-model="form.name" class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1" />
+            <input
+              v-model="form.name"
+              class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
+            />
           </div>
           <div>
             <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">版本</label>
-            <select v-model="form.version" class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1">
+            <select
+              v-model="form.version"
+              class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
+            >
               <option v-for="v in VERSIONS" :key="v" :value="v">{{ v }}</option>
             </select>
           </div>
@@ -86,36 +117,60 @@
             <label class="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
             <div class="flex items-center gap-2 text-[12px] text-slate-500">
               <span class="whitespace-nowrap">匹配精確度：</span>
-              <input type="range" min="50" max="100" step="1" v-model="matchAccuracy" class="w-full" />
+              <input
+                type="range"
+                min="50"
+                max="100"
+                step="1"
+                v-model="matchAccuracy"
+                class="w-full"
+              />
               <span class="w-10 text-right">{{ matchAccuracy }}%</span>
             </div>
             <textarea
-  ref="batchInput"
-  class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
-  placeholder="例如：劍術師01 黑衣森林中央林區(X: 6.28, Y: 21.06)"
-  rows="2"
-  @paste.prevent="handleBatchParseFromPaste($event)"
-  @change="handleBatchParse($event.target.value); $event.target.value=''"
-/>
-
+              ref="batchInput"
+              class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
+              placeholder="例如：劍術師01 黑衣森林中央林區(X: 6.28, Y: 21.06)"
+              rows="2"
+              @paste.prevent="handleBatchParseFromPaste($event)"
+              @change="handleBatchParse($event.target.value); $event.target.value=''"
+            />
           </div>
           <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">座標點位</label>
-          <div v-for="(loc, i) in form.locations" :key="i" class="flex gap-2 p-3 bg-slate-50 rounded-2xl border items-center">
-            <select v-model="loc.map" class="flex-1 bg-white border p-2 rounded-xl text-xs font-bold outline-none">
+          <div
+            v-for="(loc, i) in form.locations"
+            :key="i"
+            class="flex gap-2 p-3 bg-slate-50 rounded-2xl border items-center"
+          >
+            <select
+              v-model="loc.map"
+              class="flex-1 bg-white border p-2 rounded-xl text-xs font-bold outline-none"
+            >
               <option v-for="r in MAP_DATA[form.version]" :key="r" :value="r">{{ r }}</option>
               <optgroup v-if="otherRegions(form.version).length > 0" label="其他版本">
                 <option v-for="r in otherRegions(form.version)" :key="r" :value="r">{{ r }}</option>
               </optgroup>
             </select>
+
             <div class="flex gap-1 items-center">
               <span class="text-[10px] font-black text-slate-300">X</span>
-              <input v-model="loc.x" class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono" />
+              <input
+                v-model="loc.x"
+                class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
+              />
             </div>
+
             <div class="flex gap-1 items-center">
               <span class="text-[10px] font-black text-slate-300">Y</span>
-              <input v-model="loc.y" class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono" />
+              <input
+                v-model="loc.y"
+                class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
+              />
             </div>
-            <button @click="form.locations.splice(i, 1)" class="p-2 text-slate-300 hover:text-red-500"><X :size="14" /></button>
+
+            <button @click="form.locations.splice(i, 1)" class="p-2 text-slate-300 hover:text-red-500">
+              <X :size="14" />
+            </button>
           </div>
           <button @click="addLocation" class="w-full p-4 border-2 border-dashed rounded-2xl text-slate-400 text-xs font-black">+ 新增座標</button>
         </div>

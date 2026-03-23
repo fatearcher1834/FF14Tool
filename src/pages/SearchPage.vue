@@ -21,11 +21,22 @@
         >
           管理員
         </RouterLink>
+
         <button
           @click="logout"
           class="p-1.5 text-slate-500 hover:text-red-400 transition-colors"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
@@ -97,14 +108,24 @@
 
             <button
               @click="filterFate = !filterFate; searchCurrentPage = 1"
-              :class="['px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all', filterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
+              :class="[
+                'px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all',
+                filterFate
+                  ? 'bg-pink-500 text-white border-pink-500'
+                  : 'bg-slate-50 text-slate-400 border-slate-200'
+              ]"
             >
               FATE
             </button>
 
             <button
               @click="toggleJobFilter"
-              :class="['px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all', filterJob ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
+              :class="[
+                'px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all',
+                filterJob
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-slate-50 text-slate-400 border-slate-200'
+              ]"
             >
               討伐筆記
             </button>
