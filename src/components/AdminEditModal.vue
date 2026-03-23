@@ -84,7 +84,15 @@
         <div class="space-y-3">
           <div class="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-3">
             <label class="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
-            <textarea class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300" placeholder="在此貼上多筆座標文字...例如：黑衣森林中央林區(X: 6.28, Y: 21.06)" rows="2" @change="handleBatchParse($event.target.value); $event.target.value=''" />
+            <textarea
+  ref="batchInput"
+  class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
+  placeholder="在此貼上多筆座標文字...例如：黑衣森林中央林區(X: 6.28, Y: 21.06)"
+  rows="2"
+  @paste.prevent="handleBatchParseFromPaste($event)"
+  @change="handleBatchParse($event.target.value); $event.target.value=''"
+/>
+
           </div>
           <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">座標點位</label>
           <div v-for="(loc, i) in form.locations" :key="i" class="flex gap-2 p-3 bg-slate-50 rounded-2xl border items-center">
@@ -182,6 +190,114 @@ const confirmJobWithLevel = (jobBase, level) => {
   }
   showJobPicker.value = false
   selectedJobBase.value = null
+}
+
+const simplifiedToTraditional = {
+  '西萨纳兰': '西薩納蘭',
+  '中拉诺西亚': '中拉諾西亞',
+  '拉诺西亚低地': '拉諾西亞低地',
+  '东拉诺西亚': '東拉諾西亞',
+  '西拉诺西亚': '西拉諾西亞',
+  '拉诺西亚高地': '拉諾西亞高地',
+  '黑衣森林中央林区': '黑衣森林中央林區',
+  '黑衣森林东部林区': '黑衣森林東部林區',
+  '黑衣森林南部林区': '黑衣森林南部林區',
+  '黑衣森林北部林区': '黑衣森林北部林區',
+  '中萨纳兰': '中薩納蘭',
+  '东萨纳兰': '東薩納蘭',
+  '南萨纳兰': '南薩納蘭',
+  '北萨纳兰': '北薩納蘭',
+  '库尔札斯中央高地': '庫爾札斯中央高地',
+  '魔大陆阿济兹拉': '魔大陸阿濟茲拉',
+  '基拉巴尼亚边区': '基拉巴尼亞邊區',
+  '基拉巴尼亚山区': '基拉巴尼亞山區',
+  '基拉巴尼亚湖区': '基拉巴尼亞湖區',
+  '太陽神草原': '太陽神草原'
+}
+
+const extractLocationFromLine = (line) => {
+  // 優先處理制表符分隔資料（人為輸入可能包含多欄）
+  const parts = line.split(/\t+/).map(p => p.trim()).filter(Boolean)
+
+  let map = null
+  let x = null
+  let y = null
+
+  const coordPattern = /(.+?)\s*\(?\s*[Xx][:：]\s*([0-9.]+)\s*[,，]?\s*[Yy][:：]\s*([0-9.]+)\s*\)?/
+
+  const coordIndex = parts.findIndex(p => coordPattern.test(p))
+  if (coordIndex !== -1) {
+    const coordPart = parts[coordIndex]
+    const m = coordPart.match(coordPattern)
+    if (m) {
+      map = m[1].trim() || null
+      x = parseFloat(m[2])
+      y = parseFloat(m[3])
+
+      // 如果座標內 map 为空，尝试从上一列取值（可能是地图名）
+      if (!map && coordIndex > 0) {
+        map = parts[coordIndex - 1]
+      }
+
+      // 如果仍然不是地图集，进一步回溯查找非数值字符串
+      if (!map || /^\d+$/.test(map)) {
+        for (let i = coordIndex - 1; i >= 0; i--) {
+          if (!/^\d+$/.test(parts[i]) && !/^[\d.]+$/.test(parts[i])) {
+            map = parts[i]
+            break
+          }
+        }
+      }
+    }
+  } else {
+    // 沒有制表符、或不符合理想結構，退回整行解析
+    let m
+    while ((m = coordPattern.exec(line)) !== null) {
+      map = m[1].trim()
+      x = parseFloat(m[2])
+      y = parseFloat(m[3])
+      break
+    }
+  }
+
+  if (!map || isNaN(x) || isNaN(y)) {
+    return null
+  }
+
+  if (simplifiedToTraditional[map]) {
+    map = simplifiedToTraditional[map]
+  }
+
+  return { map, x, y }
+}
+
+const handleBatchParse = (text) => {
+  if (!text) return
+
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line)
+
+  lines.forEach(line => {
+    const loc = extractLocationFromLine(line)
+    if (!loc) return
+
+    if (!form.value.locations) form.value.locations = []
+
+    const exists = form.value.locations.some(existing =>
+      existing.map === loc.map && Number(existing.x) === Number(loc.x) && Number(existing.y) === Number(loc.y)
+    )
+
+    if (!exists) {
+      form.value.locations.push(loc)
+    }
+  })
+}
+
+const handleBatchParseFromPaste = (event) => {
+  const text = event.clipboardData?.getData('text') || ''
+  handleBatchParse(text)
+  if (event.target) {
+    event.target.value = ''
+  }
 }
 
 const submit = () => {
