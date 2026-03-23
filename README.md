@@ -273,9 +273,9 @@ npx http-server             # Node.js
 
 ```javascript
 {
-  id: string,              // 唯一識別碼 "m_timestamp_random"
-  name: string,            // 怪物名稱
-  version: string,         // 版本 "2.0" ~ "7.0"
+  id: string,             // 唯一識別碼 "m_timestamp_random"
+  name: string,           // 怪物名稱
+  version: string,        // 版本 "2.0" ~ "7.0"
   rank: string,           // 等級 "None" | "B" | "A" | "S" | "SS"
   isFate: boolean,        // 是否為FATE怪物
   job: string | null,     // 職業標籤 "劍術士01" or null
