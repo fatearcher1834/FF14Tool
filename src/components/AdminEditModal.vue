@@ -215,6 +215,20 @@ const simplifiedToTraditional = {
   '太陽神草原': '太陽神草原'
 }
 
+const simplifiedJobBaseMap = {
+  '劍術師': '劍術師',
+  '格斗家': '格鬥家',
+  '斧术师': '斧術師',
+  '槍術師': '槍術師',
+  '弓箭手': '弓箭手',
+  '幻術師': '幻術師',
+  '咒術師': '咒術師',
+  '秘術師': '秘術師',
+  '双剑师': '雙劍師',
+  '黑渦團': '黑渦團',
+  '双蛇党': '雙蛇黨',
+  '恆輝隊': '恆輝隊'
+}
 const extractLocationFromLine = (line) => {
   // 優先處理制表符分隔資料（人為輸入可能包含多欄）
   const parts = line.split(/\t+/).map(p => p.trim()).filter(Boolean)
@@ -271,12 +285,49 @@ const extractLocationFromLine = (line) => {
   return { map, x, y }
 }
 
+const parseJobTagFromLine = (line) => {
+  const candidates = line.match(/([^\s\d]+?)(\d{1,2})/g) || []
+  for (const cand of candidates) {
+    const m = cand.match(/^([^\d]+?)(\d{1,2})$/)
+    if (!m) continue
+
+    let base = m[1]
+    const level = m[2].padStart(2, '0')
+
+    if (simplifiedJobBaseMap[base]) {
+      base = simplifiedJobBaseMap[base]
+    }
+
+    // 兼容正體職業名
+    if (!JOB_BASE_NAMES.includes(base)) {
+      const normalized = Object.keys(simplifiedJobBaseMap).find(key => simplifiedJobBaseMap[key] === base)
+      if (normalized) base = simplifiedJobBaseMap[normalized]
+    }
+
+    if (JOB_BASE_NAMES.includes(base)) {
+      return `${base}${level}`
+    }
+  }
+
+  return null
+}
+
 const handleBatchParse = (text) => {
   if (!text) return
 
   const lines = text.split('\n').map(line => line.trim()).filter(line => line)
 
+  let currentJobTag = null
+
   lines.forEach(line => {
+    const jobTag = parseJobTagFromLine(line)
+    if (jobTag) {
+      currentJobTag = jobTag
+      if (!form.value.jobs.includes(jobTag)) {
+        form.value.jobs.push(jobTag)
+      }
+    }
+
     const loc = extractLocationFromLine(line)
     if (!loc) return
 
@@ -288,6 +339,10 @@ const handleBatchParse = (text) => {
 
     if (!exists) {
       form.value.locations.push(loc)
+    }
+
+    if (currentJobTag && !form.value.jobs.includes(currentJobTag)) {
+      form.value.jobs.push(currentJobTag)
     }
   })
 }
