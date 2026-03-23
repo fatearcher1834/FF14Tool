@@ -5,7 +5,6 @@
   "main": "src/main.js",
   "scripts": {
     "serve": "vue-cli-service serve",
-    "dev": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
     "preview": "vue-cli-service serve --mode production"
