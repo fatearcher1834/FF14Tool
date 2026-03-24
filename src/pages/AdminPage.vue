@@ -13,10 +13,10 @@
 
       <div class="flex gap-2">
         <button
-          @click="showBulkAddModal = true"
-          class="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-2"
+          @click="showBulkMonsterModal = true"
+          class="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all"
         >
-          批量新增列表
+          批量新增怪物
         </button>
 
         <button
@@ -188,10 +188,11 @@
       @save="handleSaveMonster"
     />
 
-    <!-- 批量新增模態框 -->
+    <!-- 批量新增怪物模態框 -->
     <AdminBatchAddModal 
-      v-if="showBulkAddModal" 
-      @close="showBulkAddModal = false"
+      v-if="showBulkMonsterModal" 
+      :monster-mode="true"
+      @close="showBulkMonsterModal = false"
       @save="refreshMonsters(1)"
     />
   </div>
@@ -251,7 +252,7 @@ const onAdminSortFieldChange = () => {
   refreshMonsters(1);
 };
 
-const showBulkAddModal = ref(false);
+const showBulkMonsterModal = ref(false);
 const editingMonster = ref(null);
 
 // 監聽 adminFilterJobs 變動，當排序欄位為 job 且 adminSortJobs 未選擇時自動預設

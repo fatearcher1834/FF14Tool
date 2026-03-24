@@ -7,7 +7,7 @@
   >
     <div class="bg-white rounded-[2.5rem] w-full max-w-4xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh]">
       <div class="flex justify-between items-center">
-        <h3 class="text-2xl font-black text-slate-900 tracking-tighter uppercase">批量新增列表</h3>
+        <h3 class="text-2xl font-black text-slate-900 tracking-tighter uppercase">{{ props.monsterMode ? '批量新增怪物 (測試)' : '批量新增列表' }}</h3>
         <button @click="$emit('close')" class="p-2 bg-slate-100 rounded-full hover:bg-slate-200">
           <X :size="16" />
         </button>
@@ -15,14 +15,10 @@
 
       <!-- 配置區域 -->
       <div class="bg-slate-50 p-4 rounded-[2rem] border border-slate-200 space-y-3">
-        <!-- 版本和地圖 -->
+        <!-- 版本 -->
         <div class="flex gap-3">
           <select v-model="config.version" class="flex-1 p-3 bg-white border rounded-2xl font-bold text-sm outline-none">
             <option v-for="v in VERSIONS" :key="v" :value="v">版本 {{ v }}</option>
-          </select>
-          <select v-model="config.map" class="flex-[2] p-3 bg-white border rounded-2xl font-bold text-sm outline-none">
-            <option value="">無</option>
-            <option v-for="m in getMapsForVersion(config.version)" :key="m" :value="m">{{ m }}</option>
           </select>
         </div>
 
@@ -98,21 +94,26 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- 左：輸入面板 -->
         <div class="flex flex-col space-y-3">
-          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">名稱輸入</label>
-          <textarea v-model="bulkInput" class="flex-1 p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] font-bold text-sm resize-none" placeholder="一行一個名稱..." />
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ props.monsterMode ? '請貼上怪物資料：名稱、標籤(如斧術師21)、位置(X/Y)' : '名稱輸入' }}</label>
+          <textarea v-model="bulkInput" class="flex-1 p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] font-bold text-sm resize-none" placeholder="例如：劍術師01 石殼蟹 拉諾西亞高地 (X: 13.6, Y: 24.3)" />
         </div>
 
         <!-- 右：預覽面板 -->
         <div class="flex flex-col space-y-3">
           <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">預覽 ({{ bulkParsedList.length }})</label>
           <div class="flex-1 p-4 bg-slate-100 rounded-[2rem] overflow-y-auto space-y-2 border">
-            <div v-for="(name, idx) in bulkParsedList" :key="idx" class="flex items-center justify-between bg-white p-3 rounded-2xl border shadow-sm">
-              <span class="text-sm font-black text-slate-700">{{ name }}</span>
-              <div class="flex gap-1 items-center scale-75 origin-right">
-                <VersionTag :version="config.version" />
-                <RankTag :rank="config.rank" />
-                <FateTag v-if="config.isFate" :is-fate="true" />
-                <div v-for="job in config.jobs" :key="job" class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-[10px] font-black">{{ job }}</div>
+            <div v-for="(entry, idx) in bulkParsedList" :key="idx" class="bg-white p-3 rounded-2xl border shadow-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-black text-slate-700">{{ typeof entry === 'string' ? entry : entry.name }}</span>
+                <div class="flex gap-1 items-center scale-75 origin-right">
+                  <VersionTag :version="config.version" />
+                  <RankTag :rank="config.rank" />
+                  <FateTag v-if="config.isFate" :is-fate="true" />
+                  <div v-for="job in (typeof entry === 'string' ? config.jobs : entry.jobs)" :key="job" class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-[10px] font-black">{{ job }}</div>
+                </div>
+              </div>
+              <div v-if="typeof entry !== 'string' && entry.locations && entry.locations.length > 0" class="text-xs text-slate-500 mt-1">
+                位置：<span v-for="(l, li) in entry.locations" :key="li" class="mr-2">{{ l.map }} (X: {{ l.x }}, Y: {{ l.y }})</span>
               </div>
             </div>
             <div v-if="bulkParsedList.length === 0" class="text-slate-500 text-center py-8 text-xs">輸入名稱後會在此預覽</div>
@@ -135,12 +136,20 @@
 import { ref, computed, onMounted } from 'vue'
 import { X } from 'lucide-vue-next'
 import { VERSIONS, JOB_BASE_NAMES, JOB_SUFFIXES, MAP_DATA } from '@/config/constants'
+import { simplifiedToTraditional as utilSimplifiedToTraditional, findBestMapMatch, calculateSimilarity } from '@/services/hunterUtils'
 import { useUserStore } from '@/stores/user.store'
 import { getDb } from '@/services/firebase'
 import { collection, query, where, getDocs, setDoc, updateDoc, doc } from 'firebase/firestore'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
+
+const props = defineProps({
+  monsterMode: {
+    type: Boolean,
+    default: false
+  }
+})
 
 const emit = defineEmits(['close', 'save'])
 
@@ -157,11 +166,42 @@ const similarityThreshold = ref(70)
 
 const config = ref({
   version: '2.0',
-  map: '',
   rank: 'None',
   isFate: false,
   jobs: []
 })
+
+const simplifiedJobBaseMap = {
+  '劍術師': '劍術師',
+  '剑术师': '劍術師',
+  '格斗家': '格鬥家',
+  '斧术师': '斧術師',
+  '槍術師': '槍術師',
+  '枪术师': '槍術師',
+  '弓箭手': '弓箭手',
+  '幻術師': '幻術師',
+  '幻术师': '幻術師',
+  '咒術師': '咒術師',
+  '咒术师': '咒術師',
+  '秘術師': '秘術師',
+  '双剑师': '雙劍師',
+  '雙劍師': '雙劍師',
+  '黑渦團': '黑渦團',
+  '黑涡团': '黑渦團',
+  '双蛇党': '雙蛇黨',
+  '雙蛇黨': '雙蛇黨',
+  '恆輝隊': '恆輝隊',
+  '恒辉队': '恆輝隊'
+}
+
+const normalizeJobName = (name) => {
+  if (!name) return name
+  const normalized = (name || '').trim()
+  if (simplifiedJobBaseMap[normalized]) {
+    return simplifiedJobBaseMap[normalized]
+  }
+  return normalized
+}
 
 const closeModal = () => {
   emit('close')
@@ -190,43 +230,227 @@ const confirmJobWithLevel = (jobBase, level) => {
   selectedJobBase.value = null
   selectedJobLevel.value = null
 }
-const parsePastedCoords = () => {
-  const lines = pasteCoordText.value.split('\n').filter(line => line.trim())
-  const validMaps = Object.values(MAP_DATA).flat()
-  // 正則解析地圖名與座標
-  const locationPattern = /([\u4E00-\u9FFF]+)\s*\(?\s*[Xx][:：]\s*([0-9.]+)\s*[,，]?\s*[Yy][:：]\s*([0-9.]+)\s*\)?/g
-  lines.forEach(line => {
-    const matches = [...line.matchAll(locationPattern)]
-    matches.forEach(m => {
-      const map = m[1].trim()
-      const x = parseFloat(m[2])
-      const y = parseFloat(m[3])
-      // 只加入有效座標
-      if (map && !isNaN(x) && !isNaN(y)) {
-        config.value.map = map
-        // 這裡只存一組座標，若要多組可改為陣列
-        config.value.locations = [{ map, x, y }]
-      }
-    })
+
+const coordPattern = /([Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?))\s*/g
+const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
+
+const findMapFromText = (text) => {
+  const allMaps = Object.values(MAP_DATA).flat()
+  const normalized = utilSimplifiedToTraditional(text || '').replace(/\s+/g, '').toLowerCase()
+
+  if (!normalized) return ''
+
+  // 先精準匹配含 map 字串
+  const exact = allMaps.find(m => normalized.includes(m.replace(/\s+/g, '').toLowerCase()))
+  if (exact) return exact
+
+  // 再嘗試模糊匹配
+  const candidate = allMaps
+    .map(m => ({ map: m, similarity: calculateSimilarity(normalized, m.replace(/\s+/g, '').toLowerCase()) }))
+    .sort((a, b) => b.similarity - a.similarity)[0]
+
+  if (candidate && candidate.similarity >= 50) {
+    return candidate.map
+  }
+
+  // 最後回退預設版本第一個
+  const mapsForVersion = MAP_DATA[config.value.version] || []
+  return mapsForVersion[0] || ''
+}
+
+const parseLocationsFromLine = (line) => {
+  const locations = []
+  const pattern = /(.+?)\s*\(?\s*[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*\)?/g
+  let m
+
+  while ((m = pattern.exec(line)) !== null) {
+    const x = parseFloat(m[2])
+    const y = parseFloat(m[3])
+    if (Number.isNaN(x) || Number.isNaN(y)) continue
+
+    // 這裡直接用匹配的第一組文字最接近地圖名稱
+    let mapCandidate = utilSimplifiedToTraditional(m[1].trim())
+    if (!mapCandidate) {
+      mapCandidate = findMapFromText(line.slice(0, m.index))
+    }
+    const map = findMapFromText(mapCandidate)
+    if (!map) continue
+
+    locations.push({ map, x, y })
+  }
+
+  return locations
+}
+
+const parseJobTagsFromLine = (line) => {
+  const jobs = []
+  const normalizedLine = line.replace(/\s+/g, '')
+  const regex = /([\u4e00-\u9fff]+?)(\d{1,2})/g
+  let m
+  while ((m = regex.exec(normalizedLine)) !== null) {
+    let base = m[1].trim()
+    const level = m[2].padStart(2, '0')
+    base = normalizeJobName(base)
+    if (JOB_BASE_NAMES.includes(base)) {
+      const jobTag = `${base}${level}`
+      if (!jobs.includes(jobTag)) jobs.push(jobTag)
+    }
+  }
+  return jobs
+}
+
+const parseLine = (line) => {
+  let normLine = line.trim()
+  if (!normLine) return null
+
+  // 去除常見噪音：圖片編號、PNG 檔、每行末尾置放流水等
+  normLine = normLine
+    .replace(/\b\d{3,}\.png\d*\b/gi, '')
+    .replace(/\b\d+\.png\b/gi, '')
+    .replace(/\b065001\.png\d*\b/gi, '')
+    .replace(/\.[jJ][pP][eE]?[gG]\b/g, '')
+    .replace(/\s{2,}/g, ' ').trim()
+
+  if (!normLine) return null
+
+  const jobs = parseJobTagsFromLine(normLine)
+  const locations = parseLocationsFromLine(normLine)
+
+  // 手動拆欄位，優先按 tab
+  const fields = normLine
+    .split(/[\t ]+/)
+    .map(f => f.trim())
+    .filter(Boolean)
+
+  // 移除坐標片段及職業 tag
+  const candidateFields = fields.filter(field => {
+    const noCoord = !coordTestPattern.test(field)
+    const noJob = !/([\u4e00-\u9fff]+?)(\d{1,2})/.test(field.replace(/\s+/g, ''))
+    const notNumber = !/^\d+$/.test(field)
+    const noImageTag = !/\.(png|jpg|jpeg)$/i.test(field) && !/\d{3,}\.png\d*/i.test(field)
+    return noCoord && noJob && notNumber && noImageTag
   })
-  showPasteCoords.value = false
-  pasteCoordText.value = ''
+
+  const hasName = candidateFields.length > 0
+  const nameCandidate = hasName
+    ? candidateFields.find(f => !jobs.some(j => f.includes(j.replace(/\d+$/, '')))) || candidateFields[0]
+    : ''
+
+  const name = utilSimplifiedToTraditional((nameCandidate || '').trim())
+  const isCoordinateOnly = !hasName && jobs.length === 0 && locations.length > 0
+
+  if (isCoordinateOnly) {
+    return {
+      name: '',
+      jobs: [],
+      locations,
+      isCoordinateOnly: true
+    }
+  }
+
+  const finalName = name || ''
+
+  return {
+    name: finalName,
+    jobs: jobs.length > 0 ? jobs : [],
+    locations: locations.length > 0 ? locations : [],
+    isCoordinateOnly: false
+  }
 }
 
 const parseNames = () => {
-  bulkParsedList.value = bulkInput.value
+  const lines = bulkInput.value
     .split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0)
+
+  if (props.monsterMode) {
+    const parsedEntries = []
+    let current = null
+
+    for (const rawLine of lines) {
+      const line = rawLine
+        .replace(/\b\d{3,}\.png\d*\b/gi, '')
+        .replace(/\b\d+\.png\b/gi, '')
+        .replace(/\.[jJ][pP][eE]?[gG]\b/g, '')
+        .replace(/\s{2,}/g, ' ') 
+        .trim()
+
+      if (!line) continue
+
+      const jobs = parseJobTagsFromLine(line)
+      const locations = parseLocationsFromLine(line)
+
+      const fields = line.split(/[\t ]+/).map(f => f.trim()).filter(Boolean)
+      const candidateNames = fields.filter(field => {
+        const isCoord = coordTestPattern.test(field)
+        const isJob = /([\u4e00-\u9fff]+?)(\d{1,2})/.test(field.replace(/\s+/g, ''))
+        const isImage = /\.(png|jpg|jpeg)$/i.test(field) || /\d{3,}\.png\d*/i.test(field)
+        return !isCoord && !isJob && !/^\d+$/.test(field) && !isImage
+      })
+
+      let nameCandidate = candidateNames.length > 0 ? candidateNames[0] : ''
+      let name = utilSimplifiedToTraditional(nameCandidate).trim()
+
+      // 若這行只是座標續行（e.g. 黑衣森林北部林區 (X:21, Y:31)），避免誤當作新怪物名稱
+      if (name && locations.length > 0 && locations.some(loc => loc.map === name)) {
+        name = ''
+      }
+
+      if (name) {
+        current = {
+          name,
+          jobs: jobs.length > 0 ? jobs : [],
+          locations: locations.length > 0 ? locations : []
+        }
+        parsedEntries.push(current)
+        continue
+      }
+
+      if (!name && locations.length > 0 && current) {
+        locations.forEach(loc => {
+          if (!current.locations.some(l => l.map === loc.map && l.x === loc.x && l.y === loc.y)) {
+            current.locations.push(loc)
+          }
+        })
+        if (jobs.length > 0) {
+          jobs.forEach(job => {
+            if (!current.jobs.includes(job)) {
+              current.jobs.push(job)
+            }
+          })
+        }
+      }
+    }
+
+    bulkParsedList.value = parsedEntries.filter(e => e.name)
+  } else {
+    bulkParsedList.value = lines
+  }
 }
 
 const submit = async () => {
   try {
     const db = getDb()
     const now = Date.now()
-    let successCount = 0
 
-    for (const name of bulkParsedList.value) {
+    for (const entry of bulkParsedList.value) {
+      let name
+      let entryJobs
+      let entryLocations
+
+      if (typeof entry === 'string') {
+        name = utilSimplifiedToTraditional(entry)
+        entryJobs = [...config.value.jobs]
+        entryLocations = config.value.map ? [{ map: config.value.map, x: 0, y: 0 }] : []
+      } else {
+        name = utilSimplifiedToTraditional(entry.name || '')
+        entryJobs = Array.isArray(entry.jobs) ? [...entry.jobs] : [...config.value.jobs]
+        entryLocations = Array.isArray(entry.locations) && entry.locations.length > 0 ? [...entry.locations] : (config.value.map ? [{ map: config.value.map, x: 0, y: 0 }] : [])
+      }
+
+      if (!name) continue
+
       const monsterQuery = query(
         collection(db, 'artifacts', userStore.appId, 'public', 'data', 'monsters'),
         where('name', '==', name)
@@ -237,14 +461,16 @@ const submit = async () => {
         for (const existingDoc of snapshot.docs) {
           const existing = existingDoc.data()
           const mergeJobs = Array.isArray(existing.jobs) ? [...existing.jobs] : []
-          config.value.jobs.forEach(job => {
-            if (!mergeJobs.includes(job)) mergeJobs.push(job)
+          entryJobs.forEach(job => {
+            if (job && !mergeJobs.includes(job)) mergeJobs.push(job)
           })
 
           const updatedLocations = Array.isArray(existing.locations) ? [...existing.locations] : []
-          if (config.value.map && !updatedLocations.some(l => l.map === config.value.map)) {
-            updatedLocations.push({ map: config.value.map, x: 0, y: 0 })
-          }
+          entryLocations.forEach(loc => {
+            if (!updatedLocations.some(l => l.map === loc.map && Number(l.x) === Number(loc.x) && Number(l.y) === Number(loc.y))) {
+              updatedLocations.push(loc)
+            }
+          })
 
           await updateDoc(existingDoc.ref, {
             rank: config.value.rank || existing.rank || 'None',
@@ -262,16 +488,14 @@ const submit = async () => {
           version: config.value.version,
           rank: config.value.rank,
           isFate: config.value.isFate,
-          jobs: config.value.jobs.length > 0 ? config.value.jobs : null,
-          locations: config.value.map ? [{ map: config.value.map, x: 0, y: 0 }] : [],
+          jobs: entryJobs.length > 0 ? entryJobs : null,
+          locations: entryLocations.length > 0 ? entryLocations : [],
           createdAt: now,
           updatedAt: now
         })
       }
-      successCount++
     }
 
-    // 完成後關閉視窗並刷新
     emit('save')
     closeModal()
   } catch (error) {

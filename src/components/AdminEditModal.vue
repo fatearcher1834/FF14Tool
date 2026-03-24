@@ -378,6 +378,14 @@ const extractLocationFromLine = (line) => {
   return { map, x, y }
 }
 
+const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
+
+const toTraditional = (text) => {
+  if (!text) return text
+  const mapping = simplifiedToTraditional[text]
+  return mapping || text
+}
+
 const parseJobTagFromLine = (line) => {
   const candidates = line.match(/([^\s\d]+?)(\d{1,2})/g) || []
   for (const cand of candidates) {
@@ -405,6 +413,27 @@ const parseJobTagFromLine = (line) => {
   return null
 }
 
+const parseNameFromLine = (line) => {
+  const clean = line
+    .replace(/\b\d{3,}\.png\d*\b/gi, '')
+    .replace(/\b\d+\.png\b/gi, '')
+    .replace(/\.[jJ][pP][eE]?[gG]\b/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  const fields = clean.split(/\t+/).map(field => field.trim()).filter(Boolean)
+  const names = fields.filter(field => {
+    const outline = field.replace(/\s+/g, '')
+    if (coordTestPattern.test(field)) return false
+    if (/([\u4e00-\u9fff]+?)(\d{1,2})/.test(outline)) return false
+    if (/^\d+$/.test(field)) return false
+    if (/\.(png|jpg|jpeg)$/i.test(field) || /\d{3,}\.png\d*/i.test(field)) return false
+    return true
+  })
+
+  return names.length > 0 ? toTraditional(names[0]) : null
+}
+
 const handleBatchParse = (text) => {
   if (!text) return
 
@@ -413,6 +442,11 @@ const handleBatchParse = (text) => {
   let currentJobTag = null
 
   lines.forEach(line => {
+    const nameCandidate = parseNameFromLine(line)
+    if (nameCandidate && !form.value.name) {
+      form.value.name = nameCandidate
+    }
+
     const jobTag = parseJobTagFromLine(line)
     if (jobTag) {
       currentJobTag = jobTag
