@@ -368,15 +368,43 @@ const handleSaveMonster = async (monster) => {
       };
       await monstersStore.updateMonster(monster.id, updates);
     } else {
-      const payload = {
-        name: monster.name,
-        version: monster.version,
-        rank: monster.rank || 'None',
-        isFate: !!monster.isFate,
-        jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
-        locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
-      };
-      await monstersStore.addMonster(payload);
+      const existingByName = monstersStore.monsters.find(m => m.name === monster.name);
+
+      if (existingByName) {
+        // 如果同名 monster 已存在，就更新其標籤和座標
+        const existingJobs = Array.isArray(existingByName.jobs) ? [...existingByName.jobs] : [];
+        const newJobs = Array.isArray(monster.jobs) ? monster.jobs : [];
+        newJobs.forEach(job => {
+          if (job && !existingJobs.includes(job)) {
+            existingJobs.push(job);
+          }
+        });
+
+        const existingLocations = Array.isArray(existingByName.locations) ? [...existingByName.locations] : [];
+        const newLocations = Array.isArray(monster.locations) ? monster.locations : [];
+        newLocations.forEach(loc => {
+          if (!existingLocations.some(l => l.map === loc.map && Number(l.x) === Number(loc.x) && Number(l.y) === Number(loc.y))) {
+            existingLocations.push(loc);
+          }
+        });
+
+        await monstersStore.updateMonster(existingByName.id, {
+          rank: monster.rank || existingByName.rank || 'None',
+          isFate: monster.isFate || existingByName.isFate || false,
+          jobs: existingJobs.length > 0 ? existingJobs : null,
+          locations: existingLocations.length > 0 ? existingLocations : []
+        });
+      } else {
+        const payload = {
+          name: monster.name,
+          version: monster.version,
+          rank: monster.rank || 'None',
+          isFate: !!monster.isFate,
+          jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
+          locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
+        };
+        await monstersStore.addMonster(payload);
+      }
     }
 
     await monstersStore.initializeMonsters();

@@ -398,6 +398,23 @@ const parseNames = () => {
       }
 
       if (name) {
+        // 若同名已存在，合併座標與討伐筆記；否則新建
+        const existing = parsedEntries.find(entry => entry.name === name)
+        if (existing) {
+          locations.forEach(loc => {
+            if (!existing.locations.some(l => l.map === loc.map && l.x === loc.x && l.y === loc.y)) {
+              existing.locations.push(loc)
+            }
+          })
+          jobs.forEach(job => {
+            if (!existing.jobs.includes(job)) {
+              existing.jobs.push(job)
+            }
+          })
+          current = existing
+          continue
+        }
+
         current = {
           name,
           jobs: jobs.length > 0 ? jobs : [],

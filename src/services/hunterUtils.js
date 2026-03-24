@@ -11,7 +11,9 @@ export const applyFilter = (list, search, ver, map, rank, fate, jobs) => {
   return list.filter(m => {
     const matchName = (m.name || '').toLowerCase().includes(search.toLowerCase())
     const matchVer = !ver || m.version === ver
-    const matchMap = !map || (m.locations || []).some(l => l.map === map)
+    // 若使用者已選地圖，保留沒有座標的新怪物，避免新增後被濾掉
+    const hasNoLocation = !m.locations || !(m.locations.length > 0)
+    const matchMap = !map || hasNoLocation || (m.locations || []).some(l => l.map === map)
     const matchRank = !rank || m.rank === rank
     const matchFate = !fate || m.isFate === true
     let matchJobs
