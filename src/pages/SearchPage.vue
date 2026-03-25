@@ -81,7 +81,7 @@
           <div class="flex gap-2 items-center flex-wrap">
             <select
               v-model="filterVer"
-              @change="searchCurrentPage = 1"
+              @change="onSearchVersionChange"
               class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none"
             >
               <option value="">全版本</option>
@@ -325,6 +325,7 @@
           <div class="flex gap-2 flex-wrap">
             <select
               v-model="kbFilterVer"
+              @change="onKbVersionChange"
               class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
             >
               <option value="">全版本</option>
@@ -765,6 +766,11 @@ watch(
 )
 
 // 職業過濾切換
+const onSearchVersionChange = () => {
+  filterMap.value = ''
+  searchCurrentPage.value = 1
+}
+
 const toggleJobFilter = () => {
   if (filterJob.value) {
     filterJob.value = ''
@@ -783,6 +789,10 @@ const toggleJobFilter = () => {
     }
   }
   searchCurrentPage.value = 1
+}
+
+const onKbVersionChange = () => {
+  kbFilterMap.value = ''
 }
 
 const toggleKbJobFilter = () => {

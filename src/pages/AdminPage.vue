@@ -39,7 +39,7 @@
     <div class="bg-slate-50 p-4 rounded-2xl mb-4 flex gap-4 items-center border border-slate-200 flex-wrap">
       <select
         v-model="adminFilterVer"
-        @change="refreshMonsters(1)"
+        @change="onAdminVersionChange"
         class="bg-white border p-2 rounded-lg text-xs font-bold outline-none"
       >
         <option value="">全版本</option>
@@ -307,6 +307,11 @@ const refreshMonsters = (page = 1) => {
   const start = (page - 1) * adminPageSize.value;
   const end = start + adminPageSize.value;
   adminMonstersList.value = sorted.slice(start, end);
+};
+
+const onAdminVersionChange = () => {
+  adminFilterMap.value = '';
+  refreshMonsters(1);
 };
 
 const toggleJobsFilter = () => {
