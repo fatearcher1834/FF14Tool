@@ -665,12 +665,12 @@ const onSearchSortFieldChange = () => {
 watch(
   () => filterJob.value,
   (val) => {
-    if (
-      searchSortField.value === 'job' &&
-      (!searchSortJobs.value || searchSortJobs.value === '*') &&
-      val && val !== '*'
-    ) {
-      searchSortJobs.value = val
+    if (searchSortField.value === 'job') {
+      if (!val || val === '*') {
+        searchSortJobs.value = '*'
+      } else {
+        searchSortJobs.value = val
+      }
     }
   }
 )
@@ -680,10 +680,18 @@ const toggleJobFilter = () => {
   if (filterJob.value) {
     filterJob.value = ''
     showJobFilter.value = false
+    if (searchSortField.value === 'job') {
+      searchSortJobs.value = '*'
+    }
   } else {
     filterJob.value = '*'
     showJobFilter.value = true
     searchSortField.value = 'job'
+    if (filterJob.value && filterJob.value !== '*') {
+      searchSortJobs.value = filterJob.value
+    } else {
+      searchSortJobs.value = '*'
+    }
   }
   searchCurrentPage.value = 1
 }

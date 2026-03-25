@@ -259,12 +259,12 @@ const editingMonster = ref(null);
 watch(
   () => adminFilterJobs.value,
   (val) => {
-    if (
-      adminSortField.value === 'job' &&
-      (!adminSortJobs.value || adminSortJobs.value === '*') &&
-      val && val !== '*'
-    ) {
-      adminSortJobs.value = val;
+    if (adminSortField.value === 'job') {
+      if (!val || val === '*') {
+        adminSortJobs.value = '*';
+      } else {
+        adminSortJobs.value = val;
+      }
     }
   }
 );
@@ -297,9 +297,12 @@ const refreshMonsters = (page = 1) => {
 
 const toggleJobsFilter = () => {
   if (showAdminJobsFilter.value) {
-    // 關閉時清除篩選
+    // 關閉時清除篩選，但下拉預設為全部職業
     showAdminJobsFilter.value = false;
-    adminFilterJobs.value = '';
+    adminFilterJobs.value = '*';
+    if (adminSortField.value === 'job') {
+      adminSortJobs.value = '*';
+    }
   } else {
     // 開啟時預設 *
     showAdminJobsFilter.value = true;
@@ -310,7 +313,7 @@ const toggleJobsFilter = () => {
     if (adminSortField.value !== 'job') {
       adminSortField.value = 'job';
     }
-    // 預設 adminSortJobs
+    // 預設 adminSortJobs = 篩選職業
     if (adminFilterJobs.value && adminFilterJobs.value !== '*') {
       adminSortJobs.value = adminFilterJobs.value;
     } else {
