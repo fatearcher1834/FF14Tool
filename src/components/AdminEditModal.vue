@@ -37,6 +37,15 @@
           >
             FATE
           </button>
+          <button
+            @click="form.isWanted = !form.isWanted"
+            :class="[
+              'px-4 py-2 rounded-2xl text-xs font-black border',
+              form.isWanted ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400'
+            ]"
+          >
+            通緝令
+          </button>
         </div>
         <!-- 討伐筆記 -->
         <div class="flex flex-wrap gap-2 items-center">
@@ -115,6 +124,7 @@
         <div class="space-y-3">
           <div class="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-3">
             <label class="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
+            <!--
             <div class="flex items-center gap-2 text-[12px] text-slate-500">
               <span class="whitespace-nowrap">匹配精確度：</span>
               <input
@@ -127,6 +137,7 @@
               />
               <span class="w-10 text-right">{{ matchAccuracy }}%</span>
             </div>
+            -->
             <textarea
               ref="batchInput"
               class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
@@ -237,6 +248,7 @@ const form = ref({
   name: props.monster.name || '',
   rank: props.monster.rank || 'None',
   isFate: props.monster.isFate || false,
+  isWanted: props.monster.isWanted || false,
   jobs: Array.isArray(props.monster.jobs) ? [...props.monster.jobs] : [],
   version: props.monster.version || VERSIONS[0],
   locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])

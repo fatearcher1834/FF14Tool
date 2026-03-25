@@ -119,6 +119,18 @@
             </button>
 
             <button
+              @click="filterWanted = !filterWanted; searchCurrentPage = 1"
+              :class="[
+                'px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all',
+                filterWanted
+                  ? 'bg-rose-500 text-white border-rose-500'
+                  : 'bg-slate-50 text-slate-400 border-slate-200'
+              ]"
+            >
+              通緝令
+            </button>
+
+            <button
               @click="toggleJobFilter"
               :class="[
                 'px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all',
@@ -223,6 +235,7 @@
                       <VersionTag :version="m.version" />
                       <RankTag :rank="m.rank" />
                       <FateTag :isFate="m.isFate" />
+                      <WantedTag :isWanted="m.isWanted" />
                       <JobTag :jobs="m.jobs || []" />
                     </div>
                   </div>
@@ -319,11 +332,23 @@
             </select>
             <select
               v-model="kbFilterMap"
-              class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border flex-1 min-w-[100px]"
+              class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border flex-1 min-w-[220px]"
             >
               <option value="">{{ kbFilterVer ? `${kbFilterVer} 地圖` : '全地圖' }}</option>
               <option v-for="m in getMapsForVersion(kbFilterVer)" :key="m" :value="m">{{ m }}</option>
             </select>
+            <button
+              @click="kbFilterFate = !kbFilterFate"
+              :class="['px-2 py-1 rounded-lg text-[12px] font-black border transition-all', kbFilterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
+            >
+              FATE
+            </button>
+            <button
+              @click="kbFilterWanted = !kbFilterWanted"
+              :class="['px-2 py-1 rounded-lg text-[12px] font-black border transition-all', kbFilterWanted ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
+            >
+              通緝令
+            </button>
             <button
               @click="toggleKbJobFilter"
               :class="['px-2 py-1 rounded-lg text-[12px] font-black border transition-all', kbFilterJob ? 'bg-blue-500 text-white border-blue-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
@@ -402,8 +427,7 @@
                       {{ m.name }}
                       <VersionTag :version="m.version" />
                       <RankTag :rank="m.rank" />
-                      <FateTag :isFate="m.isFate" />
-                      <JobTag :jobs="m.jobs || []" />
+                      <FateTag :isFate="m.isFate" />                      <WantedTag :isWanted="m.isWanted" />                      <JobTag :jobs="m.jobs || []" />
                     </div>
                   </div>
                   <!-- 取消釘選按鈕 -->
@@ -526,6 +550,7 @@ import { useUserPinsStore } from '@/stores/user-pins.store'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
+import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
 
 const userStore = useUserStore()
@@ -539,6 +564,7 @@ const filterVer = ref('')
 const filterMap = ref('')
 const filterRank = ref('')
 const filterFate = ref(false)
+const filterWanted = ref(false)
 const filterJob = ref('')
 const showJobFilter = ref(false)
 
@@ -547,6 +573,8 @@ const showKanban = ref(true)
 const kbSearchTerm = ref('')
 const kbFilterVer = ref('')
 const kbFilterMap = ref('')
+const kbFilterFate = ref(false)
+const kbFilterWanted = ref(false)
 const kbFilterJob = ref('')
 const showKbJobFilter = ref(false)
 
@@ -618,6 +646,7 @@ const filteredMonsters = computed(() => {
     filterMap.value,
     filterRank.value,
     filterFate.value,
+    filterWanted.value,
     filterJob.value
   )
 })
@@ -648,7 +677,8 @@ const kbFilteredMonsters = computed(() => {
     kbFilterVer.value,
     kbFilterMap.value,
     '',
-    false,
+    kbFilterFate.value,
+    kbFilterWanted.value,
     kbFilterJob.value
   )
 })

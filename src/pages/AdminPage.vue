@@ -74,6 +74,16 @@
         FATE
       </button>
 
+      <button
+        @click="adminFilterWanted = !adminFilterWanted; refreshMonsters(1);"
+        :class="[
+          'px-4 py-2 rounded-lg text-xs font-black border transition-all',
+          adminFilterWanted ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400 border-slate-200'
+        ]"
+      >
+        通緝令
+      </button>
+
       <button @click="toggleJobsFilter" :class="['px-4 py-2 rounded-lg text-xs font-black border transition-all', showAdminJobsFilter ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200']">
         討伐筆記
       </button>
@@ -151,6 +161,7 @@
                 <VersionTag :version="m.version" />
                 <RankTag :rank="m.rank" />
                 <FateTag :is-fate="m.isFate" />
+                <WantedTag :is-wanted="m.isWanted" />
                 <JobTag :jobs="m.jobs || []" />
               </div>
             </td>
@@ -211,6 +222,7 @@ import { useUserStore } from '../stores/user.store';
 import VersionTag from '../components/VersionTag.vue';
 import RankTag from '../components/RankTag.vue';
 import FateTag from '../components/FateTag.vue';
+import WantedTag from '../components/WantedTag.vue';
 import JobTag from '../components/JobTag.vue';
 import AdminBatchAddModal from '../components/AdminBatchAddModal.vue';
 import AdminEditModal from '../components/AdminEditModal.vue';
@@ -228,6 +240,7 @@ const adminFilterVer = ref('');
 const adminFilterMap = ref('');
 const adminFilterRank = ref('');
 const adminFilterFate = ref(false);
+const adminFilterWanted = ref(false);
 const adminFilterJobs = ref(''); // 篩選用
 const showAdminJobsFilter = ref(false);
 const adminSortJobs = ref('*'); // 排序用
@@ -280,7 +293,8 @@ const refreshMonsters = (page = 1) => {
     adminFilterVer.value,
     adminFilterMap.value,
     adminFilterRank.value,
-    adminFilterFate.value ? 'yes' : '',
+    adminFilterFate.value,
+    adminFilterWanted.value,
     adminFilterJobs.value // 只用於篩選
   );
 
@@ -328,7 +342,9 @@ const newMonster = () => {
   editingMonster.value = {
     version: v,
     locations: [],
-    jobs: []
+    jobs: [],
+    isFate: false,
+    isWanted: false
   };
 };
 
@@ -366,6 +382,7 @@ const handleSaveMonster = async (monster) => {
         version: monster.version,
         rank: monster.rank || 'None',
         isFate: !!monster.isFate,
+        isWanted: !!monster.isWanted,
         jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
         locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
       };
@@ -394,6 +411,7 @@ const handleSaveMonster = async (monster) => {
         await monstersStore.updateMonster(existingByName.id, {
           rank: monster.rank || existingByName.rank || 'None',
           isFate: monster.isFate || existingByName.isFate || false,
+          isWanted: monster.isWanted || existingByName.isWanted || false,
           jobs: existingJobs.length > 0 ? existingJobs : null,
           locations: existingLocations.length > 0 ? existingLocations : []
         });
@@ -403,6 +421,7 @@ const handleSaveMonster = async (monster) => {
           version: monster.version,
           rank: monster.rank || 'None',
           isFate: !!monster.isFate,
+          isWanted: !!monster.isWanted,
           jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
           locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
         };

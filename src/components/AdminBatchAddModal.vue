@@ -7,7 +7,7 @@
   >
     <div class="bg-white rounded-[2.5rem] w-full max-w-4xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh]">
       <div class="flex justify-between items-center">
-        <h3 class="text-2xl font-black text-slate-900 tracking-tighter uppercase">{{ props.monsterMode ? '批量新增怪物 (測試)' : '批量新增列表' }}</h3>
+        <h3 class="text-2xl font-black text-slate-900 tracking-tighter uppercase"> 批量新增怪物 </h3>
         <button @click="$emit('close')" class="p-2 bg-slate-100 rounded-full hover:bg-slate-200">
           <X :size="16" />
         </button>
@@ -31,6 +31,9 @@
           </div>
           <button @click="config.isFate = !config.isFate" :class="['px-4 py-2 rounded-2xl text-[14px] font-black border', config.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400']">
             FATE
+          </button>
+          <button @click="config.isWanted = !config.isWanted" :class="['px-4 py-2 rounded-2xl text-[14px] font-black border', config.isWanted ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400']">
+            通緝令
           </button>
         </div>
 
@@ -175,6 +178,7 @@ const config = ref({
   version: '2.0',
   rank: 'None',
   isFate: false,
+  isWanted: false,
   jobs: []
 })
 
@@ -522,6 +526,7 @@ const submit = async () => {
           await updateDoc(existingDoc.ref, {
             rank: config.value.rank || existing.rank || 'None',
             isFate: existing.isFate || config.value.isFate,
+            isWanted: existing.isWanted || config.value.isWanted,
             jobs: mergeJobs.length > 0 ? mergeJobs : null,
             locations: updatedLocations.length > 0 ? updatedLocations : [],
             otherLocations: mergedOtherLocations.length > 0 ? mergedOtherLocations : null,
@@ -536,6 +541,7 @@ const submit = async () => {
           version: config.value.version,
           rank: config.value.rank,
           isFate: config.value.isFate,
+          isWanted: config.value.isWanted,
           jobs: entryJobs.length > 0 ? entryJobs : null,
           locations: entryLocations.length > 0 ? entryLocations : [],
           otherLocations: entryOtherLocations.length > 0 ? entryOtherLocations : null,

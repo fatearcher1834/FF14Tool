@@ -7,7 +7,7 @@ import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
 /**
  * 怪物篩選
  */
-export const applyFilter = (list, search, ver, map, rank, fate, jobs) => {
+export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs) => {
   return list.filter(m => {
     const matchName = (m.name || '').toLowerCase().includes(search.toLowerCase())
     const matchVer = !ver || m.version === ver
@@ -16,6 +16,7 @@ export const applyFilter = (list, search, ver, map, rank, fate, jobs) => {
     const matchMap = !map || hasNoLocation || (m.locations || []).some(l => l.map === map)
     const matchRank = !rank || m.rank === rank
     const matchFate = !fate || m.isFate === true
+    const matchWanted = !wanted || m.isWanted === true
     let matchJobs
     // 保證 arr 一定是陣列且無空值
     const arr = Array.isArray(m.jobs) ? m.jobs.filter(Boolean) : (typeof m.jobs === 'string' && m.jobs ? [m.jobs] : [])
@@ -26,7 +27,7 @@ export const applyFilter = (list, search, ver, map, rank, fate, jobs) => {
     } else {
       matchJobs = arr.some(j => typeof j === 'string' && j.startsWith(jobs))
     }
-    return matchName && matchVer && matchMap && matchRank && matchFate && matchJobs
+    return matchName && matchVer && matchMap && matchRank && matchFate && matchWanted && matchJobs
   })
 }
 
