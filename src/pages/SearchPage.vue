@@ -227,6 +227,13 @@
                     </div>
                   </div>
                   <button
+                    @click="handleCopyMonsterLocations(m)"
+                    class="p-2 text-blue-400 hover:text-white hover:bg-blue-500 bg-white rounded-full shadow transition-all"
+                    title="複製怪物所有位置座標"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>
+                  </button>
+                  <button
                     @click="handleTogglePin(m.id)"
                     :class="['p-2 rounded-xl transition-all', userPins[m.id] ? 'bg-amber-100 text-amber-600' : 'text-slate-200 hover:text-amber-300']"
                   >
@@ -262,6 +269,9 @@
 
       <!-- 右邊 - 追蹤看板 -->
       <div :class="['absolute right-0 top-0 bottom-0 w-[380px] bg-slate-100 border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 overflow-hidden', showKanban ? 'translate-x-0' : 'translate-x-full']">
+        <div v-if="copyMessage" class="absolute top-16 right-4 z-50 px-3 py-1 rounded-lg bg-black/80 text-white text-xs font-bold">
+          {{ copyMessage }}
+        </div>
         <!-- 追蹤看板頭部 -->
         <div class="p-4 bg-white border-b flex justify-between items-center">
           <div class="flex items-center gap-3">
@@ -353,7 +363,13 @@
                   {{ getGroupMonsters(group.id).length }}
                 </span>
                 <button
-                  v-if="group.canDelete"
+                  @click="handleCopyGroupLocations(group.id)"
+                  title="區域複製：複製此分組中怪物的座標"
+                  class="p-1 text-blue-400 hover:text-white hover:bg-blue-500 bg-white rounded-full shadow transition-all"
+                >
+                  <Copy size="12" />
+                </button>
+                <button                  v-if="group.canDelete"
                   @click="deleteGroup(group.id)"
                   class="text-slate-300 hover:text-red-400"
                 >
@@ -453,8 +469,38 @@ const handleCopyMonsterLocations = async (monster) => {
   const text = `${monster.name} ${mapStr}`.trim()
   await copyToClipboard(text)
   copyFeedback.value = `monster-${monster.id}`
-  setTimeout(() => { if (copyFeedback.value === `monster-${monster.id}`) copyFeedback.value = null }, 1000)
+  copyMessage.value = `已複製：${monster.name}`
+  setTimeout(() => { if (copyFeedback.value === `monster-${monster.id}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${monster.name}`) copyMessage.value = '' }, 1000)
 }
+
+// 複製指定分組的所有怪物位置座標
+const handleCopyGroupLocations = async (groupId) => {
+  const monsters = getGroupMonsters(groupId)
+  if (!monsters || monsters.length === 0) return
+
+  const group = customGroups.value.find(g => g.id === groupId)
+  const groupName = group ? group.name : '區域'
+
+  const lines = monsters.map(m => {
+    if (!m.locations || !m.locations.length) return m.name
+    const mapGroups = {}
+    m.locations.forEach(loc => {
+      if (!mapGroups[loc.map]) mapGroups[loc.map] = []
+      mapGroups[loc.map].push(`(X: ${loc.x}, Y: ${loc.y})`)
+    })
+    const mapStr = Object.entries(mapGroups)
+      .map(([map, coords]) => `${map} ${coords.join(' ')}`)
+      .join(' ')
+    return `${m.name} ${mapStr}`.trim()
+  })
+
+  const text = lines.join('\n')
+  await copyToClipboard(text)
+  copyFeedback.value = `group-${groupId}`
+  copyMessage.value = `已複製：${groupName}`
+  setTimeout(() => { if (copyFeedback.value === `group-${groupId}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${groupName}`) copyMessage.value = '' }, 1000)
+}
+
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -467,6 +513,7 @@ import {
   Filter,
   Plus,
   Trash2,
+  Copy,
   Check
 } from 'lucide-vue-next'
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
@@ -518,6 +565,7 @@ const isKbGlobalExpanded = ref(false)
 
 // 複製反饋
 const copyFeedback = ref(null)
+const copyMessage = ref('')
 
 // 自訂分組
 const customGroups = ref([])
@@ -547,8 +595,12 @@ const handleCopyAllLocations = async () => {
   const text = lines.join('\n')
   await copyToClipboard(text)
   copyFeedback.value = 'all-locations'
+  copyMessage.value = '已複製：全部區域'
   // 1 秒後清除提示
-  setTimeout(() => { if (copyFeedback.value === 'all-locations') copyFeedback.value = null }, 1000)
+  setTimeout(() => {
+    if (copyFeedback.value === 'all-locations') copyFeedback.value = null
+    if (copyMessage.value === '已複製：全部區域') copyMessage.value = ''
+  }, 1000)
 }
 
 // 用戶 PIN
@@ -620,7 +672,8 @@ const handleCopyLocation = async (name, loc, key) => {
   const text = `${name} ${loc.map} (X: ${loc.x}, Y: ${loc.y})`
   await copyToClipboard(text)
   copyFeedback.value = key
-  setTimeout(() => (copyFeedback.value = null), 1000)
+  copyMessage.value = `已複製：${name}`
+  setTimeout(() => { copyFeedback.value = null; copyMessage.value = '' }, 1000)
 }
 
 // 全部展開 / 摺疊
