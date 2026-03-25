@@ -1,7 +1,7 @@
 {
   "name": "ff14-hunt-finder",
   "version": "1.0.0",
-  "description": "FINAL FANTASY XIV 繁體中文狩獵工具 - Vue CLI 版本",
+  "description": "FINAL FANTASY XIV 繁體中文狩獵工具",
   "main": "src/main.js",
   "scripts": {
     "serve": "vue-cli-service serve",
