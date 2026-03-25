@@ -74,7 +74,7 @@
         FATE
       </button>
 
-      <button @click="toggleJobsFilter" :class="['px-4 py-2 rounded-lg text-xs font-black border transition-all', adminFilterJobs ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200']">
+      <button @click="toggleJobsFilter" :class="['px-4 py-2 rounded-lg text-xs font-black border transition-all', showAdminJobsFilter ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-400 border-slate-200']">
         討伐筆記
       </button>
       <select v-if="showAdminJobsFilter" v-model="adminFilterJobs" @change="refreshMonsters(1)" class="bg-white border p-2 rounded-lg text-xs font-black outline-none">
@@ -297,9 +297,9 @@ const refreshMonsters = (page = 1) => {
 
 const toggleJobsFilter = () => {
   if (showAdminJobsFilter.value) {
-    // 關閉時清除篩選，但下拉預設為全部職業
+    // 關閉時取消過濾（顯示全部）
     showAdminJobsFilter.value = false;
-    adminFilterJobs.value = '*';
+    adminFilterJobs.value = '';
     if (adminSortField.value === 'job') {
       adminSortJobs.value = '*';
     }
