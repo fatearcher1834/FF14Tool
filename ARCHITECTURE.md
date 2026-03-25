@@ -151,33 +151,35 @@ artifacts/{appId}/
 
 ---
 
-## 🚀 快速開始實現步驟
+## 🚀 快速開始實現步驟（Vue CLI / Vite）
 
-### 第 1 步：安裝依賴
+### 1. 安裝依賴
 ```bash
-npm install vue@next
-npm install pinia
-npm install vue-router@next
-npm install firebase
-npm install lucide-vue-next        # 圖標庫
-npm install -D vite @vitejs/plugin-vue
-npm install -D tailwindcss postcss autoprefixer
+npm install
 ```
 
-### 第 2 步：設置環境變數
+### 2. 啟動開發伺服器
 ```bash
-cp .env.example .env
-# 編輯 .env 並填入你的 Firebase 配置
+npm run dev
 ```
 
-### 第 3 步：創建 Vite 配置
-見下一章節
+### 3. 生產打包
+```bash
+npm run build
+```
 
-### 第 4 步：實現 Vue 組件
-參考原 React 代碼邏輯，逐個實現各個組件
+### 4. GitHub Pages 部署（推薦）
+1. 安裝 gh-pages：`npm install --save-dev gh-pages`（如尚未）
+2. `package.json` 內設置：
+   - `homepage`: `https://<your-user>.github.io/<repo>/`
+   - `predeploy`: `npm run build`
+   - `deploy`: `gh-pages -d dist`
+3. 執行：`npm run deploy`
 
-### 第 5 步：集成 Tailwind CSS
-確保樣式系統正常工作
+### 5. 本地測試
+`npm run serve` 或 `npm run dev`，瀏覽器開啟 `http://localhost:8080`
+
+> 已移除舊版 `ff14-hunt-finder-v17.html` 直接打開說明，此專案為 Vue CLI 版本。
 
 ---
 

@@ -71,18 +71,23 @@
 
 ## 🚀 快速開始
 
-### 安裝與訪問
+### 安裝與訪問（Vue CLI 版本）
 
 ```bash
-# 方式 1️⃣：直接打開
-在瀏覽器中打開 ff14-hunt-finder-v17.html
+# 安裝依賴
+npm install
 
-# 方式 2️⃣：本機伺服器 (推薦)
-python -m http.server 8000  # Python 3
-# 或
-npx http-server             # Node.js
-# 然後訪問 http://localhost:8000
+# 啟動開發伺服器
+npm run dev
+
+# 或者
+npm run serve
+
+# 之後開啟瀏覽器
+http://localhost:8080
 ```
+
+> ⚠️ `ff14-hunt-finder-v17.html` 是舊資料，不適用於此 Vue CLI 專案。
 
 ### 首次使用步驟
 
