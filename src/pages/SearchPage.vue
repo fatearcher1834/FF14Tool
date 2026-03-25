@@ -336,8 +336,13 @@
             >
               <option value="">{{ kbFilterVer ? `${kbFilterVer} 地圖` : '全地圖' }}</option>
               <option v-for="m in getMapsForVersion(kbFilterVer)" :key="m" :value="m">{{ m }}</option>
-            </select>
-            <button
+            </select>            <select
+              v-model="kbFilterRank"
+              class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
+            >
+              <option value="">等級</option>
+              <option v-for="r in RANKS" :key="r" :value="r">{{ r === 'None' ? '一般' : `${r}級` }}</option>
+            </select>            <button
               @click="kbFilterFate = !kbFilterFate"
               :class="['px-2 py-1 rounded-lg text-[12px] font-black border transition-all', kbFilterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
             >
@@ -573,6 +578,7 @@ const showKanban = ref(true)
 const kbSearchTerm = ref('')
 const kbFilterVer = ref('')
 const kbFilterMap = ref('')
+const kbFilterRank = ref('')
 const kbFilterFate = ref(false)
 const kbFilterWanted = ref(false)
 const kbFilterJob = ref('')
@@ -676,7 +682,7 @@ const kbFilteredMonsters = computed(() => {
     kbSearchTerm.value,
     kbFilterVer.value,
     kbFilterMap.value,
-    '',
+    kbFilterRank.value,
     kbFilterFate.value,
     kbFilterWanted.value,
     kbFilterJob.value
