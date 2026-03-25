@@ -91,7 +91,9 @@ export const MAP_DATA = {
 export const DUNGEON_MAPS = [
   '魔獸領域日影地修煉所',
   '古代遺跡喀恩埋沒聖堂',
-  '神靈聖域放浪神古神殿'
+  '神靈聖域放浪神古神殿',
+  '流沙迷宮樵鳴洞',
+
 ];
 
 export const DUNGEON_MAPS_TRAD = [...DUNGEON_MAPS];

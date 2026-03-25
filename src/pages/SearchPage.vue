@@ -531,7 +531,7 @@ const handleCopyGroupLocations = async (groupId) => {
   setTimeout(() => { if (copyFeedback.value === `group-${groupId}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${groupName}`) copyMessage.value = '' }, 1000)
 }
 
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ChevronDown,
@@ -696,6 +696,11 @@ const getGroupMonsters = groupId =>
 
 // PIN 切換
 const handleTogglePin = async mId => {
+  if (!userStore.virtualId || !userStore.virtualId.trim()) {
+    console.warn('⚠ 無效用戶 ID，無法更新追蹤項目')
+    return
+  }
+
   if (userPins.value[mId]) {
     await pinsStore.removePin(mId, userStore.virtualId)
   } else {
@@ -896,6 +901,23 @@ const handleMonsterDrop = async (e, targetMonsterId, groupId) => {
   }
 }
 
+watch(
+  () => userStore.virtualId,
+  async (newUserId, oldUserId) => {
+    if (!newUserId || !newUserId.trim()) {
+      pinsStore.stopWatching()
+      pinsStore.pins = {}
+      return
+    }
+
+    if (newUserId !== oldUserId) {
+      await pinsStore.initialize(newUserId)
+      pinsStore.stopWatching()
+      await pinsStore.watchPins(newUserId)
+    }
+  }
+)
+
 const logout = async () => {
   await userStore.logout()
   await router.push('/login')
@@ -925,6 +947,14 @@ onMounted(async () => {
     console.error('❌ 啟動監聽失敗:', err)
   }
 
+  // 初始化用戶追蹤清單 + 實時監聽
+  if (!userStore.virtualId || !userStore.virtualId.trim()) {
+    console.warn('⚠ 無效用戶 ID，無法初始化追蹤板。')
+  } else {
+    await pinsStore.initialize(userStore.virtualId)
+    await pinsStore.watchPins(userStore.virtualId)
+  }
+
   // 監聽分組
   const { db } = getFirebaseInstance()
   onSnapshot(
@@ -949,6 +979,10 @@ onMounted(async () => {
       }
     }
   )
+})
+
+onUnmounted(() => {
+  pinsStore.stopWatching()
 })
 </script>
 

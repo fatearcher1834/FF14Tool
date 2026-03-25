@@ -82,6 +82,9 @@ export const useUserPinsStore = defineStore("userPins", () => {
 
   // 添加收藏
   const addPin = async (monsterId, userId, groupId = null) => {
+    if (!userId || !userId.trim()) {
+      throw new Error("無效用戶 ID，無法執行收藏操作");
+    }
     try {
       const targetGroupId = groupId || defaultGroup.value?.id || "default";
       await db.addPin(monsterId, targetGroupId, userId, APP_ID);
@@ -96,6 +99,9 @@ export const useUserPinsStore = defineStore("userPins", () => {
 
   // 移除收藏
   const removePin = async (monsterId, userId) => {
+    if (!userId || !userId.trim()) {
+      throw new Error("無效用戶 ID，無法執行取消收藏操作");
+    }
     try {
       await db.removePin(monsterId, userId, APP_ID);
       delete pins.value[monsterId];
@@ -176,6 +182,9 @@ export const useUserPinsStore = defineStore("userPins", () => {
 
   // 移動收藏到不同分組
   const movePin = async (monsterId, newGroupId, userId) => {
+    if (!userId || !userId.trim()) {
+      throw new Error("無效用戶 ID，無法執行移動收藏操作");
+    }
     try {
       await db.addPin(monsterId, newGroupId, userId, APP_ID);
       pins.value[monsterId] = newGroupId;

@@ -1,7 +1,8 @@
 export const DUNGEON_MAPS_SIMPLE_MAP = {
   '魔兽领域日影地修炼所': '魔獸領域日影地修煉所',
   '古代遗迹喀恩埋没圣堂': '古代遺跡喀恩埋沒聖堂',
-  '神灵圣域放浪神古神殿': '神靈聖域放浪神古神殿'
+  '神灵圣域放浪神古神殿': '神靈聖域放浪神古神殿',
+  '流沙迷宫樵鸣洞': '流沙迷宮樵鳴洞',
 }
 
 export const simplifiedToTraditional = {
