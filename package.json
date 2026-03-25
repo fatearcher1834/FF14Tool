@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "FINAL FANTASY XIV 繁體中文狩獵工具",
   "main": "src/main.js",
+  "homepage": "https://<your-user>.github.io/<repo>",
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "preview": "vue-cli-service serve --mode production"
+    "preview": "vue-cli-service serve --mode production",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "core-js": "^3.36.0",
@@ -27,7 +30,8 @@
     "postcss": "^8.4.32",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.56.0",
-    "eslint-plugin-vue": "^9.19.0"
+    "eslint-plugin-vue": "^9.19.0",
+    "gh-pages": "^5.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
