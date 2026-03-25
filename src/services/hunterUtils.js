@@ -147,6 +147,19 @@ export const simplifiedToTraditional = text => {
   if (!text) return text
   let result = text
 
+  const phraseMap = {
+    '翻云雾海': '德拉瓦尼亞雲海',
+    '龙堡参天高地': '德拉瓦尼亞山麓地',
+    '龙堡内陆低地': '德拉瓦尼亞河谷地',
+    '翻雲霧海': '德拉瓦尼亞雲海',
+    '龍堡參天高地': '德拉瓦尼亞山麓地',
+    '龍堡內陸低地': '德拉瓦尼亞河谷地',
+  }
+
+  Object.entries(phraseMap).forEach(([key, val]) => {
+    result = result.split(key).join(val)
+  })
+
   const charMap = {
     诺: '諾',
     萨: '薩',
