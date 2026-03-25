@@ -142,31 +142,45 @@
             :key="i"
             class="flex gap-2 p-3 bg-slate-50 rounded-2xl border items-center"
           >
-            <select
-              v-model="loc.map"
-              class="flex-1 bg-white border p-2 rounded-xl text-xs font-bold outline-none"
-            >
-              <option v-for="r in MAP_DATA[form.version]" :key="r" :value="r">{{ r }}</option>
-              <optgroup v-if="otherRegions(form.version).length > 0" label="其他版本">
-                <option v-for="r in otherRegions(form.version)" :key="r" :value="r">{{ r }}</option>
-              </optgroup>
-            </select>
+            <div class="flex-1 flex gap-2">
+              <select v-model="loc.type" class="bg-white border p-2 rounded-xl text-xs font-bold outline-none w-20">
+                <option value="map">地圖</option>
+                <option value="dungeon">副本</option>
+              </select>
 
-            <div class="flex gap-1 items-center">
-              <span class="text-[10px] font-black text-slate-300">X</span>
-              <input
-                v-model="loc.x"
-                class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
-              />
+              <select
+                v-model="loc.map"
+                class="flex-1 bg-white border p-2 rounded-xl text-xs font-bold outline-none"
+              >
+                <template v-if="loc.type === 'map'">
+                  <option v-for="r in MAP_DATA[form.version]" :key="r" :value="r">{{ r }}</option>
+                  <optgroup v-if="otherRegions(form.version).length > 0" label="其他版本">
+                    <option v-for="r in otherRegions(form.version)" :key="r" :value="r">{{ r }}</option>
+                  </optgroup>
+                </template>
+                <template v-else>
+                  <option v-for="r in DUNGEON_MAPS" :key="r" :value="r">{{ r }}</option>
+                </template>
+              </select>
             </div>
 
-            <div class="flex gap-1 items-center">
-              <span class="text-[10px] font-black text-slate-300">Y</span>
-              <input
-                v-model="loc.y"
-                class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
-              />
-            </div>
+            <template v-if="loc.type === 'map'">
+              <div class="flex gap-1 items-center">
+                <span class="text-[10px] font-black text-slate-300">X</span>
+                <input
+                  v-model="loc.x"
+                  class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
+                />
+              </div>
+
+              <div class="flex gap-1 items-center">
+                <span class="text-[10px] font-black text-slate-300">Y</span>
+                <input
+                  v-model="loc.y"
+                  class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
+                />
+              </div>
+            </template>
 
             <button @click="form.locations.splice(i, 1)" class="p-2 text-slate-300 hover:text-red-500">
               <X :size="14" />
@@ -187,7 +201,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { X } from 'lucide-vue-next'
-import { GAME_VERSIONS, MAP_DATA, VERSIONS, ALL_REGIONS } from '@/config/constants'
+import { GAME_VERSIONS, MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES } from '@/config/constants'
 // 取得非當前版本地圖
 const otherRegions = (version) => {
   const current = MAP_DATA[version] || [];
@@ -205,10 +219,17 @@ const emit = defineEmits(['close', 'save'])
 
 const modalRef = ref(null)
 
-const JOB_BASE_NAMES = [
-  '劍術師', '格鬥家', '斧術師', '槍術師', '弓箭手', '幻術師', '咒術師', '秘術師', '雙劍師', '黑渦團', '雙蛇黨', '恆輝隊'
-]
 const jobSuffixes = Array.from({ length: 50 }, (_, i) => String(i + 1).padStart(2, '0'))
+
+const normalizeLocations = (locations = [], version = VERSIONS[0]) => {
+  const maps = MAP_DATA[version] || []
+  return locations.map((loc) => ({
+    type: loc.type === 'dungeon' ? 'dungeon' : 'map',
+    map: loc.map || (loc.type === 'dungeon' ? '' : maps[0] || ''),
+    x: loc.x || '',
+    y: loc.y || ''
+  }))
+}
 
 const form = ref({
   id: props.monster.id || null,
@@ -217,7 +238,7 @@ const form = ref({
   isFate: props.monster.isFate || false,
   jobs: Array.isArray(props.monster.jobs) ? [...props.monster.jobs] : [],
   version: props.monster.version || VERSIONS[0],
-  locations: Array.isArray(props.monster.locations) ? [...props.monster.locations] : [],
+  locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
 })
 const matchAccuracy = ref(90)
 
@@ -253,6 +274,12 @@ const confirmJobWithLevel = (jobBase, level) => {
   showJobPicker.value = false
   selectedJobBase.value = null
 }
+
+const DUNGEON_MAPS = [
+  '魔獸領域日影地修煉所',
+  '古代遺跡喀恩埋沒聖堂',
+  '神靈聖域放浪神古神殿',
+]
 
 const simplifiedToTraditional = {
   '西萨纳兰': '西薩納蘭',
@@ -375,7 +402,7 @@ const extractLocationFromLine = (line) => {
   }
 
   map = fuzzyMapMatch(map)
-  return { map, x, y }
+  return { map, x, y, type: 'map' }
 }
 
 const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
@@ -465,7 +492,12 @@ const handleBatchParse = (text) => {
     )
 
     if (!exists) {
-      form.value.locations.push(loc)
+      form.value.locations.push({
+        type: loc.type || 'map',
+        map: loc.map || (MAP_DATA[form.value.version] ? MAP_DATA[form.value.version][0] : ''),
+        x: loc.x || '',
+        y: loc.y || ''
+      })
     }
 
     if (currentJobTag && !form.value.jobs.includes(currentJobTag)) {
@@ -491,7 +523,7 @@ const addLocation = () => {
   form.value.locations = form.value.locations || []
   // 預設 map 為目前版本第一個地圖
   const maps = MAP_DATA[form.value.version] || [];
-  form.value.locations.push({ map: maps[0] || '', x: '', y: '' })
+  form.value.locations.push({ map: maps[0] || '', x: '', y: '', type: 'map' })
 }
 </script>
 

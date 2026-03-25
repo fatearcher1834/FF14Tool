@@ -113,7 +113,13 @@
                 </div>
               </div>
               <div v-if="typeof entry !== 'string' && entry.locations && entry.locations.length > 0" class="text-xs text-slate-500 mt-1">
-                位置：<span v-for="(l, li) in entry.locations" :key="li" class="mr-2">{{ l.map }} (X: {{ l.x }}, Y: {{ l.y }})</span>
+                位置：<span v-for="(l, li) in entry.locations" :key="li" class="mr-2">
+                  <span v-if="l.type === 'map'">{{ l.map }} (X: {{ l.x }}, Y: {{ l.y }})</span>
+                  <span v-else-if="l.type === 'dungeon'">副本：{{ l.map }}</span>
+                </span>
+              </div>
+              <div v-if="typeof entry !== 'string' && entry.otherLocations && entry.otherLocations.length > 0" class="text-xs text-amber-500 mt-1">
+                其他版本（副本）：<span v-for="(d, di) in entry.otherLocations" :key="di" class="mr-2">{{ d }}</span>
               </div>
             </div>
             <div v-if="bulkParsedList.length === 0" class="text-slate-500 text-center py-8 text-xs">輸入名稱後會在此預覽</div>
@@ -234,28 +240,43 @@ const confirmJobWithLevel = (jobBase, level) => {
 const coordPattern = /([Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?))\s*/g
 const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
 
-const findMapFromText = (text) => {
-  const allMaps = Object.values(MAP_DATA).flat()
-  const normalized = utilSimplifiedToTraditional(text || '').replace(/\s+/g, '').toLowerCase()
+const DUNGEON_MAPS_TRAD = [
+  '魔獸領域日影地修煉所',
+  '古代遺跡喀恩埋沒聖堂',
+  '神靈聖域放浪神古神殿'
+]
 
+const DUNGEON_MAPS_SIMPLE_MAP = {
+  '魔兽领域日影地修炼所': '魔獸領域日影地修煉所',
+  '古代遗迹喀恩埋没圣堂': '古代遺跡喀恩埋沒聖堂',
+  '神灵圣域放浪神古神殿': '神靈聖域放浪神古神殿'
+}
+
+const findMapFromText = (text) => {
+  const normalized = utilSimplifiedToTraditional(text || '').replace(/\s+/g, '').toLowerCase()
   if (!normalized) return ''
 
-  // 先精準匹配含 map 字串
-  const exact = allMaps.find(m => normalized.includes(m.replace(/\s+/g, '').toLowerCase()))
-  if (exact) return exact
+  // 優先本版本地圖精準匹配
+  const mapsForVersion = MAP_DATA[config.value.version] || []
+  const exactVersion = mapsForVersion.find(m => normalized.includes(m.replace(/\s+/g, '').toLowerCase()))
+  if (exactVersion) return exactVersion
 
-  // 再嘗試模糊匹配
-  const candidate = allMaps
+  // 副本地圖（如果行中出現可識別副本名稱）
+  const dungeonTrad = DUNGEON_MAPS_TRAD.find(m => normalized.includes(m.replace(/\s+/g, '').toLowerCase()))
+  if (dungeonTrad) return '其他版本（副本）'
+  const dungeonSimple = Object.keys(DUNGEON_MAPS_SIMPLE_MAP).find(m => normalized.includes(m.replace(/\s+/g, '').toLowerCase()))
+  if (dungeonSimple) return '其他版本（副本）'
+
+  // 再做模糊匹配本版本
+  const candidate = mapsForVersion
     .map(m => ({ map: m, similarity: calculateSimilarity(normalized, m.replace(/\s+/g, '').toLowerCase()) }))
     .sort((a, b) => b.similarity - a.similarity)[0]
 
-  if (candidate && candidate.similarity >= 50) {
+  if (candidate && candidate.similarity >= 75) {
     return candidate.map
   }
 
-  // 最後回退預設版本第一個
-  const mapsForVersion = MAP_DATA[config.value.version] || []
-  return mapsForVersion[0] || ''
+  return ''
 }
 
 const parseLocationsFromLine = (line) => {
@@ -276,7 +297,14 @@ const parseLocationsFromLine = (line) => {
     const map = findMapFromText(mapCandidate)
     if (!map) continue
 
-    locations.push({ map, x, y })
+    locations.push({ map, x, y, type: 'map' })
+  }
+
+  // 偵測純副本行：沒座標時 supplementary
+  const normalizedLine = utilSimplifiedToTraditional(line).replace(/\s+/g, '').toLowerCase()
+  const dungeon = DUNGEON_MAPS_TRAD.find(d => normalizedLine.includes(d.replace(/\s+/g, '').toLowerCase()))
+  if (dungeon && locations.length === 0) {
+    locations.push({ map: dungeon, type: 'dungeon' })
   }
 
   return locations
@@ -392,6 +420,10 @@ const parseNames = () => {
       let nameCandidate = candidateNames.length > 0 ? candidateNames[0] : ''
       let name = utilSimplifiedToTraditional(nameCandidate).trim()
 
+      const normalizedLine = utilSimplifiedToTraditional(line).replace(/\s+/g, '').toLowerCase()
+      const matchedDungeon = DUNGEON_MAPS_TRAD.find(d => normalizedLine.includes(d.replace(/\s+/g, '').toLowerCase()))
+      const shouldMarkDungeon = matchedDungeon && !locations.length
+
       // 若這行只是座標續行（e.g. 黑衣森林北部林區 (X:21, Y:31)），避免誤當作新怪物名稱
       if (name && locations.length > 0 && locations.some(loc => loc.map === name)) {
         name = ''
@@ -411,6 +443,12 @@ const parseNames = () => {
               existing.jobs.push(job)
             }
           })
+          if (shouldMarkDungeon) {
+            existing.otherLocations = existing.otherLocations || []
+            if (!existing.otherLocations.includes(matchedDungeon)) {
+              existing.otherLocations.push(matchedDungeon)
+            }
+          }
           current = existing
           continue
         }
@@ -418,7 +456,8 @@ const parseNames = () => {
         current = {
           name,
           jobs: jobs.length > 0 ? jobs : [],
-          locations: locations.length > 0 ? locations : []
+          locations: locations.length > 0 ? locations : [],
+          otherLocations: shouldMarkDungeon ? [matchedDungeon] : []
         }
         parsedEntries.push(current)
         continue
@@ -436,6 +475,20 @@ const parseNames = () => {
               current.jobs.push(job)
             }
           })
+        }
+        if (shouldMarkDungeon && matchedDungeon) {
+          current.otherLocations = current.otherLocations || []
+          if (!current.otherLocations.includes(matchedDungeon)) {
+            current.otherLocations.push(matchedDungeon)
+          }
+        }
+        continue
+      }
+
+      if (!name && shouldMarkDungeon && current) {
+        current.otherLocations = current.otherLocations || []
+        if (!current.otherLocations.includes(matchedDungeon)) {
+          current.otherLocations.push(matchedDungeon)
         }
       }
     }
@@ -456,14 +509,18 @@ const submit = async () => {
       let entryJobs
       let entryLocations
 
+      let entryOtherLocations = []
       if (typeof entry === 'string') {
         name = utilSimplifiedToTraditional(entry)
         entryJobs = [...config.value.jobs]
-        entryLocations = config.value.map ? [{ map: config.value.map, x: 0, y: 0 }] : []
+        entryLocations = []
       } else {
         name = utilSimplifiedToTraditional(entry.name || '')
         entryJobs = Array.isArray(entry.jobs) ? [...entry.jobs] : [...config.value.jobs]
-        entryLocations = Array.isArray(entry.locations) && entry.locations.length > 0 ? [...entry.locations] : (config.value.map ? [{ map: config.value.map, x: 0, y: 0 }] : [])
+        entryLocations = Array.isArray(entry.locations) && entry.locations.length > 0 ? [...entry.locations] : []
+        if (Array.isArray(entry.otherLocations) && entry.otherLocations.length > 0) {
+          entryOtherLocations = [...entry.otherLocations]
+        }
       }
 
       if (!name) continue
@@ -489,11 +546,19 @@ const submit = async () => {
             }
           })
 
+          const mergedOtherLocations = Array.isArray(existing.otherLocations) ? [...existing.otherLocations] : []
+          entryOtherLocations.forEach(loc => {
+            if (!mergedOtherLocations.includes(loc)) {
+              mergedOtherLocations.push(loc)
+            }
+          })
+
           await updateDoc(existingDoc.ref, {
             rank: config.value.rank || existing.rank || 'None',
             isFate: existing.isFate || config.value.isFate,
             jobs: mergeJobs.length > 0 ? mergeJobs : null,
             locations: updatedLocations.length > 0 ? updatedLocations : [],
+            otherLocations: mergedOtherLocations.length > 0 ? mergedOtherLocations : null,
             updatedAt: now
           })
         }
@@ -507,6 +572,7 @@ const submit = async () => {
           isFate: config.value.isFate,
           jobs: entryJobs.length > 0 ? entryJobs : null,
           locations: entryLocations.length > 0 ? entryLocations : [],
+          otherLocations: entryOtherLocations.length > 0 ? entryOtherLocations : null,
           createdAt: now,
           updatedAt: now
         })
