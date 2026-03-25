@@ -281,6 +281,12 @@ const DUNGEON_MAPS = [
   '神靈聖域放浪神古神殿',
 ]
 
+const DUNGEON_MAPS_SIMPLE_MAP = {
+  '魔兽领域日影地修炼所': '魔獸領域日影地修煉所',
+  '古代遗迹喀恩埋没圣堂': '古代遺跡喀恩埋沒聖堂',
+  '神灵圣域放浪神古神殿': '神靈聖域放浪神古神殿'
+}
+
 const simplifiedToTraditional = {
   '西萨纳兰': '西薩納蘭',
   '中拉诺西亚': '中拉諾西亞',
@@ -398,6 +404,10 @@ const extractLocationFromLine = (line) => {
   }
 
   if (!map || isNaN(x) || isNaN(y)) {
+    const dungeon = findDungeonFromText(line)
+    if (dungeon) {
+      return { map: dungeon, type: 'dungeon' }
+    }
     return null
   }
 
@@ -411,6 +421,18 @@ const toTraditional = (text) => {
   if (!text) return text
   const mapping = simplifiedToTraditional[text]
   return mapping || text
+}
+
+const findDungeonFromText = (text) => {
+  if (!text) return null
+  const normalized = toTraditional(text).replace(/\s+/g, '').toLowerCase()
+  const matched = DUNGEON_MAPS.find(d => normalized.includes(d.replace(/\s+/g, '').toLowerCase()))
+  if (matched) return matched
+
+  const matchedSimple = Object.keys(DUNGEON_MAPS_SIMPLE_MAP).find(d => normalized.includes(d.replace(/\s+/g, '').toLowerCase()))
+  if (matchedSimple) return DUNGEON_MAPS_SIMPLE_MAP[matchedSimple]
+
+  return null
 }
 
 const parseJobTagFromLine = (line) => {
@@ -448,7 +470,7 @@ const parseNameFromLine = (line) => {
     .replace(/\s{2,}/g, ' ')
     .trim()
 
-  const fields = clean.split(/\t+/).map(field => field.trim()).filter(Boolean)
+  const fields = clean.split(/\t+|\s+/).map(field => field.trim()).filter(Boolean)
   const names = fields.filter(field => {
     const outline = field.replace(/\s+/g, '')
     if (coordTestPattern.test(field)) return false
