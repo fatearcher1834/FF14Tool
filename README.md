@@ -385,6 +385,18 @@ localStorage.ff14_virtual_account
 
 ## ❓ 常見問題
 
+### 💬 Q: 追蹤板項目不會按帳號分類儲存？
+
+**A:** 這個問題已修正，請確認你在最新版中已執行以下步驟：
+- 重新登入帳號
+- 確認右上角顯示正確 `userStore.virtualId`
+- 針對每個帳號在 `artifacts/{appId}/users/{userId}/pins` 下可見一致資料
+
+若你仍遇到：
+- [ ] 追蹤項目漏寫或存錯帳號，請先清除 localStorage 再重試
+- [ ] 若跨帳號切換持續錯亂，請回報開發者以便一併檢查 `useUserPinsStore` 初始化邏輯
+
+
 ### 💬 Q: 怪物未顯示？
 
 **A:** 檢查以下項目：
