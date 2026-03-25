@@ -141,8 +141,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { X } from 'lucide-vue-next'
-import { VERSIONS, JOB_BASE_NAMES, JOB_SUFFIXES, MAP_DATA } from '@/config/constants'
-import { simplifiedToTraditional as utilSimplifiedToTraditional, findBestMapMatch, calculateSimilarity } from '@/services/hunterUtils'
+import { VERSIONS, JOB_BASE_NAMES, JOB_SUFFIXES, MAP_DATA, DUNGEON_MAPS, DUNGEON_MAPS_TRAD } from '@/config/constants'
+import { DUNGEON_MAPS_SIMPLE_MAP, simplifiedToTraditional as utilSimplifiedToTraditional, simplifiedJobBaseMap } from '@/config/locale-translation'
+import { findBestMapMatch, calculateSimilarity } from '@/services/hunterUtils'
 import { useUserStore } from '@/stores/user.store'
 import { getDb } from '@/services/firebase'
 import { collection, query, where, getDocs, setDoc, updateDoc, doc } from 'firebase/firestore'
@@ -176,29 +177,6 @@ const config = ref({
   isFate: false,
   jobs: []
 })
-
-const simplifiedJobBaseMap = {
-  '劍術師': '劍術師',
-  '剑术师': '劍術師',
-  '格斗家': '格鬥家',
-  '斧术师': '斧術師',
-  '槍術師': '槍術師',
-  '枪术师': '槍術師',
-  '弓箭手': '弓箭手',
-  '幻術師': '幻術師',
-  '幻术师': '幻術師',
-  '咒術師': '咒術師',
-  '咒术师': '咒術師',
-  '秘術師': '秘術師',
-  '双剑师': '雙劍師',
-  '雙劍師': '雙劍師',
-  '黑渦團': '黑渦團',
-  '黑涡团': '黑渦團',
-  '双蛇党': '雙蛇黨',
-  '雙蛇黨': '雙蛇黨',
-  '恆輝隊': '恆輝隊',
-  '恒辉队': '恆輝隊'
-}
 
 const normalizeJobName = (name) => {
   if (!name) return name
@@ -239,18 +217,6 @@ const confirmJobWithLevel = (jobBase, level) => {
 
 const coordPattern = /([Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?))\s*/g
 const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
-
-const DUNGEON_MAPS_TRAD = [
-  '魔獸領域日影地修煉所',
-  '古代遺跡喀恩埋沒聖堂',
-  '神靈聖域放浪神古神殿'
-]
-
-const DUNGEON_MAPS_SIMPLE_MAP = {
-  '魔兽领域日影地修炼所': '魔獸領域日影地修煉所',
-  '古代遗迹喀恩埋没圣堂': '古代遺跡喀恩埋沒聖堂',
-  '神灵圣域放浪神古神殿': '神靈聖域放浪神古神殿'
-}
 
 const findMapFromText = (text) => {
   const normalized = utilSimplifiedToTraditional(text || '').replace(/\s+/g, '').toLowerCase()

@@ -201,7 +201,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { X } from 'lucide-vue-next'
-import { GAME_VERSIONS, MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES } from '@/config/constants'
+import { GAME_VERSIONS, MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS } from '@/config/constants'
+import { DUNGEON_MAPS_SIMPLE_MAP, simplifiedToTraditional, simplifiedJobBaseMap } from '@/config/locale-translation'
 // 取得非當前版本地圖
 const otherRegions = (version) => {
   const current = MAP_DATA[version] || [];
@@ -275,65 +276,6 @@ const confirmJobWithLevel = (jobBase, level) => {
   selectedJobBase.value = null
 }
 
-const DUNGEON_MAPS = [
-  '魔獸領域日影地修煉所',
-  '古代遺跡喀恩埋沒聖堂',
-  '神靈聖域放浪神古神殿',
-]
-
-const DUNGEON_MAPS_SIMPLE_MAP = {
-  '魔兽领域日影地修炼所': '魔獸領域日影地修煉所',
-  '古代遗迹喀恩埋没圣堂': '古代遺跡喀恩埋沒聖堂',
-  '神灵圣域放浪神古神殿': '神靈聖域放浪神古神殿'
-}
-
-const simplifiedToTraditional = {
-  '西萨纳兰': '西薩納蘭',
-  '中拉诺西亚': '中拉諾西亞',
-  '拉诺西亚低地': '拉諾西亞低地',
-  '东拉诺西亚': '東拉諾西亞',
-  '西拉诺西亚': '西拉諾西亞',
-  '拉诺西亚高地': '拉諾西亞高地',
-  '拉诺西亚外地': '拉諾西亞外地',
-  '黑衣森林中央林区': '黑衣森林中央林區',
-  '黑衣森林东部林区': '黑衣森林東部林區',
-  '黑衣森林南部林区': '黑衣森林南部林區',
-  '黑衣森林北部林区': '黑衣森林北部林區',
-  '中萨纳兰': '中薩納蘭',
-  '摩杜纳': '摩杜納',
-  '东萨纳兰': '東薩納蘭',
-  '南萨纳兰': '南薩納蘭',
-  '北萨纳兰': '北薩納蘭',
-  '库尔札斯中央高地': '庫爾札斯中央高地',
-  '魔大陆阿济兹拉': '魔大陸阿濟茲拉',
-  '基拉巴尼亚边区': '基拉巴尼亞邊區',
-  '基拉巴尼亚山区': '基拉巴尼亞山區',
-  '基拉巴尼亚湖区': '基拉巴尼亞湖區',
-  '太陽神草原': '太陽神草原'
-}
-
-const simplifiedJobBaseMap = {
-  '劍術師': '劍術師',
-  '剑术师': '劍術師',
-  '格斗家': '格鬥家',
-  '斧术师': '斧術師',
-  '槍術師': '槍術師',
-  '枪术师': '槍術師',
-  '弓箭手': '弓箭手',
-  '幻術師': '幻術師',
-  '幻术师': '幻術師',
-  '咒術師': '咒術師',
-  '咒术师': '咒術師',
-  '秘術師': '秘術師',
-  '双剑师': '雙劍師',
-  '雙劍師': '雙劍師',
-  '黑渦團': '黑渦團',
-  '黑涡团': '黑渦團',
-  '双蛇党': '雙蛇黨',
-  '雙蛇黨': '雙蛇黨',
-  '恆輝隊': '恆輝隊',
-  '恒辉队': '恆輝隊'
-}
 const fuzzyMapMatch = (rawMap) => {
   const norm = rawMap.replace(/[\s]/g, '')
   if (simplifiedToTraditional[norm]) return simplifiedToTraditional[norm]

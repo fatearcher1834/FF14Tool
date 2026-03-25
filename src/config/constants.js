@@ -88,11 +88,16 @@ export const MAP_DATA = {
   ]
 };
 
+export const DUNGEON_MAPS = [
+  '魔獸領域日影地修煉所',
+  '古代遺跡喀恩埋沒聖堂',
+  '神靈聖域放浪神古神殿'
+];
+
+export const DUNGEON_MAPS_TRAD = [...DUNGEON_MAPS];
+
 // 所有地區列表 (用於搜尋)
 export const ALL_REGIONS = Object.values(MAP_DATA).flat();
-
-// 管理員清單 (應存入數據庫)
-export const ADMINS = ["fatearcher"];
 
 // 排序選項
 export const SORT_OPTIONS = [
