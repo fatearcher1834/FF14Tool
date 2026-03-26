@@ -36,7 +36,7 @@ export const JOB_BASE_NAMES = [
   "雙劍師",
   "黑渦團",
   "雙蛇黨",
-  "恆輝隊"
+  "不滅隊"
 ];
 
 // 職業顏色映射 (應存入數據庫)
@@ -50,9 +50,9 @@ export const JOB_COLORS = {
   "咒術師": "bg-indigo-600 text-white",
   "秘術師": "bg-pink-600 text-white",
   "雙劍師": "bg-lime-600 text-white",
-  "黑渦團": "bg-violet-600 text-white",
-  "雙蛇黨": "bg-fuchsia-600 text-white",
-  "恆輝隊": "bg-cyan-500 text-white"
+  "黑渦團": "bg-red-600 text-white",
+  "雙蛇黨": "bg-emerald-600 text-white",
+  "不滅隊": "bg-amber-500 text-white"
 };
 
 // 討伐筆記編號 (01~50)
