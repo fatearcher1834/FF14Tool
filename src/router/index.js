@@ -2,7 +2,7 @@
  * Vue Router 配置
  */
 
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHashHistory } from "vue-router";
 import { useUserStore } from "../stores/user.store";
 
 // 頁面組件懶加載
@@ -42,7 +42,8 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  // Hash 模式能避免 GitHub Pages 直接跳轉 /search /admin 時 404
+  history: createWebHashHistory(process.env.BASE_URL),
   routes
 });
 
