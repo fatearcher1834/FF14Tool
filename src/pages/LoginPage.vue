@@ -19,7 +19,7 @@
         </div>
         <h1 class="text-3xl font-black tracking-tighter text-slate-900 uppercase">
           FINAL FANTASY XIV<br />
-          繁體中文狩獵工具
+          怪物座標查詢
         </h1>
       </div>
 
