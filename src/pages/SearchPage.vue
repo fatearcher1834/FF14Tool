@@ -64,10 +64,10 @@
             <button
               @click="toggleMainAllExpanded"
               :class="['px-3 py-2 rounded-2xl flex items-center justify-center gap-2 transition-all border', isMainGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200']"
-              :title="isMainGlobalExpanded ? '收合' : '展開'"
+              :title="isMainGlobalExpanded ? '展開座標' : '摺疊座標'"
             >
-              <ChevronUp v-if="isMainGlobalExpanded" size="18" />
-              <ChevronDown v-else size="18" />
+              <ChevronDown v-if="isMainGlobalExpanded" size="18" />
+              <ChevronUp v-else size="18" />
               <span class="text-[12px] font-black">{{ isMainGlobalExpanded ? '展開座標' : '摺疊座標' }}</span>
             </button>
             <button
@@ -296,11 +296,11 @@
             <button
               @click="toggleKbAllExpanded"
               :class="['px-2 py-1.5 rounded-lg flex items-center justify-center gap-2 transition-all border', isKbGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200']"
-              :title="isKbGlobalExpanded ? '收合' : '展開'"
+              :title="isKbGlobalExpanded ? '展開座標' : '摺疊座標'"
             >
-              <ChevronUp v-if="isKbGlobalExpanded" size="14" />
-              <ChevronDown v-else size="14" />
-              <span class="text-[11px] font-black">{{ isKbGlobalExpanded ? '收合' : '展開' }}</span>
+              <ChevronDown v-if="isKbGlobalExpanded" size="14" />
+              <ChevronUp v-else size="14" />
+              <span class="text-[11px] font-black">{{ isKbGlobalExpanded ? '展開座標' : '摺疊座標' }}</span>
             </button>
             <button
               @click="showKanban = false"
