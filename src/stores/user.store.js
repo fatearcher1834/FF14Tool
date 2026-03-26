@@ -35,7 +35,7 @@ export const useUserStore = defineStore("user", () => {
       if (savedAccount) {
         virtualId.value = savedAccount;
         isLoggedIn.value = true;
-        
+
         // 檢查是否為管理員帳號
         const adminAccounts = ['admin', 'adm', 'administrator'];
         if (adminAccounts.includes(savedAccount.toLowerCase())) {
@@ -47,7 +47,7 @@ export const useUserStore = defineStore("user", () => {
             console.log(`🔍 讀取用戶 [${savedAccount}] 的數據...`);
             const userDoc = await db.getUserFromDatabase(savedAccount);
             console.log(`📋 用戶文檔:`, userDoc);
-            
+
             if (userDoc && userDoc.isAdmin) {
               isAdmin.value = userDoc.isAdmin;
               console.log(`✅ 用戶 [${savedAccount}] 是管理員`);
@@ -60,6 +60,12 @@ export const useUserStore = defineStore("user", () => {
             isAdmin.value = false;
           }
         }
+      } else {
+        // 沒有保存用戶，確保為未登入狀態
+        virtualId.value = "";
+        isLoggedIn.value = false;
+        isAdmin.value = false;
+        console.log("ℹ️ 本地無已登入帳號，已設定為未登入狀態");
       }
 
       // 監聽 Firebase 身份驗證狀態

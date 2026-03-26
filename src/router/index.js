@@ -51,17 +51,24 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
 
+  // 允許當前使用者訪問 login，除非已經登入可導到 search
+  if (to.path === "/login") {
+    if (userStore.isLoggedIn) {
+      next("/search");
+      return;
+    }
+    next();
+    return;
+  }
+
+  // 未登入時，必須登入才能訪問需要驗證的頁面
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
     next("/login");
     return;
   }
 
+  // 非管理員不能訪問管理頁面
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
-    next("/search");
-    return;
-  }
-
-  if (to.path === "/login" && userStore.isLoggedIn) {
     next("/search");
     return;
   }
