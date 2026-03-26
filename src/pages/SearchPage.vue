@@ -63,10 +63,12 @@
             </div>
             <button
               @click="toggleMainAllExpanded"
-              :class="['p-2.5 rounded-2xl flex items-center justify-center transition-all border', isMainGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200']"
+              :class="['px-3 py-2 rounded-2xl flex items-center justify-center gap-2 transition-all border', isMainGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200']"
+              :title="isMainGlobalExpanded ? '收合' : '展開'"
             >
               <ChevronUp v-if="isMainGlobalExpanded" size="18" />
               <ChevronDown v-else size="18" />
+              <span class="text-[12px] font-black">{{ isMainGlobalExpanded ? '展開座標' : '摺疊座標' }}</span>
             </button>
             <button
               @click="showKanban = !showKanban"
@@ -193,10 +195,12 @@
               <option v-for="j in JOB_BASE_NAMES" :key="j" :value="j">{{ j }}</option>
             </select>
             <button
-              @click="searchSortDir = searchSortDir === 'asc' ? 'desc' : 'asc'; searchCurrentPage = 1"
-              class="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50"
+              @click="searchSortDir = searchSortDir === 'asc' ? 'desc' : 'asc'"
+              :title="`排序：${searchSortDir === 'asc' ? '升序' : '降序'}`"
+              class="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50 flex items-center gap-1"
             >
-              {{ searchSortDir === 'asc' ? '↑' : '↓' }}
+              <ArrowUpDown size="14" />
+              {{ searchSortDir === 'asc' ? '升序' : '降序' }}
             </button>
           </div>
           <div class="flex gap-2">
@@ -291,10 +295,12 @@
             <h2 class="font-black text-xs text-slate-800 uppercase tracking-widest shrink-0">追蹤看板</h2>
             <button
               @click="toggleKbAllExpanded"
-              :class="['p-1.5 rounded-lg flex items-center justify-center transition-all border', isKbGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200']"
+              :class="['px-2 py-1.5 rounded-lg flex items-center justify-center gap-2 transition-all border', isKbGlobalExpanded ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200']"
+              :title="isKbGlobalExpanded ? '收合' : '展開'"
             >
               <ChevronUp v-if="isKbGlobalExpanded" size="14" />
               <ChevronDown v-else size="14" />
+              <span class="text-[11px] font-black">{{ isKbGlobalExpanded ? '收合' : '展開' }}</span>
             </button>
             <button
               @click="showKanban = false"
@@ -551,7 +557,8 @@ import {
   Plus,
   Trash2,
   Copy,
-  Check
+  Check,
+  ArrowUpDown
 } from 'lucide-vue-next'
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
 import { getFirebaseInstance } from '@/services/firebase'
@@ -730,14 +737,28 @@ const handleCopyLocation = async (name, loc, key) => {
 }
 
 // 全部展開 / 摺疊
-const toggleMainAllExpanded = () => {
-  isMainGlobalExpanded.value = !isMainGlobalExpanded.value
+const setMainAllExpanded = expanded => {
+  isMainGlobalExpanded.value = expanded
   const newStates = {}
   searchPagedMonsters.value.forEach(m => {
-    newStates[m.id] = isMainGlobalExpanded.value
+    newStates[m.id] = expanded
   })
   mainExpandedIds.value = newStates
 }
+
+const toggleMainAllExpanded = () => {
+  setMainAllExpanded(!isMainGlobalExpanded.value)
+}
+
+// 當排序或過濾導致結果重新排列，若處於「全展開」狀態則保持展開
+watch(
+  () => searchPagedMonsters.value.map(m => m.id).join(','),
+  () => {
+    if (isMainGlobalExpanded.value) {
+      setMainAllExpanded(true)
+    }
+  }
+)
 
 const toggleKbAllExpanded = () => {
   isKbGlobalExpanded.value = !isKbGlobalExpanded.value
@@ -764,7 +785,8 @@ const onSearchSortFieldChange = () => {
   } else if (!searchSortJobs.value) {
     searchSortJobs.value = '*'
   }
-  searchCurrentPage.value = 1
+  // 不切換頁數，保持目前展開/頁面狀態
+  // searchCurrentPage.value = 1
 }
 
 // 監聽 filterJob 變動，當排序欄位為 job 且 searchSortJobs 未選擇時自動預設
