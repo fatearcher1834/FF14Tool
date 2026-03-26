@@ -18,7 +18,8 @@
           </svg>
         </div>
         <h1 class="text-3xl font-black tracking-tighter text-slate-900 uppercase">
-          Hunt Cloud
+          FINAL FANTASY XIV<br />
+          繁體中文狩獵工具
         </h1>
       </div>
 
