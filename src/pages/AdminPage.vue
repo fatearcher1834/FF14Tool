@@ -124,7 +124,7 @@
         </select>
 
         <select v-if="adminSortField === 'job'" v-model="adminSortJobs" @change="refreshMonsters(1)" class="bg-white border p-1.5 rounded text-[11px] font-black outline-none">
-          <option value="*">全部職業</option>
+          <option value="*">全部</option>
           <option v-for="j in (JOB_BASE_NAMES || [])" :key="j" :value="j">{{ j }}</option>
         </select>
         <button @click="adminSortDir = adminSortDir === 'asc' ? 'desc' : 'asc'; refreshMonsters(adminCurrentPage)" class="px-3 py-1.5 bg-white border text-[11px] font-black rounded hover:bg-slate-50">

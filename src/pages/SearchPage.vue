@@ -191,7 +191,7 @@
               @change="searchCurrentPage = 1"
               class="bg-white border p-1.5 rounded text-[11px] font-black outline-none"
             >
-              <option value="*">全部職業</option>
+              <option value="*">全部</option>
               <option v-for="j in JOB_BASE_NAMES" :key="j" :value="j">{{ j }}</option>
             </select>
             <button
