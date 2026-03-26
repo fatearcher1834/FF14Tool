@@ -2,7 +2,7 @@
 
 > 一個為FFXIV玩家打造的狩獵怪物管理解決方案，具有實時同步、智能篩選和批量管理功能
 
-[![React](https://img.shields.io/badge/Made%20with-React%2018-blue?logo=react)](https://react.dev)
+[![Vue](https://img.shields.io/badge/Made%20with-Vue%203.4-brightgreen?logo=vue.js)](https://vuejs.org)
 [![Tailwind CSS](https://img.shields.io/badge/Styled%20with-Tailwind%20CSS-06B6D4?logo=tailwindcss)](https://tailwindcss.com)
 [![Firebase](https://img.shields.io/badge/Backend-Firebase-FFCA28?logo=firebase)](https://firebase.google.com)
 [![License](https://img.shields.io/badge/License-Personal%20Use-green)]()
@@ -77,11 +77,11 @@
 # 安裝依賴
 npm install
 
-# 啟動開發伺服器
-npm run dev
-
-# 或者
+# 啟動開發伺服器（Vue CLI）
 npm run serve
+
+# 備用（若你自定義了 dev 腳本）
+# npm run dev
 
 # 之後開啟瀏覽器
 http://localhost:8080

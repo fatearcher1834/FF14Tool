@@ -20,7 +20,7 @@
 
 ### 🛠️ 構建和配置
 - ✅ `package.json` - 完整的依賴列表
-- ✅ `vite.config.js` - Vite 構建配置
+- ✅ `vue.config.js` - Vue CLI 構建配置
 - ✅ `tailwind.config.js` - Tailwind 配置
 - ✅ `postcss.config.js` - PostCSS 配置
 - ✅ `.env.example` - 環境變數範本
@@ -292,7 +292,7 @@ const monsters = await db.getAllMonsters()
 
 ## ⚡ 性能優化建議
 
-1. **代碼分割** - Vite 自動進行
+1. **代碼分割** - Webpack/Vue CLI 自動進行
 2. **Tree Shaking** - 移除未使用的代碼
 3. **虛擬滾動** - 用於大列表
 4. **圖片優化** - 使用 WebP 格式

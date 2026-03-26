@@ -1,4 +1,4 @@
-# FF14 Hunt Cloud - Vue.js 架構指南
+# FINAL FANTASY XIV 繁體中文狩獵工具 架構指南
 
 ## 📋 項目架構概述
 
@@ -101,7 +101,7 @@ components/
 - ✅ `transitions.css` - 需要創建（動畫和過渡）
 
 ### 4. **項目配置文件**
-- `vite.config.js` - Vite 構建配置
+- `vue.config.js` - Vue CLI 構建配置
 - `package.json` - 項目依賴
 - `.env` - 環境變數（基於 .env.example）
 
@@ -151,7 +151,7 @@ artifacts/{appId}/
 
 ---
 
-## 🚀 快速開始實現步驟（Vue CLI / Vite）
+## 🚀 快速開始實現步驟（Vue CLI）
 
 ### 1. 安裝依賴
 ```bash
@@ -160,7 +160,7 @@ npm install
 
 ### 2. 啟動開發伺服器
 ```bash
-npm run dev
+npm run serve
 ```
 
 ### 3. 生產打包
@@ -331,7 +331,7 @@ seedGameData()
 
 ## 🧪 測試建議
 
-1. **單元測試** - 使用 Vitest 測試 stores 和 utils
+1. **單元測試** - 使用 Jest/Vue Test Utils 測試 stores 和 utils
 2. **集成測試** - 測試 Firebase 操作
 3. **E2E 測試** - 使用 Cypress 或 Playwright
 
@@ -349,7 +349,7 @@ seedGameData()
 ## 🔄 下一步
 
 1. 根據本指南實現各個 Vue 組件
-2. 設置 Vite 構建基礎設施
+2. 設置 Vue CLI 構建基礎設施
 3. 配置 Firestore 安全規則
 4. 測試登入流程和數據同步
 5. 部署到生產環境

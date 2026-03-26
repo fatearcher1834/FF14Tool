@@ -250,7 +250,7 @@ service cloud.firestore {
 - **Firebase** - 後端和認證
 - **Tailwind CSS** - 樣式框架
 - **Lucide Vue** - 圖標
-- **Vite** - 構建工具
+- **Vue CLI** - 構建工具（本專案實作）
 
 ## 🎨 樣式系統
 
@@ -282,7 +282,7 @@ npm run test:ui
 
 | 命令 | 說明 |
 |------|------|
-| `npm run dev` | 啟動開發伺服器 |
+| `npm run serve` | 啟動開發伺服器（Vue CLI）|
 | `npm run build` | 構建生產版本 |
 | `npm run preview` | 預覽生產構建 |
 | `npm run lint` | 運行 ESLint |
