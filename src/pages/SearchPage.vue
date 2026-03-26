@@ -48,7 +48,7 @@
     <!-- 主容器 -->
     <div class="flex-1 flex overflow-hidden relative">
       <!-- 左邊 - 搜尋看板 -->
-      <div :class="['flex-1 flex flex-col transition-all duration-300', showKanban ? 'mr-[380px]' : 'mr-0']">
+      <div :class="['flex-1 flex flex-col transition-all duration-300', showKanban ? 'sm:mr-[380px] mr-0' : 'mr-0']">
         <!-- 搜尋工具欄 -->
         <div class="p-4 bg-white border-b space-y-3 z-30 shadow-sm">
           <div class="flex items-center gap-3">
@@ -281,7 +281,7 @@
       </div>
 
       <!-- 右邊 - 追蹤看板 -->
-      <div :class="['absolute right-0 top-0 bottom-0 w-[380px] bg-slate-100 border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 overflow-hidden', showKanban ? 'translate-x-0' : 'translate-x-full']">
+      <div :class="['absolute right-0 top-0 bottom-0 sm:w-[380px] w-full bg-slate-100 border-l sm:border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 overflow-hidden', showKanban ? 'translate-x-0' : 'translate-x-full']">
         <div v-if="copyMessage" class="absolute top-16 right-4 z-50 px-3 py-1 rounded-lg bg-black/80 text-white text-xs font-bold">
           {{ copyMessage }}
         </div>
@@ -582,8 +582,12 @@ const filterJob = ref('')
 const showJobFilter = ref(false)
 
 // 追蹤看板狀態
-const showKanban = ref(true)
+const showKanban = ref(window.innerWidth >= 1024)
 const kbSearchTerm = ref('')
+
+const handleResize = () => {
+  showKanban.value = window.innerWidth >= 1024
+}
 const kbFilterVer = ref('')
 const kbFilterMap = ref('')
 const kbFilterRank = ref('')
@@ -986,10 +990,16 @@ onMounted(async () => {
       }
     }
   )
+
+  // 動態調整：手機窄屏自動隱藏追蹤看板，桌面寬屏預設顯示
+  window.addEventListener('resize', handleResize)
+  handleResize()
+  handleResize()
 })
 
 onUnmounted(() => {
   pinsStore.stopWatching()
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
