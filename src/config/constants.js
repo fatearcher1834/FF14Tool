@@ -41,15 +41,22 @@ export const JOB_BASE_NAMES = [
 
 // 職業顏色映射 (應存入數據庫)
 export const JOB_COLORS = {
-  "劍術師": "bg-blue-600 text-white",
-  "格鬥家": "bg-red-600 text-white",
-  "斧術師": "bg-orange-600 text-white",
-  "槍術師": "bg-cyan-600 text-white",
-  "弓箭手": "bg-green-600 text-white",
-  "幻術師": "bg-purple-600 text-white",
-  "咒術師": "bg-indigo-600 text-white",
-  "秘術師": "bg-pink-600 text-white",
-  "雙劍師": "bg-lime-600 text-white",
+  // 防禦職業（鮮明藍）
+  "劍術師": "bg-[#3d7bf0] text-white",
+  "斧術師": "bg-[#3d7bf0] text-white",
+
+  // 進攻職業（鮮明紅）
+  "格鬥家": "bg-[#c73c45] text-white",
+  "槍術師": "bg-[#c73c45] text-white",
+  "弓箭手": "bg-[#c73c45] text-white",
+  "咒術師": "bg-[#c73c45] text-white",
+  "雙劍師": "bg-[#c73c45] text-white",
+  "秘術師": "bg-[#c73c45] text-white",
+
+  // 輔助職業（鮮明綠）
+  "幻術師": "bg-[#3e9b49] text-white",
+
+  // 特殊勢力（保留原色）
   "黑渦團": "bg-red-600 text-white",
   "雙蛇黨": "bg-emerald-600 text-white",
   "不滅隊": "bg-amber-500 text-white"
