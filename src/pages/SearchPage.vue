@@ -14,13 +14,6 @@
         </div>
       </div>
       <div class="flex gap-2">
-        <button
-          @click="showKanban = !showKanban"
-          :class="['px-4 py-1.5 rounded-xl text-xs font-black transition-all shadow-md', showKanban ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-white text-slate-600 border border-slate-200']"
-          title="切換追蹤板"
-        >
-          追蹤版
-        </button>
         <RouterLink
           v-if="userStore.isAdmin"
           to="/admin"
