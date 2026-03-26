@@ -2,7 +2,7 @@ const path = require('path');
 
 module.exports = {
   productionSourceMap: false,
-  publicPath: '/',
+  publicPath: '/FF14Tool/',
   outputDir: 'dist',
   
   configureWebpack: {
