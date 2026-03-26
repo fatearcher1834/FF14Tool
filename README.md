@@ -239,7 +239,7 @@ http://localhost:8080
 | 斧術師 | 🟠 Orange | 幻術師 | 🔷 Cyan |
 | 咒術師 | ⚫ Slate | 秘術師 | 🟡 Yellow |
 | 雙劍師 | 🌸 Pink | 黑渦團 | 🟤 Amber |
-| 雙蛇黨 | 🔵 Teal | 恆輝隊 | 🔷 Indigo |
+| 雙蛇黨 | 🔵 Teal | 不滅隊 | 🔷 Indigo |
 
 ### 職業篩選流程圖
 
