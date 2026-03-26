@@ -1,4 +1,4 @@
-# FINAL FANTASY XIV 繁體中文狩獵工具 架構指南
+# FINAL FANTASY XIV 繁體中文怪物座標查詢工具 架構指南
 
 ## 📋 項目架構概述
 

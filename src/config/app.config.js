@@ -5,7 +5,7 @@
 export const APP_CONFIG = {
   // 應用信息
   app: {
-    name: "FINAL FANTASY XIV 繁中狩獵工具",
+    name: "FINAL FANTASY XIV 繁體中文怪物座標查詢工具",
     shortName: "Hunt Cloud",
     version: "1.0.0"
   },

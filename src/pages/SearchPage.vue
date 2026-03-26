@@ -9,7 +9,7 @@
           </svg>
         </div>
         <div>
-          <span class="font-black text-xs tracking-tighter uppercase">FINAL FANTASY XIV 繁中狩獵工具</span>
+          <span class="font-black text-xs tracking-tighter uppercase">FINAL FANTASY XIV 繁體中文怪物座標查詢工具</span>
           <div class="text-[9px] text-blue-400 font-bold uppercase">{{ userStore.virtualId }}</div>
         </div>
       </div>

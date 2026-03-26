@@ -1,7 +1,7 @@
 {
   "name": "ff14-hunt-finder",
   "version": "1.0.0",
-  "description": "FINAL FANTASY XIV 繁體中文狩獵工具",
+  "description": "FINAL FANTASY XIV 繁體中文怪物座標查詢工具",
   "main": "src/main.js",
   "homepage": "https://<your-user>.github.io/<repo>",
   "scripts": {

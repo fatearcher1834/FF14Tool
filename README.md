@@ -1,4 +1,4 @@
-# 🎮 FINAL FANTASY XIV 繁體中文版狩獵工具
+# 🎮 FINAL FANTASY XIV 繁體中文怪物座標查詢工具
 
 > 一個為FFXIV玩家打造的狩獵怪物管理解決方案，具有實時同步、智能篩選和批量管理功能
 
