@@ -14,6 +14,13 @@
         </div>
       </div>
       <div class="flex gap-2">
+        <button
+          @click="showKanban = !showKanban"
+          :class="['px-4 py-1.5 rounded-xl text-xs font-black transition-all shadow-md', showKanban ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-white text-slate-600 border border-slate-200']"
+          title="切換追蹤板"
+        >
+          追蹤版
+        </button>
         <RouterLink
           v-if="userStore.isAdmin"
           to="/admin"
@@ -70,7 +77,7 @@
             </button>
             <button
               @click="showKanban = !showKanban"
-              :class="['px-4 py-2.5 rounded-2xl flex items-center gap-2 text-[12px] font-black transition-all', showKanban ? 'bg-amber-100 text-amber-700' : 'bg-white border text-slate-500']"
+              :class="['px-4 py-2.5 rounded-2xl flex items-center gap-2 text-[12px] font-black transition-all border', showKanban ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-white text-slate-500 border-slate-200']"
             >
               <Layout :size="14" :class="showKanban ? 'text-amber-600' : 'text-slate-400'" />
               <span>追蹤板</span>
@@ -296,10 +303,17 @@
               <ChevronUp v-if="isKbGlobalExpanded" size="14" />
               <ChevronDown v-else size="14" />
             </button>
+            <button
+              @click="showKanban = false"
+              class="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded-lg border border-slate-200 font-black text-xs transition-all"
+              title="收起追蹤看板"
+            >
+              收起
+            </button>
           </div>
           <button
             @click="addNewGroup"
-            class="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
+            class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 text-xs"
           >
             <Plus size="16" />
           </button>
