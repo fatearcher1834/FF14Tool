@@ -6,6 +6,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import * as db from "../services/database";
 import { APP_ID } from "../config/firebase.config";
+import { localStorageHelper } from "../services/utils";
 
 export const useUserPinsStore = defineStore("userPins", () => {
   // 狀態
@@ -19,6 +20,9 @@ export const useUserPinsStore = defineStore("userPins", () => {
   const defaultGroup = computed(() =>
     groups.value.find(g => g.id === "default") || null
   );
+
+  const PINS_STORAGE_KEY = (userId) => `ff14-userpins-${userId}`;
+  const hasRemotePins = ref(false);
 
   // 初始化用戶數據
   const initialize = async (userId) => {
@@ -35,8 +39,25 @@ export const useUserPinsStore = defineStore("userPins", () => {
       }
 
       // 加載收藏
-      const userPins = await db.getUserPins(userId, APP_ID);
-      pins.value = userPins;
+      const fetchedPins = await db.getUserPins(userId, APP_ID);
+      const hasFetched = fetchedPins && Object.keys(fetchedPins).length > 0;
+
+      if (hasFetched) {
+        pins.value = fetchedPins;
+        hasRemotePins.value = true;
+      } else {
+        // 如果目前已知沒有云端数据，先不覆盖现存（避免登出/重登时覆盖本地缓存）
+        const localPins = localStorageHelper.get(PINS_STORAGE_KEY(userId));
+        pins.value = localPins || pins.value || {};
+
+        if (!hasRemotePins.value) {
+          // 只有首次如果尚未确认云端数据才应用本地缓存
+          hasRemotePins.value = false;
+        }
+      }
+
+      // 同步到本地存儲，避免丟失
+      localStorageHelper.set(PINS_STORAGE_KEY(userId), pins.value);
 
       error.value = null;
       console.log(`✓ 加載用戶數據: ${pinnedCount.value} 筆收藏, ${groups.value.length} 個分組`);
@@ -48,12 +69,31 @@ export const useUserPinsStore = defineStore("userPins", () => {
     }
   };
 
+  const savePinsLocal = (userId) => {
+    try {
+      localStorageHelper.set(PINS_STORAGE_KEY(userId), pins.value);
+    } catch (err) {
+      console.warn("⚠ 保存收藏到本地失敗:", err);
+    }
+  };
+
   // 監聽收藏變化
   let pinsUnsubscribe = null;
   const watchPins = async (userId) => {
     try {
       pinsUnsubscribe = db.watchUserPins(userId, APP_ID, (data) => {
-        pins.value = data;
+        // 如果云端有数据就覆盖，否则保留本地数据
+        if (data && Object.keys(data).length > 0) {
+          pins.value = data;
+          hasRemotePins.value = true;
+        } else if (!hasRemotePins.value) {
+          // 如果远端还没确定任何数据（首次），尽量用本地缓存
+          const localPins = localStorageHelper.get(PINS_STORAGE_KEY(userId));
+          if (localPins) {
+            pins.value = localPins;
+          }
+        }
+        savePinsLocal(userId);
       });
     } catch (err) {
       console.error("✗ 監聽收藏失敗:", err);
@@ -89,6 +129,7 @@ export const useUserPinsStore = defineStore("userPins", () => {
       const targetGroupId = groupId || defaultGroup.value?.id || "default";
       await db.addPin(monsterId, targetGroupId, userId, APP_ID);
       pins.value[monsterId] = targetGroupId;
+      savePinsLocal(userId);
       console.log(`✓ 已收藏怪物: ${monsterId}`);
     } catch (err) {
       console.error("✗ 添加收藏失敗:", err);
@@ -105,6 +146,7 @@ export const useUserPinsStore = defineStore("userPins", () => {
     try {
       await db.removePin(monsterId, userId, APP_ID);
       delete pins.value[monsterId];
+      savePinsLocal(userId);
       console.log(`✓ 已取消收藏: ${monsterId}`);
     } catch (err) {
       console.error("✗ 移除收藏失敗:", err);
@@ -188,6 +230,7 @@ export const useUserPinsStore = defineStore("userPins", () => {
     try {
       await db.addPin(monsterId, newGroupId, userId, APP_ID);
       pins.value[monsterId] = newGroupId;
+      savePinsLocal(userId);
       console.log(`✓ 已移動收藏到分組: ${newGroupId}`);
     } catch (err) {
       console.error("✗ 移動收藏失敗:", err);
