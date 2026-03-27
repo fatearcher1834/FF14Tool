@@ -307,20 +307,23 @@
           <div class="flex gap-2 mb-2">
           </div>
           <div class="bg-slate-100 rounded-lg border p-2 overflow-auto h-[calc(100vh-8rem)]">
-            <div
-              v-if="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
-              class="block max-w-none mx-auto mt-2 rounded cursor-pointer"
-              style="max-height: calc(100vh - 11rem);"
-              @click.prevent="openMapInNewTab(mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl)"
-            >
-              <img
-                :src="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
-                alt="地圖圖片"
-                class="block max-w-none mx-auto rounded"
+            <template v-if="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl">
+              <div
+                class="block max-w-none mx-auto mt-2 rounded cursor-pointer"
                 style="max-height: calc(100vh - 11rem);"
-              />
-            </div>
-            <div v-else class="w-full h-56 flex items-center justify-center text-slate-400">未設定地圖圖片</div>
+                @click.prevent="openMapInNewTab(mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl)"
+              >
+                <img
+                  :src="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
+                  alt="地圖圖片"
+                  class="block max-w-none mx-auto rounded"
+                  style="max-height: calc(100vh - 11rem);"
+                />
+              </div>
+            </template>
+            <template v-else>
+              <div class="w-full h-56 flex items-center justify-center text-slate-400">未設定地圖圖片，或尚在載入中</div>
+            </template>
           </div>
         </div>
       </div>
@@ -586,11 +589,21 @@ const handleCopyGroupLocations = async (groupId) => {
   setTimeout(() => { if (copyFeedback.value === `group-${groupId}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${groupName}`) copyMessage.value = '' }, 1000)
 }
 
-const handleOpenLocationMap = (monster, loc) => {
+const handleOpenLocationMap = async (monster, loc) => {
   if (!monster || !loc) return
+
   mapModal.value.open = true
   mapModal.value.monster = monster
   mapModal.value.location = loc
+
+  // 動態加載地圖圖片：避免一開始載入大量 Base64
+  if (!monster.mapImageData && !monster.mapImageUrl) {
+    const updated = await monstersStore.loadMonsterImageData(monster.id)
+    if (updated && mapModal.value.monster?.id === monster.id) {
+      mapModal.value.monster = updated
+    }
+  }
+
   console.log('Opening map modal for', monster)
 }
 

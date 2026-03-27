@@ -11,6 +11,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   onSnapshot,
@@ -45,21 +46,64 @@ export async function getUserFromDatabase(userId, appId = APP_ID) {
  * 獲取所有怪物數據
  */
 export async function getAllMonsters(appId = APP_ID) {
+  const buildMonsters = (snapshot) => {
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        rank: 'None',
+        ...data,
+        mapImageData: null,
+        mapImageUrl: null
+      };
+    });
+  };
+
   try {
     const db = getDb();
-    const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'monsters'));
-    
-    const monsters = snapshot.docs.map(doc => ({
-      id: doc.id,
-      rank: "None",
-      ...doc.data()
-    }));
+    const monstersRef = collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
 
-    console.log(`✓ 加載 ${monsters.length} 隻怪物`);
+    const snapshot = await getDocs(monstersRef);
+    const monsters = buildMonsters(snapshot);
+    console.log(`✓ 加載 ${monsters.length} 隻怪物（不含地圖圖片欄位）`);
     return monsters;
   } catch (error) {
-    console.error("✗ 加載怪物數據失敗:", error);
+    console.error('✗ 加載怪物數據失敗:', error);
     throw error;
+  }
+}
+
+
+export async function getMonsterImageDataById(monsterId, appId = APP_ID) {
+  try {
+    const db = getDb();
+    // 从独立的 monsterImages 子集合查询
+    const imageDocRef = doc(
+      db,
+      'artifacts',
+      appId,
+      'public',
+      'data',
+      'monsters',
+      monsterId,
+      'images',
+      'current'
+    );
+    const imageSnap = await getDoc(imageDocRef);
+    
+    if (!imageSnap.exists()) {
+      console.warn(`⚠ 怪物 ${monsterId} 无地图数据`);
+      return null;
+    }
+    
+    const data = imageSnap.data();
+    return {
+      mapImageData: data.mapImageData || null,
+      mapImageUrl: data.mapImageUrl || null
+    };
+  } catch (error) {
+    console.error(`✗ 讀取怪物 ${monsterId} 圖片失敗:`, error);
+    return null;
   }
 }
 
@@ -73,14 +117,19 @@ export function watchMonsters(appId = APP_ID, callback) {
     
     const monstersRef = collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
     console.log('Collection reference created');
-    
+
     const unsubscribe = onSnapshot(monstersRef, (snapshot) => {
       console.log('onSnapshot triggered, docs count:', snapshot.docs.length);
-      const monsters = snapshot.docs.map(doc => ({
-        id: doc.id,
-        rank: "None",
-        ...doc.data()
-      }));
+      const monsters = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          rank: "None",
+          ...data,
+          mapImageData: null,
+          mapImageUrl: null
+        };
+      });
       console.log('Monsters mapped:', monsters.length);
       callback(monsters);
     }, (error) => {
@@ -124,12 +173,28 @@ export async function addMonster(monsterData, appId = APP_ID) {
     const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const now = Timestamp.now();
 
+    // 分離地圖數據
+    const { mapImageData, mapImageUrl, ...restData } = monsterData;
+
+    // 保存怪物基礎數據（不含地圖）
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
       id,
-      ...monsterData,
+      ...restData,
       createdAt: now,
       updatedAt: now
     });
+
+    // 如果有地圖數據，單獨保存到子集合
+    if (mapImageData || mapImageUrl) {
+      await setDoc(
+        doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id, 'images', 'current'),
+        {
+          mapImageData: mapImageData || null,
+          mapImageUrl: mapImageUrl || null,
+          updatedAt: now
+        }
+      );
+    }
 
     console.log(`✓ 成功新增怪物: ${monsterData.name}`);
     return id;
@@ -145,11 +210,53 @@ export async function addMonster(monsterData, appId = APP_ID) {
 export async function updateMonster(monsterId, updates, appId = APP_ID) {
   try {
     const db = getDb();
-    
+
+    // 分離地圖數據
+    const { mapImageData, mapImageUrl, ...restUpdates } = updates;
+
+    // 更新怪物基礎數據（不含地圖）並刪除舊的 mapImageData/mapImageUrl 字段
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId), {
-      ...updates,
+      ...restUpdates,
+      // 刪除舊字段（遷移用）
+      mapImageData: deleteField(),
+      mapImageUrl: deleteField(),
       updatedAt: Timestamp.now()
     });
+
+    // 處理地圖數據子集合
+    const imagesDocRef = doc(
+      db,
+      'artifacts',
+      appId,
+      'public',
+      'data',
+      'monsters',
+      monsterId,
+      'images',
+      'current'
+    );
+
+    // 如果圖片都是空的，刪除舊數據
+    if ((mapImageData === '' || mapImageData === null || mapImageData === undefined) &&
+        (mapImageUrl === '' || mapImageUrl === null || mapImageUrl === undefined)) {
+      try {
+        await deleteDoc(imagesDocRef);
+        console.log(`✓ 已刪除怪物 ${monsterId} 的地圖數據`);
+      } catch (error) {
+        // 如果文檔不存在也不報錯
+        if (error.code !== 'not-found') {
+          console.warn(`⚠ 刪除地圖數據時出錯:`, error);
+        }
+      }
+    } else if (mapImageData !== undefined || mapImageUrl !== undefined) {
+      // 否則有新圖片就保存/更新
+      await setDoc(imagesDocRef, {
+        mapImageData: mapImageData || null,
+        mapImageUrl: mapImageUrl || null,
+        updatedAt: Timestamp.now()
+      });
+    }
+    // 如果都沒有傳遞（undefined），則不動舊數據
 
     console.log(`✓ 成功更新怪物: ${monsterId}`);
   } catch (error) {

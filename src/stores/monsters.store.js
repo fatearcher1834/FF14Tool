@@ -129,6 +129,23 @@ export const useMonstersStore = defineStore("monsters", () => {
     }
   };
 
+  const loadMonsterImageData = async (monsterId) => {
+    const target = monsters.value.find(m => m.id === monsterId);
+    if (!target) return null;
+
+    try {
+      const imageData = await db.getMonsterImageDataById(monsterId, APP_ID);
+      if (imageData) {
+        target.mapImageData = imageData.mapImageData || null;
+        target.mapImageUrl = imageData.mapImageUrl || null;
+      }
+      return target;
+    } catch (err) {
+      console.error(`✗ 加載怪物 ${monsterId} 圖片資杻失敗:`, err);
+      return null;
+    }
+  };
+
   return {
     monsters,
     isLoading,
@@ -142,6 +159,7 @@ export const useMonstersStore = defineStore("monsters", () => {
     getMonstersByName,
     addMonster,
     updateMonster,
-    deleteMonster
+    deleteMonster,
+    loadMonsterImageData
   };
 });

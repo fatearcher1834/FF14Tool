@@ -249,7 +249,7 @@ const adminSearchTerm = ref('');
 
 // Admin pagination
 const adminCurrentPage = ref(1);
-const adminPageSize = ref(300);
+const adminPageSize = ref(20);
 const adminSortField = ref('name');
 const adminSortDir = ref('asc');
 const adminTotalCount = ref(0);
