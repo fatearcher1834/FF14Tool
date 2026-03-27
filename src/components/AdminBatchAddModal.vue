@@ -4,6 +4,7 @@
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
     @keydown.esc="closeModal"
+    @click.self="closeModal"
   >
     <div class="bg-white rounded-[2.5rem] w-full max-w-4xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh]">
       <div class="flex justify-between items-center">

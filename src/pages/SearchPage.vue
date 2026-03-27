@@ -286,7 +286,7 @@
         </div>
       </div>
 
-      <div v-if="mapModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div v-if="mapModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="handleCloseMapModal">
         <div class="bg-white rounded-2xl w-full max-w-2xl p-4 shadow-xl border">
           <div class="flex justify-between items-center mb-2">
             <div class="text-left">
@@ -307,13 +307,19 @@
           <div class="flex gap-2 mb-2">
           </div>
           <div class="bg-slate-100 rounded-lg border p-2 overflow-auto h-[calc(100vh-8rem)]">
-            <img
+            <div
               v-if="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
-              :src="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
-              alt="地圖圖片"
-              class="block max-w-none mx-auto mt-2 rounded"
+              class="block max-w-none mx-auto mt-2 rounded cursor-pointer"
               style="max-height: calc(100vh - 11rem);"
-            />
+              @click.prevent="openMapInNewTab(mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl)"
+            >
+              <img
+                :src="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
+                alt="地圖圖片"
+                class="block max-w-none mx-auto rounded"
+                style="max-height: calc(100vh - 11rem);"
+              />
+            </div>
             <div v-else class="w-full h-56 flex items-center justify-center text-slate-400">未設定地圖圖片</div>
           </div>
         </div>
@@ -586,6 +592,17 @@ const handleOpenLocationMap = (monster, loc) => {
   mapModal.value.monster = monster
   mapModal.value.location = loc
   console.log('Opening map modal for', monster)
+}
+
+const openMapInNewTab = (src) => {
+  if (!src) return
+  const w = window.open('', '_blank')
+  if (!w) return
+
+  const title = mapModal.value.monster?.name || '地圖'
+  const escapedSrc = src.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+  w.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>body{margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;}img{max-width:100vw;max-height:100vh;object-fit:contain;}</style></head><body><img src="${escapedSrc}" alt="${title}"/></body></html>`)
+  w.document.close()
 }
 
 const handleCloseMapModal = () => {
