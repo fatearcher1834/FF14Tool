@@ -25,7 +25,7 @@
         <!-- 等級和 FATE -->
         <div class="flex gap-3 items-center">
           <div class="flex-1 flex bg-white p-1 border rounded-2xl shadow-sm">
-            <button v-for="rank in ['None', 'B', 'A', 'S', 'SS']" :key="rank" @click="config.rank = rank === 'None' ? 'None' : rank + '級'" :class="['flex-1 py-2 rounded-xl text-[12px] font-black', config.rank === (rank === 'None' ? 'None' : rank + '級') ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50']">
+            <button v-for="rank in ['None', 'B', 'A', 'S', 'SS']" :key="rank" @click="config.rank = rank === 'None' ? 'None' : rank" :class="['flex-1 py-2 rounded-xl text-[12px] font-black', config.rank === (rank === 'None' ? 'None' : rank) ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50']">
               {{ rank === 'None' ? '一般' : rank }}
             </button>
           </div>
