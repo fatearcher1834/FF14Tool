@@ -8,7 +8,7 @@
     <div class="bg-white rounded-[2.5rem] w-full max-w-lg p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-black text-slate-900">新增怪物</h3>
-        <button @click="$emit('close')" class="p-2 bg-slate-100 rounded-full hover:bg-slate-200">
+        <button @click="$emit('close')" class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all">
           <X :size="16" />
         </button>
       </div>
@@ -46,6 +46,26 @@
           >
             通緝令
           </button>
+        </div>
+        <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
+          <div
+            class="w-full h-44 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
+            tabindex="0"
+            @paste.prevent="handleBatchImagePaste($event)"
+          >
+            <div v-if="!form.mapImageData">按 Ctrl+V 貼上圖片</div>
+            <img
+              v-if="form.mapImageData"
+              :src="form.mapImageData"
+              alt="預覽"
+              class="absolute inset-0 m-auto max-h-full max-w-full"
+            />            <button
+              v-if="form.mapImageData"
+              @click.prevent="clearMapImage"
+              class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
+            >
+              移除圖片
+            </button>          </div>
         </div>
         <!-- 討伐筆記 -->
         <div class="flex flex-wrap gap-2 items-center">
@@ -143,7 +163,7 @@
               class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
               placeholder="例如：劍術師01 黑衣森林中央林區(X: 6.28, Y: 21.06)"
               rows="2"
-              @paste.prevent="handleBatchParseFromPaste($event)"
+              @paste.prevent="handleBatchImagePaste($event); handleBatchParseFromPaste($event)"
               @change="handleBatchParse($event.target.value); $event.target.value=''"
             />
           </div>
@@ -251,6 +271,8 @@ const form = ref({
   isWanted: props.monster.isWanted || false,
   jobs: Array.isArray(props.monster.jobs) ? [...props.monster.jobs] : [],
   version: props.monster.version || VERSIONS[0],
+  mapImageUrl: props.monster.mapImageUrl || '',
+  mapImageData: props.monster.mapImageData || '',
   locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
 })
 const matchAccuracy = ref(90)
@@ -286,6 +308,19 @@ const confirmJobWithLevel = (jobBase, level) => {
   }
   showJobPicker.value = false
   selectedJobBase.value = null
+}
+
+const readFileAsDataURL = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('讀取檔案失敗'))
+    reader.readAsDataURL(file)
+  })
+}
+
+const clearMapImage = () => {
+  form.value.mapImageData = ''
 }
 
 const fuzzyMapMatch = (rawMap) => {
@@ -480,6 +515,26 @@ const handleBatchParse = (text) => {
       form.value.jobs.push(currentJobTag)
     }
   })
+}
+
+const handleBatchImagePaste = async (event) => {
+  const items = event.clipboardData?.items || []
+  for (const item of items) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (!file) continue
+      try {
+        const dataUrl = await readFileAsDataURL(file)
+        form.value.mapImageData = dataUrl
+        form.value.mapImageUrl = ''
+      } catch (error) {
+        console.error('貼上圖片失敗', error)
+        alert('貼上圖片失敗，請稍後再試。')
+      }
+      // 只處理第一張圖片
+      return
+    }
+  }
 }
 
 const handleBatchParseFromPaste = (event) => {

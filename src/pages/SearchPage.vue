@@ -263,12 +263,14 @@
                   <button
                     v-for="(loc, i) in m.locations"
                     :key="i"
-                    @click="handleCopyLocation(m.name, loc, `${m.id}-${i}`)"
+                    @click="m.rank && m.rank !== 'None' ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, `${m.id}-${i}`)"
                     class="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc"
+                    :title="m.rank && m.rank !== 'None' ? '打開地圖視圖' : '複製座標'"
                   >
                     <div class="flex items-center gap-2">
                       <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
                       <div class="font-mono font-bold text-[10px]">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                      <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(等級怪物點此開圖)</div>
                       <div
                         v-if="copyFeedback === `${m.id}-${i}`"
                         class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse"
@@ -280,6 +282,39 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="mapModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-2xl p-4 shadow-xl border">
+          <div class="flex justify-between items-center mb-2">
+            <div class="text-left">
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <h3 class="text-base font-black text-slate-800">{{ mapModal.monster?.name || '未知怪物' }}</h3>
+                <VersionTag :version="mapModal.monster?.version" />
+                <RankTag :rank="mapModal.monster?.rank" />
+                <FateTag :is-fate="mapModal.monster?.isFate" />
+                <WantedTag :is-wanted="mapModal.monster?.isWanted" />
+                <JobTag :jobs="mapModal.monster?.jobs || []" />
+              </div>
+              <p class="text-[12px] text-slate-500">地圖位置：{{ mapModal.location?.map || '未知' }}</p>
+            </div>
+            <button @click="handleCloseMapModal" class="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:text-slate-800 hover:border-slate-400 transition-colors">
+              <X size="14" />
+            </button>
+          </div>
+          <div class="flex gap-2 mb-2">
+          </div>
+          <div class="bg-slate-100 rounded-lg border p-2 overflow-auto h-[calc(100vh-8rem)]">
+            <img
+              v-if="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
+              :src="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
+              alt="地圖圖片"
+              class="block max-w-none mx-auto mt-2 rounded"
+              style="max-height: calc(100vh - 11rem);"
+            />
+            <div v-else class="w-full h-56 flex items-center justify-center text-slate-400">未設定地圖圖片</div>
           </div>
         </div>
       </div>
@@ -472,13 +507,14 @@
                 <div v-if="expandedIds[m.id] && m.locations && m.locations.length > 0" class="p-3 bg-slate-50 space-y-1 text-[10px] border-t">
                   <div v-for="(loc, i) in m.locations" :key="i" class="flex items-center gap-2">
                     <button
-                      @click="handleCopyLocation(m.name, loc, `kb-${m.id}-${i}`)"
+                      @click="m.rank && m.rank !== 'None' ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, `kb-${m.id}-${i}`)"
                       class="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc text-[10px]"
-                      title="複製座標"
+                      :title="m.rank && m.rank !== 'None' ? '打開地圖視圖' : '複製座標'"
                     >
                     <div class="flex items-center gap-2">
                       <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
                       <div class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                      <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(等級怪物點此開圖)</div>
                       <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse">
                         <Check size="12" class="text-white" />
                       </div>
@@ -544,6 +580,20 @@ const handleCopyGroupLocations = async (groupId) => {
   setTimeout(() => { if (copyFeedback.value === `group-${groupId}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${groupName}`) copyMessage.value = '' }, 1000)
 }
 
+const handleOpenLocationMap = (monster, loc) => {
+  if (!monster || !loc) return
+  mapModal.value.open = true
+  mapModal.value.monster = monster
+  mapModal.value.location = loc
+  console.log('Opening map modal for', monster)
+}
+
+const handleCloseMapModal = () => {
+  mapModal.value.open = false
+  mapModal.value.monster = null
+  mapModal.value.location = null
+}
+
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -558,7 +608,8 @@ import {
   Trash2,
   Copy,
   Check,
-  ArrowUpDown
+  ArrowUpDown,
+  X
 } from 'lucide-vue-next'
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
 import { getFirebaseInstance } from '@/services/firebase'
@@ -619,6 +670,13 @@ const isKbGlobalExpanded = ref(false)
 // 複製反饋
 const copyFeedback = ref(null)
 const copyMessage = ref('')
+
+// 地圖預覽彈窗
+const mapModal = ref({
+  open: false,
+  monster: null,
+  location: null
+})
 
 // 自訂分組
 const customGroups = ref([])
@@ -1017,12 +1075,24 @@ onMounted(async () => {
   window.addEventListener('resize', handleResize)
   handleResize()
   handleResize()
+
+  // ESC 關閉地圖彈窗
+  const escListener = (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      if (mapModal.value.open) {
+        handleCloseMapModal()
+      }
+    }
+  }
+  window.addEventListener('keydown', escListener)
+
+  onUnmounted(() => {
+    pinsStore.stopWatching()
+    window.removeEventListener('resize', handleResize)
+    window.removeEventListener('keydown', escListener)
+  })
 })
 
-onUnmounted(() => {
-  pinsStore.stopWatching()
-  window.removeEventListener('resize', handleResize)
-})
 </script>
 
 <style scoped>

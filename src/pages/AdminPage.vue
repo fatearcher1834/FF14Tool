@@ -388,6 +388,8 @@ const handleSaveMonster = async (monster) => {
         rank: monster.rank || 'None',
         isFate: !!monster.isFate,
         isWanted: !!monster.isWanted,
+        mapImageUrl: monster.rank && monster.rank !== 'None' ? (monster.mapImageUrl || null) : null,
+        mapImageData: monster.rank && monster.rank !== 'None' ? (monster.mapImageData || null) : null,
         jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
         locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
       };
@@ -417,6 +419,8 @@ const handleSaveMonster = async (monster) => {
           rank: monster.rank || existingByName.rank || 'None',
           isFate: monster.isFate || existingByName.isFate || false,
           isWanted: monster.isWanted || existingByName.isWanted || false,
+          mapImageUrl: monster.rank && monster.rank !== 'None' ? (monster.mapImageUrl || existingByName.mapImageUrl || null) : null,
+          mapImageData: monster.rank && monster.rank !== 'None' ? (monster.mapImageData || existingByName.mapImageData || null) : null,
           jobs: existingJobs.length > 0 ? existingJobs : null,
           locations: existingLocations.length > 0 ? existingLocations : []
         });
@@ -427,6 +431,8 @@ const handleSaveMonster = async (monster) => {
           rank: monster.rank || 'None',
           isFate: !!monster.isFate,
           isWanted: !!monster.isWanted,
+          mapImageUrl: monster.rank && monster.rank !== 'None' ? (monster.mapImageUrl || null) : null,
+          mapImageData: monster.rank && monster.rank !== 'None' ? (monster.mapImageData || null) : null,
           jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
           locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
         };

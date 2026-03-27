@@ -8,7 +8,7 @@
     <div class="bg-white rounded-[2.5rem] w-full max-w-4xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-2xl font-black text-slate-900 tracking-tighter uppercase"> 批量新增怪物 </h3>
-        <button @click="$emit('close')" class="p-2 bg-slate-100 rounded-full hover:bg-slate-200">
+        <button @click="$emit('close')" class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all">
           <X :size="16" />
         </button>
       </div>
@@ -35,6 +35,30 @@
           <button @click="config.isWanted = !config.isWanted" :class="['px-4 py-2 rounded-2xl text-[14px] font-black border', config.isWanted ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400']">
             通緝令
           </button>
+        </div>
+        <div v-if="config.rank && config.rank !== 'None'" class="space-y-2">
+          <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">貼上地圖圖片 (B/A/S/SS)</label>
+          <div
+            class="w-full h-36 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
+            tabindex="0"
+            @paste.prevent="handleBatchImagePaste($event)"
+          >
+            <div v-if="!config.mapImageData">在此處按 Ctrl+V 貼上圖片</div>
+            <img
+              v-if="config.mapImageData"
+              :src="config.mapImageData"
+              alt="地圖預覽"
+              class="absolute inset-0 m-auto max-h-full max-w-full"
+            />
+            <button
+              v-if="config.mapImageData"
+              @click.prevent="clearBatchMapImage"
+              class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
+            >
+              移除圖片
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-500">僅在有等級時顯示並保留圖片，坐標解析不受影響。</p>
         </div>
 
 
@@ -98,7 +122,12 @@
         <!-- 左：輸入面板 -->
         <div class="flex flex-col space-y-3">
           <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ props.monsterMode ? '請貼上怪物資料：名稱、標籤(如斧術師21)、位置(X/Y)' : '名稱輸入' }}</label>
-          <textarea v-model="bulkInput" class="flex-1 p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] font-bold text-sm resize-none" placeholder="例如：劍術師01 石殼蟹 拉諾西亞高地 (X: 13.6, Y: 24.3)" />
+          <textarea
+            v-model="bulkInput"
+            class="flex-1 p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] font-bold text-sm resize-none"
+            placeholder="例如：劍術師01 石殼蟹 拉諾西亞高地 (X: 13.6, Y: 24.3)"
+            @paste.prevent="handleBatchImagePaste($event)"
+          />
         </div>
 
         <!-- 右：預覽面板 -->
@@ -123,6 +152,9 @@
               </div>
               <div v-if="typeof entry !== 'string' && entry.otherLocations && entry.otherLocations.length > 0" class="text-xs text-amber-500 mt-1">
                 其他版本（副本）：<span v-for="(d, di) in entry.otherLocations" :key="di" class="mr-2">{{ d }}</span>
+              </div>
+              <div v-if="config.mapImageUrl && config.rank !== 'None'" class="text-xs text-emerald-500 mt-1">
+                地圖圖片 URL：<a :href="config.mapImageUrl" class="underline" target="_blank" rel="noopener">查看</a>
               </div>
             </div>
             <div v-if="bulkParsedList.length === 0" class="text-slate-500 text-center py-8 text-xs">輸入名稱後會在此預覽</div>
@@ -179,6 +211,8 @@ const config = ref({
   rank: 'None',
   isFate: false,
   isWanted: false,
+  mapImageUrl: '',
+  mapImageData: '',
   jobs: []
 })
 
@@ -217,6 +251,51 @@ const confirmJobWithLevel = (jobBase, level) => {
   showJobPicker.value = false
   selectedJobBase.value = null
   selectedJobLevel.value = null
+}
+
+const readFileAsDataURL = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('讀取檔案失敗'))
+    reader.readAsDataURL(file)
+  })
+}
+
+const handleBatchMapImageFileChange = async (e) => {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  try {
+    const dataUrl = await readFileAsDataURL(file)
+    config.value.mapImageData = dataUrl
+    config.value.mapImageUrl = ''
+  } catch (error) {
+    console.error('載入地圖圖片失敗', error)
+    alert('載入地圖圖片失敗，請重試。')
+  }
+}
+
+const clearBatchMapImage = () => {
+  config.value.mapImageData = ''
+}
+
+const handleBatchImagePaste = async (event) => {
+  const items = event.clipboardData?.items || []
+  for (const item of items) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (!file) continue
+      try {
+        const dataUrl = await readFileAsDataURL(file)
+        config.value.mapImageData = dataUrl
+        config.value.mapImageUrl = ''
+      } catch (error) {
+        console.error('貼上圖片失敗', error)
+        alert('貼上圖片失敗，請稍後再試。')
+      }
+      return
+    }
+  }
 }
 
 const coordPattern = /([Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?))\s*/g
@@ -527,6 +606,8 @@ const submit = async () => {
             rank: config.value.rank || existing.rank || 'None',
             isFate: existing.isFate || config.value.isFate,
             isWanted: existing.isWanted || config.value.isWanted,
+            mapImageUrl: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageUrl || existing.mapImageUrl || null) : null,
+            mapImageData: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageData || existing.mapImageData || null) : null,
             jobs: mergeJobs.length > 0 ? mergeJobs : null,
             locations: updatedLocations.length > 0 ? updatedLocations : [],
             otherLocations: mergedOtherLocations.length > 0 ? mergedOtherLocations : null,
@@ -542,6 +623,8 @@ const submit = async () => {
           rank: config.value.rank,
           isFate: config.value.isFate,
           isWanted: config.value.isWanted,
+          mapImageUrl: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageUrl || null) : null,
+          mapImageData: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageData || null) : null,
           jobs: entryJobs.length > 0 ? entryJobs : null,
           locations: entryLocations.length > 0 ? entryLocations : [],
           otherLocations: entryOtherLocations.length > 0 ? entryOtherLocations : null,
