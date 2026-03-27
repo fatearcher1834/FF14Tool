@@ -1904,7 +1904,7 @@ class Mr{constructor(e){this.auth=e,this.internalListeners=new Map}getUid(){var 
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */const Vr=300,jr=(0,i.XA)("authIdTokenMaxAge")||Vr;let Br=null;const $r=e=>async t=>{const n=t&&await t.getIdTokenResult(),r=n&&((new Date).getTime()-Date.parse(n.issuedAtTime))/1e3;if(r&&r>jr)return;const i=null===n||void 0===n?void 0:n.token;Br!==i&&(Br=i,await fetch(e,{method:i?"POST":"DELETE",headers:i?{Authorization:`Bearer ${i}`}:{}}))};function qr(e=(0,r.Sx)()){const t=(0,r.j6)(e,"auth");if(t.isInitialized())return t.getImmediate();const n=ze(e,{popupRedirectResolver:Cr,persistence:[_n,zt,Wt]}),s=(0,i.XA)("authTokenSyncURL");if(s&&"boolean"===typeof isSecureContext&&isSecureContext){const e=new URL(s,location.origin);if(location.origin===e.origin){const t=$r(e.toString());Pt(n,t,()=>t(n.currentUser)),Dt(n,e=>t(e))}}const o=(0,i.Tj)("auth");return o&&We(n,`http://${o}`),n}function Kr(){var e,t;return null!==(t=null===(e=document.getElementsByTagName("head"))||void 0===e?void 0:e[0])&&void 0!==t?t:document}Me({loadJS(e){return new Promise((t,n)=>{const r=document.createElement("script");r.setAttribute("src",e),r.onload=t,r.onerror=e=>{const t=g("internal-error");t.customData=e,n(t)},r.type="text/javascript",r.charset="UTF-8",Kr().appendChild(r)})},gapiScript:"https://apis.google.com/js/api.js",recaptchaV2Script:"https://www.google.com/recaptcha/api.js",recaptchaEnterpriseScript:"https://www.google.com/recaptcha/enterprise.js?render="}),Ur("Browser")},1884:function(e,t,n){n.d(t,{Dc:function(){return W},rJ:function(){return zo},kd:function(){return Ja},H9:function(){return Ho},x7:function(){return za},GG:function(){return Wa},aU:function(){return Jo},aQ:function(){return Ya},P:function(){return xa},BN:function(){return Qa},mZ:function(){return Xa},_M:function(){return Pa}});var r,i,s=n(9928),o=n(5125),a=n(3424),c=n(6743),u="undefined"!==typeof globalThis?globalThis:"undefined"!==typeof window?window:"undefined"!==typeof n.g?n.g:"undefined"!==typeof self?self:{},l={};(function(){var e;
+ */const Vr=300,jr=(0,i.XA)("authIdTokenMaxAge")||Vr;let Br=null;const $r=e=>async t=>{const n=t&&await t.getIdTokenResult(),r=n&&((new Date).getTime()-Date.parse(n.issuedAtTime))/1e3;if(r&&r>jr)return;const i=null===n||void 0===n?void 0:n.token;Br!==i&&(Br=i,await fetch(e,{method:i?"POST":"DELETE",headers:i?{Authorization:`Bearer ${i}`}:{}}))};function qr(e=(0,r.Sx)()){const t=(0,r.j6)(e,"auth");if(t.isInitialized())return t.getImmediate();const n=ze(e,{popupRedirectResolver:Cr,persistence:[_n,zt,Wt]}),s=(0,i.XA)("authTokenSyncURL");if(s&&"boolean"===typeof isSecureContext&&isSecureContext){const e=new URL(s,location.origin);if(location.origin===e.origin){const t=$r(e.toString());Pt(n,t,()=>t(n.currentUser)),Dt(n,e=>t(e))}}const o=(0,i.Tj)("auth");return o&&We(n,`http://${o}`),n}function Kr(){var e,t;return null!==(t=null===(e=document.getElementsByTagName("head"))||void 0===e?void 0:e[0])&&void 0!==t?t:document}Me({loadJS(e){return new Promise((t,n)=>{const r=document.createElement("script");r.setAttribute("src",e),r.onload=t,r.onerror=e=>{const t=g("internal-error");t.customData=e,n(t)},r.type="text/javascript",r.charset="UTF-8",Kr().appendChild(r)})},gapiScript:"https://apis.google.com/js/api.js",recaptchaV2Script:"https://www.google.com/recaptcha/api.js",recaptchaEnterpriseScript:"https://www.google.com/recaptcha/enterprise.js?render="}),Ur("Browser")},1884:function(e,t,n){n.d(t,{Dc:function(){return W},rJ:function(){return zo},kd:function(){return Ja},CL:function(){return tc},H9:function(){return Ho},x7:function(){return za},GG:function(){return Wa},aU:function(){return Jo},aQ:function(){return Ya},P:function(){return xa},BN:function(){return Qa},mZ:function(){return Xa},_M:function(){return Pa}});var r,i,s=n(9928),o=n(5125),a=n(3424),c=n(6743),u="undefined"!==typeof globalThis?globalThis:"undefined"!==typeof window?window:"undefined"!==typeof n.g?n.g:"undefined"!==typeof self?self:{},l={};(function(){var e;
 /** @license
 
  Copyright The Closure Library Authors.
@@ -4008,7 +4008,24 @@ function za(e){e=Vo(e,Ko);const t=Vo(e.firestore,Xo);return Ro(Yo(t),e._key).the
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */new WeakMap;
+ */
+/**
+ * @license
+ * Copyright 2020 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+function tc(){return new fa("deleteField")}new WeakMap;
 /**
  * @license
  * Copyright 2017 Google LLC
