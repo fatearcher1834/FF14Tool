@@ -34,6 +34,46 @@ export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs) =>
 /**
  * 排序怪物列表
  */
+const parseJobEntry = jobEntry => {
+  const raw = String(jobEntry || '').trim()
+  const numMatch = raw.match(/(\d{1,2})$/)
+  const number = numMatch ? Number(numMatch[1]) : 0
+  const baseName = numMatch ? raw.slice(0, -numMatch[1].length) : raw
+  const baseIndex = JOB_BASE_NAMES.findIndex(name => baseName.startsWith(name))
+  return {
+    raw,
+    baseName,
+    number,
+    baseIndex: baseIndex >= 0 ? baseIndex : JOB_BASE_NAMES.length
+  }
+}
+
+const getJobSortKey = (monster, jobsFilter) => {
+  const allJobs = Array.isArray(monster.jobs) ? monster.jobs : monster.jobs ? [monster.jobs] : []
+  const parsed = allJobs
+    .map(parseJobEntry)
+    .filter(item => item.raw)
+
+  if (jobsFilter && jobsFilter !== '*') {
+    const filtered = parsed.filter(item => item.baseName.startsWith(jobsFilter))
+    if (filtered.length === 0) {
+      return { hasMatch: false, number: Infinity, baseIndex: JOB_BASE_NAMES.length }
+    }
+    const minNumber = Math.min(...filtered.map(item => item.number))
+    const minBaseIndex = Math.min(...filtered.filter(item => item.number === minNumber).map(item => item.baseIndex))
+    return { hasMatch: true, number: minNumber, baseIndex: minBaseIndex }
+  }
+
+  if (parsed.length === 0) {
+    return { hasMatch: false, number: Infinity, baseIndex: JOB_BASE_NAMES.length }
+  }
+  
+  const minNumber = Math.min(...parsed.map(item => item.number))
+  const candidates = parsed.filter(item => item.number === minNumber)
+  const minBaseIndex = Math.min(...candidates.map(item => item.baseIndex))
+  return { number: minNumber, baseIndex: minBaseIndex }
+}
+
 export const sortMonsters = (list, field, direction, jobsFilter) => {
   if (!field) return list
   const sorted = [...list].sort((a, b) => {
@@ -43,24 +83,28 @@ export const sortMonsters = (list, field, direction, jobsFilter) => {
       aVal = (a.name || '').toLowerCase()
       bVal = (b.name || '').toLowerCase()
     } else if (field === 'job') {
-      // 精準職業排序
-      const aJobs = a.jobs || []
-      const bJobs = b.jobs || []
-      if (jobsFilter && jobsFilter !== '*') {
-        // 找出該職業的順序數字，沒有該職業的，升序排最前，降序排最後
-        const aJobObj = aJobs.map(j => ({j, n: parseInt(j.replace(/[^0-9]/g, '') || '0', 10)})).find(j => j.j.startsWith(jobsFilter))
-        const bJobObj = bJobs.map(j => ({j, n: parseInt(j.replace(/[^0-9]/g, '') || '0', 10)})).find(j => j.j.startsWith(jobsFilter))
-        if (direction === 'asc') {
-          aVal = aJobObj ? aJobObj.n : -1
-          bVal = bJobObj ? bJobObj.n : -1
-        } else {
-          aVal = aJobObj ? aJobObj.n : 9999
-          bVal = bJobObj ? bJobObj.n : 9999
-        }
-      } else {
-        aVal = aJobs.length > 0 ? aJobs[0] : ''
-        bVal = bJobs.length > 0 ? bJobs[0] : ''
+      const aJobKey = getJobSortKey(a, jobsFilter)
+      const bJobKey = getJobSortKey(b, jobsFilter)
+
+      // 特定排序職業時，該職業的怪物優先
+      if (aJobKey.hasMatch !== bJobKey.hasMatch) {
+        return aJobKey.hasMatch ? -1 : 1
       }
+
+      if (aJobKey.number !== bJobKey.number) {
+        return direction === 'asc'
+          ? aJobKey.number - bJobKey.number
+          : bJobKey.number - aJobKey.number
+      }
+
+      if (aJobKey.baseIndex !== bJobKey.baseIndex) {
+        return direction === 'asc'
+          ? aJobKey.baseIndex - bJobKey.baseIndex
+          : bJobKey.baseIndex - aJobKey.baseIndex
+      }
+
+      aVal = (a.name || '').toLowerCase()
+      bVal = (b.name || '').toLowerCase()
     } else if (field === 'map') {
       const aLocs = a.locations || []
       const bLocs = b.locations || []
