@@ -42,9 +42,6 @@
             />
           </div>
         </template>
-        <template v-else-if="monster?.hasMap">
-          <div class="w-full h-56 flex items-center justify-center text-yellow-600 text-xs">已有地圖資料（尚未載入地圖）</div>
-        </template>
         <template v-else>
           <div class="w-full h-56 flex items-center justify-center text-slate-400">未設定地圖圖片。</div>
         </template>

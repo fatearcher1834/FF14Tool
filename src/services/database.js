@@ -92,15 +92,35 @@ export async function getMonsterImageDataById(monsterId, appId = APP_ID) {
     const imageSnap = await getDoc(imageDocRef);
     
     if (!imageSnap.exists()) {
+      // 如果子集合沒有資料，就嘗試從主 monster 文檔讀取 (兼容舊版) 
+      const monsterDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId);
+      const monsterSnap = await getDoc(monsterDocRef);
+      if (monsterSnap.exists()) {
+        const monsterData = monsterSnap.data();
+        if (monsterData.mapImageData || monsterData.monsterImageData) {
+          return {
+            mapImageData: monsterData.mapImageData || null,
+            mapImageUpdatedAt: monsterData.mapImageUpdatedAt ? (monsterData.mapImageUpdatedAt.toDate ? monsterData.mapImageUpdatedAt.toDate() : new Date(monsterData.mapImageUpdatedAt)) : (monsterData.updatedAt ? (monsterData.updatedAt.toDate ? monsterData.updatedAt.toDate() : new Date(monsterData.updatedAt)) : null),
+            monsterImageData: monsterData.monsterImageData || null,
+            monsterImageUpdatedAt: monsterData.monsterImageUpdatedAt ? (monsterData.monsterImageUpdatedAt.toDate ? monsterData.monsterImageUpdatedAt.toDate() : new Date(monsterData.monsterImageUpdatedAt)) : null,
+            hasMap: !!monsterData.mapImageData,
+            hasMonsterImage: !!monsterData.monsterImageData
+          };
+        }
+      }
+
       console.warn(`⚠ 怪物 ${monsterId} 無地圖資料`);
       return null;
     }
-    
+
     const data = imageSnap.data();
     return {
       mapImageData: data.mapImageData || null,
       mapImageUpdatedAt: data.mapImageUpdatedAt ? (data.mapImageUpdatedAt.toDate ? data.mapImageUpdatedAt.toDate() : new Date(data.mapImageUpdatedAt)) : (data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)) : null),
-      hasMap: true
+      monsterImageData: data.monsterImageData || null,
+      monsterImageUpdatedAt: data.monsterImageUpdatedAt ? (data.monsterImageUpdatedAt.toDate ? data.monsterImageUpdatedAt.toDate() : new Date(data.monsterImageUpdatedAt)) : null,
+      hasMap: true,
+      hasMonsterImage: !!data.monsterImageData
     };
   } catch (error) {
     console.error(`✗ 讀取怪物 ${monsterId} 圖片失敗:`, error);

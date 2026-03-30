@@ -371,8 +371,10 @@ onMounted(async () => {
   const updated = await monstersStore.loadMonsterImageData(form.value.id)
 
   if (updated) {
-    form.value.hasMap = form.value.hasMap || Boolean(updated.hasMap)
-    form.value.mapImageUpdatedAt = form.value.mapImageUpdatedAt || updated.mapImageUpdatedAt
+    form.value.hasMap = Boolean(updated.hasMap)
+    form.value.mapImageUpdatedAt = updated.mapImageUpdatedAt || form.value.mapImageUpdatedAt
+    form.value.hasMonsterImage = Boolean(updated.hasMonsterImage)
+    form.value.monsterImageUpdatedAt = updated.monsterImageUpdatedAt || form.value.monsterImageUpdatedAt
   }
 })
 const isJobPickerVisible = ref(false)

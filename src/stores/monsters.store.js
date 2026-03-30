@@ -77,12 +77,26 @@ export const useMonstersStore = defineStore("monsters", () => {
     isLoading.value = true;
     try {
       const data = await db.getAllMonsters(APP_ID);
-      // 加入 session 儲存緩存的 mapImageData
+      // 加入 session 儲存緩存的 mapImageData（僅在已有 hasMap/hasMonsterImage 時合併，避免刪除後殘留舊圖片）
       monsters.value = data.map(m => {
         const cache = getMonsterMapCache(m.id);
-        return cache
-          ? { ...m, ...cache }
-          : m;
+        if (!m.hasMap && !m.hasMonsterImage) {
+          return {
+            ...m,
+            mapImageData: null,
+            mapImageUpdatedAt: null,
+            monsterImageData: null,
+            monsterImageUpdatedAt: null,
+            hasMap: false,
+            hasMonsterImage: false
+          };
+        }
+
+        if (cache && (m.hasMap || m.hasMonsterImage)) {
+          return { ...m, ...cache };
+        }
+
+        return m;
       });
       error.value = null;
       console.log(`✓ 加載 ${data.length} 隻怪物`);
@@ -114,14 +128,31 @@ export const useMonstersStore = defineStore("monsters", () => {
         monsters.value = data.map(item => {
           const existing = existingMapDataById[item.id];
           if (existing) {
+          // 如果後端已標記為 no map，則清空本地緩存來反映刪除操作
+          if (!item.hasMap && !item.monsterImageData) {
             return {
               ...item,
-              mapImageData: existing.mapImageData,
-              mapImageUpdatedAt: existing.mapImageUpdatedAt,
-              hasMap: existing.hasMap !== undefined ? existing.hasMap : item.hasMap
+              mapImageData: null,
+              mapImageUpdatedAt: null,
+              monsterImageData: null,
+              monsterImageUpdatedAt: null,
+              hasMap: false,
+              hasMonsterImage: false
             };
           }
-          return item;
+
+          // 否則保留 existing 緩存，若 item 自帶為 null 則會繼續使用 cache
+          return {
+            ...item,
+            mapImageData: item.mapImageData !== null && item.mapImageData !== undefined ? item.mapImageData : existing.mapImageData,
+            mapImageUpdatedAt: item.mapImageUpdatedAt || existing.mapImageUpdatedAt,
+            monsterImageData: item.monsterImageData !== null && item.monsterImageData !== undefined ? item.monsterImageData : existing.monsterImageData,
+            monsterImageUpdatedAt: item.monsterImageUpdatedAt || existing.monsterImageUpdatedAt,
+            hasMap: item.hasMap !== undefined ? item.hasMap : existing.hasMap,
+            hasMonsterImage: item.hasMonsterImage !== undefined ? item.hasMonsterImage : existing.hasMonsterImage
+          };
+        }
+        return item;
         });
 
         console.log(`✓ 怪物數據已同步: ${data.length} 隻`);
@@ -235,15 +266,21 @@ export const useMonstersStore = defineStore("monsters", () => {
     try {
       const imageData = await db.getMonsterImageDataById(monsterId, APP_ID);
       if (imageData) {
-        target.mapImageData = imageData.mapImageData || null;
-        target.mapImageUpdatedAt = imageData.mapImageUpdatedAt || null;
-        target.hasMap = !!imageData.mapImageData || Boolean(imageData.mapImageUpdatedAt);
+        target.mapImageData = imageData.mapImageData || target.mapImageData || null;
+        target.mapImageUpdatedAt = imageData.mapImageUpdatedAt || target.mapImageUpdatedAt || null;
+        target.monsterImageData = imageData.monsterImageData || target.monsterImageData || null;
+        target.monsterImageUpdatedAt = imageData.monsterImageUpdatedAt || target.monsterImageUpdatedAt || null;
+        target.hasMap = !!target.mapImageData || Boolean(target.mapImageUpdatedAt);
+        target.hasMonsterImage = !!target.monsterImageData || Boolean(target.monsterImageUpdatedAt);
 
-        if (target.mapImageData) {
+        if (target.mapImageData || target.monsterImageData) {
           setMonsterMapCache(monsterId, {
             mapImageData: target.mapImageData,
             mapImageUpdatedAt: target.mapImageUpdatedAt,
-            hasMap: target.hasMap
+            monsterImageData: target.monsterImageData,
+            monsterImageUpdatedAt: target.monsterImageUpdatedAt,
+            hasMap: target.hasMap,
+            hasMonsterImage: target.hasMonsterImage
           });
         } else {
           removeMonsterMapCache(monsterId);
