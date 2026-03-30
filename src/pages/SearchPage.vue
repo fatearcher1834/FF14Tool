@@ -613,7 +613,10 @@ const handleOpenLocationMap = async (monster, loc) => {
     try {
       const updated = await monstersStore.loadMonsterImageData(monster.id)
       if (updated && mapModal.value.monster?.id === monster.id) {
-        mapModal.value.monster = updated
+        mapModal.value.monster = {
+          ...mapModal.value.monster,
+          ...updated
+        }
       }
     } finally {
       mapModal.value.loading = false

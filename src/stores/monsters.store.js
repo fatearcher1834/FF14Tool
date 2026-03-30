@@ -291,6 +291,7 @@ export const useMonstersStore = defineStore("monsters", () => {
           target.monsterImageUpdatedAt = imageData.monsterImageUpdatedAt;
           target.hasMap = imageData.hasMap;
           target.hasMonsterImage = imageData.hasMonsterImage;
+          return { ...target };
         }
         
         return imageData;
