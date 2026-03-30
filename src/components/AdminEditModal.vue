@@ -251,7 +251,7 @@
 import { ref, onMounted } from 'vue'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { X } from 'lucide-vue-next'
-import { GAME_VERSIONS, MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS } from '@/config/constants'
+import { MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS } from '@/config/constants'
 import { DUNGEON_MAPS_SIMPLE_MAP, simplifiedToTraditional, simplifiedJobBaseMap } from '@/config/locale-translation'
 // 取得非當前版本地圖
 const otherRegions = (version) => {
@@ -419,7 +419,7 @@ const extractLocationFromLine = (line) => {
       x = parseFloat(m[2])
       y = parseFloat(m[3])
 
-      // 如果座標內 map 为空，尝试从上一列取值（可能是地图名）
+      // 如果座標內 map 為空，嘗試從上一列取值（可能是地圖名）
       if (!map && coordIndex > 0) {
         map = parts[coordIndex - 1]
       }

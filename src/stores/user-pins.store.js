@@ -46,12 +46,12 @@ export const useUserPinsStore = defineStore("userPins", () => {
         pins.value = fetchedPins;
         hasRemotePins.value = true;
       } else {
-        // 如果目前已知沒有云端数据，先不覆盖现存（避免登出/重登时覆盖本地缓存）
+        // 如果目前已知沒有雲端資料，先不覆蓋現存（避免登出/重登時覆蓋本地快取）
         const localPins = localStorageHelper.get(PINS_STORAGE_KEY(userId));
         pins.value = localPins || pins.value || {};
 
         if (!hasRemotePins.value) {
-          // 只有首次如果尚未确认云端数据才应用本地缓存
+          // 只有首次如果尚未確認雲端資料才應用本地快取
           hasRemotePins.value = false;
         }
       }
@@ -82,12 +82,12 @@ export const useUserPinsStore = defineStore("userPins", () => {
   const watchPins = async (userId) => {
     try {
       pinsUnsubscribe = db.watchUserPins(userId, APP_ID, (data) => {
-        // 如果云端有数据就覆盖，否则保留本地数据
+        // 如果雲端有資料就覆蓋，否則保留本地資料
         if (data && Object.keys(data).length > 0) {
           pins.value = data;
           hasRemotePins.value = true;
         } else if (!hasRemotePins.value) {
-          // 如果远端还没确定任何数据（首次），尽量用本地缓存
+          // 如果遠端還沒確定任何資料（首次），盡量用本地快取
           const localPins = localStorageHelper.get(PINS_STORAGE_KEY(userId));
           if (localPins) {
             pins.value = localPins;

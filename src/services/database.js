@@ -77,7 +77,7 @@ export async function getAllMonsters(appId = APP_ID) {
 export async function getMonsterImageDataById(monsterId, appId = APP_ID) {
   try {
     const db = getDb();
-    // 从独立的 monsterImages 子集合查询
+    // 從獨立的 monsterImages 子集合查詢
     const imageDocRef = doc(
       db,
       'artifacts',
@@ -92,7 +92,7 @@ export async function getMonsterImageDataById(monsterId, appId = APP_ID) {
     const imageSnap = await getDoc(imageDocRef);
     
     if (!imageSnap.exists()) {
-      console.warn(`⚠ 怪物 ${monsterId} 无地图数据`);
+      console.warn(`⚠ 怪物 ${monsterId} 無地圖資料`);
       return null;
     }
     

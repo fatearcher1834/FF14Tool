@@ -1,6 +1,6 @@
 /**
- * 删除脚本：删除 monsters 集合中的旧 mapImageData 字段（迁移后执行）
- * 运行: node delete-old-mapimages.js
+ * 刪除腳本：刪除 monsters 集合中的舊 mapImageData 欄位（遷移後執行）
+ * 執行: node delete-old-mapimages.js
  */
 
 const admin = require('firebase-admin');
@@ -14,9 +14,9 @@ admin.initializeApp({
 const db = admin.firestore();
 
 async function deleteOldMapImages() {
-  console.log('🗑️  开始删除 monsters 中的旧 mapImageData 字段...');
+  console.log('🗑️  開始刪除 monsters 中的舊 mapImageData 欄位...');
   
-  const APP_ID = 'ff14-hunt'; // 根据你的 APP_ID 修改
+  const APP_ID = 'ff14-hunt'; // 根據你的 APP_ID 修改
   
   try {
     const batch = db.batch();
@@ -25,7 +25,7 @@ async function deleteOldMapImages() {
     const snapshot = await monstersRef.get();
     
     if (snapshot.empty) {
-      console.log('⚠️  没有找到 monsters 集合');
+      console.log('⚠️  沒有找到 monsters 集合');
       return;
     }
     
@@ -42,22 +42,22 @@ async function deleteOldMapImages() {
       }
     });
     
-    console.log(`📝 准备删除 ${deleteCount} 个文档中的 mapImageData/mapImageUrl 字段...`);
+    console.log(`📝 準備刪除 ${deleteCount} 個文件中的 mapImageData/mapImageUrl 欄位...`);
     
     if (deleteCount > 0) {
       await batch.commit();
-      console.log(`✅ 成功删除！`);
-      console.log(`\n✨ 迁移完成！现在：`);
-      console.log(`   - monsters 集合轻量化，加载秒速`);
-      console.log(`   - 地图数据存在 monsterImages 子集合`);
-      console.log(`   - 点地图才会下载图片`);
+      console.log(`✅ 成功刪除！`);
+      console.log(`\n✨ 遷移完成！現在：`);
+      console.log(`   - monsters 集合輕量化，載入即時`);
+      console.log(`   - 地圖資料存在 monsterImages 子集合`);
+      console.log(`   - 點擊地圖才會下載圖片`);
     } else {
-      console.log('ℹ️  没有找到需要删除的字段');
+      console.log('ℹ️  沒有找到需要刪除的欄位');
     }
     
     process.exit(0);
   } catch (error) {
-    console.error('❌ 删除失败:', error);
+    console.error('❌ 刪除失敗:', error);
     process.exit(1);
   }
 }
