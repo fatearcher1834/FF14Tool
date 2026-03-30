@@ -7,14 +7,14 @@ import { ref, computed } from "vue";
 import * as db from "../services/database";
 import { APP_ID } from "../config/firebase.config";
 
-const getMonsterMapCache = (monsterId) => {
+const getMonsterImageCache = (monsterId) => {
   if (!monsterId) return null;
   try {
-    const raw = window.sessionStorage.getItem(`monster-map-${monsterId}`);
+    const raw = window.localStorage.getItem(`monster-images-${monsterId}`);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch (error) {
-    console.warn('⚠ 讀取 sessionStorage 地圖緩存失敗', error);
+    console.warn('⚠ 讀取 localStorage 圖片緩存失敗', error);
     return null;
   }
 };
@@ -35,21 +35,21 @@ const normalizeDateTime = (val) => {
 }
 
 
-const setMonsterMapCache = (monsterId, mapData) => {
-  if (!monsterId || !mapData) return;
+const setMonsterImageCache = (monsterId, imageData) => {
+  if (!monsterId || !imageData) return;
   try {
-    window.sessionStorage.setItem(`monster-map-${monsterId}`, JSON.stringify(mapData));
+    window.localStorage.setItem(`monster-images-${monsterId}`, JSON.stringify(imageData));
   } catch (error) {
-    console.warn('⚠ 寫入 sessionStorage 地圖緩存失敗', error);
+    console.warn('⚠ 寫入 localStorage 圖片緩存失敗', error);
   }
 };
 
-const removeMonsterMapCache = (monsterId) => {
+const removeMonsterImageCache = (monsterId) => {
   if (!monsterId) return;
   try {
-    window.sessionStorage.removeItem(`monster-map-${monsterId}`);
+    window.localStorage.removeItem(`monster-images-${monsterId}`);
   } catch (error) {
-    console.warn('⚠ 清除 sessionStorage 地圖緩存失敗', error);
+    console.warn('⚠ 清除 localStorage 圖片緩存失敗', error);
   }
 };
 
@@ -77,34 +77,20 @@ export const useMonstersStore = defineStore("monsters", () => {
     isLoading.value = true;
     try {
       const data = await db.getAllMonsters(APP_ID);
-      // 加入 session 儲存緩存的 mapImageData（僅在已有 hasMap/hasMonsterImage 時合併，避免刪除後殘留舊圖片）
+      // 根據 hasMap/hasMonsterImage 標誌決定是否保留舊欄位的圖片
+      // 優先使用 localStorage 緩存，然後是根文檔數據
       monsters.value = data.map(m => {
-        const cache = getMonsterMapCache(m.id);
-        if (!m.hasMap && !m.hasMonsterImage) {
-          return {
-            ...m,
-            mapImageData: null,
-            mapImageUpdatedAt: null,
-            monsterImageData: null,
-            monsterImageUpdatedAt: null,
-            hasMap: false,
-            hasMonsterImage: false
-          };
-        }
-
-        if (cache) {
-          return {
-            ...m,
-            mapImageData: m.hasMap ? cache.mapImageData || null : null,
-            mapImageUpdatedAt: m.hasMap ? cache.mapImageUpdatedAt || null : null,
-            monsterImageData: m.hasMonsterImage ? cache.monsterImageData || null : null,
-            monsterImageUpdatedAt: m.hasMonsterImage ? cache.monsterImageUpdatedAt || null : null,
-            hasMap: !!m.hasMap,
-            hasMonsterImage: !!m.hasMonsterImage
-          };
-        }
-
-        return m;
+        const cache = getMonsterImageCache(m.id);
+        
+        return {
+          ...m,
+          mapImageData: m.hasMap ? (cache?.mapImageData || m.mapImageData || null) : null,
+          mapImageUpdatedAt: m.hasMap ? (cache?.mapImageUpdatedAt || m.mapImageUpdatedAt || null) : null,
+          monsterImageData: m.hasMonsterImage ? (cache?.monsterImageData || m.monsterImageData || null) : null,
+          monsterImageUpdatedAt: m.hasMonsterImage ? (cache?.monsterImageUpdatedAt || m.monsterImageUpdatedAt || null) : null,
+          hasMap: !!m.hasMap,
+          hasMonsterImage: !!m.hasMonsterImage
+        };
       });
       error.value = null;
       console.log(`✓ 加載 ${data.length} 隻怪物`);
@@ -121,49 +107,52 @@ export const useMonstersStore = defineStore("monsters", () => {
   const watchMonsters = () => {
     try {
       unsubscribe = db.watchMonsters(APP_ID, (data) => {
-        // 合併已存在的地圖數據，避免每次更新時清除 mapImageData
-        const existingMapDataById = monsters.value.reduce((acc, monster) => {
-          if (monster.mapImageData) {
+        // 合併已存在的圖片數據，避免每次更新時清除 mapImageData 和 monsterImageData
+        const existingImageDataById = monsters.value.reduce((acc, monster) => {
+          if (monster.mapImageData || monster.monsterImageData) {
             acc[monster.id] = {
-              mapImageData: monster.mapImageData,
-              mapImageUpdatedAt: monster.mapImageUpdatedAt,
-              hasMap: monster.hasMap
+              mapImageData: monster.mapImageData || null,
+              mapImageUpdatedAt: monster.mapImageUpdatedAt || null,
+              monsterImageData: monster.monsterImageData || null,
+              monsterImageUpdatedAt: monster.monsterImageUpdatedAt || null,
+              hasMap: monster.hasMap,
+              hasMonsterImage: monster.hasMonsterImage
             };
           }
           return acc;
         }, {});
 
         monsters.value = data.map(item => {
-          const existing = existingMapDataById[item.id];
+          const existing = existingImageDataById[item.id];
           if (existing) {
-          // 如果後端已標記為 no map，則清空本地緩存來反映刪除操作
-          if (!item.hasMap && !item.monsterImageData) {
+            // 如果後端已標記為 no map 且 no monster image，則清空本地緩存來反映刪除操作
+            if (!item.hasMap && !item.hasMonsterImage) {
+              return {
+                ...item,
+                mapImageData: null,
+                mapImageUpdatedAt: null,
+                monsterImageData: null,
+                monsterImageUpdatedAt: null,
+                hasMap: false,
+                hasMonsterImage: false
+              };
+            }
+
+            // 否則根據 hasMap/hasMonsterImage 使用新數據或緩存，若服務端已刪除則清空本地緩存
+            const hasMap = !!item.hasMap;
+            const hasMonsterImage = !!item.hasMonsterImage;
+
             return {
               ...item,
-              mapImageData: null,
-              mapImageUpdatedAt: null,
-              monsterImageData: null,
-              monsterImageUpdatedAt: null,
-              hasMap: false,
-              hasMonsterImage: false
+              mapImageData: hasMap ? (item.mapImageData !== null && item.mapImageData !== undefined ? item.mapImageData : existing.mapImageData) : null,
+              mapImageUpdatedAt: hasMap ? (item.mapImageUpdatedAt || existing.mapImageUpdatedAt) : null,
+              monsterImageData: hasMonsterImage ? (item.monsterImageData !== null && item.monsterImageData !== undefined ? item.monsterImageData : existing.monsterImageData) : null,
+              monsterImageUpdatedAt: hasMonsterImage ? (item.monsterImageUpdatedAt || existing.monsterImageUpdatedAt) : null,
+              hasMap,
+              hasMonsterImage
             };
           }
-
-          // 否則根據 hasMap/hasMonsterImage 使用新數據或緩存，若服務端已刪除則清空本地緩存
-          const hasMap = !!item.hasMap;
-          const hasMonsterImage = !!item.hasMonsterImage;
-
-          return {
-            ...item,
-            mapImageData: hasMap ? (item.mapImageData !== null && item.mapImageData !== undefined ? item.mapImageData : existing.mapImageData) : null,
-            mapImageUpdatedAt: hasMap ? (item.mapImageUpdatedAt || existing.mapImageUpdatedAt) : null,
-            monsterImageData: hasMonsterImage ? (item.monsterImageData !== null && item.monsterImageData !== undefined ? item.monsterImageData : existing.monsterImageData) : null,
-            monsterImageUpdatedAt: hasMonsterImage ? (item.monsterImageUpdatedAt || existing.monsterImageUpdatedAt) : null,
-            hasMap,
-            hasMonsterImage
-          };
-        }
-        return item;
+          return item;
         });
 
         console.log(`✓ 怪物數據已同步: ${data.length} 隻`);
@@ -223,20 +212,39 @@ export const useMonstersStore = defineStore("monsters", () => {
         };
       }
 
-      // 同步 map cache
+      // 同步 localStorage 圖片 cache
+      const cache = getMonsterImageCache(monsterId) || {};
+
       if (updates.mapImageData !== undefined) {
         if (updates.mapImageData) {
-          setMonsterMapCache(monsterId, {
-            mapImageData: updates.mapImageData,
-            mapImageUpdatedAt: updates.mapImageUpdatedAt || new Date(),
-            hasMap: true
-          });
+          cache.mapImageData = updates.mapImageData;
+          cache.mapImageUpdatedAt = updates.mapImageUpdatedAt || new Date();
+          cache.hasMap = true;
         } else {
-          // 清空 map 時移除 cache
-          removeMonsterMapCache(monsterId);
+          cache.mapImageData = null;
+          cache.mapImageUpdatedAt = null;
+          cache.hasMap = false;
         }
       }
-      
+
+      if (updates.monsterImageData !== undefined) {
+        if (updates.monsterImageData) {
+          cache.monsterImageData = updates.monsterImageData;
+          cache.monsterImageUpdatedAt = updates.monsterImageUpdatedAt || new Date();
+          cache.hasMonsterImage = true;
+        } else {
+          cache.monsterImageData = null;
+          cache.monsterImageUpdatedAt = null;
+          cache.hasMonsterImage = false;
+        }
+      }
+
+      if (cache.mapImageData || cache.monsterImageData) {
+        setMonsterImageCache(monsterId, cache);
+      } else {
+        removeMonsterImageCache(monsterId);
+      }
+
       console.log(`✓ 成功更新怪物: ${monsterId}`);
     } catch (err) {
       console.error("✗ 更新怪物失敗:", err);
@@ -268,6 +276,11 @@ export const useMonstersStore = defineStore("monsters", () => {
       
       if (imageData) {
         console.log(`[Store] ✓ 成功加載圖片數據：mapImageData=${!!imageData.mapImageData}, monsterImageData=${!!imageData.monsterImageData}`);
+        
+        // 保存到 localStorage 供日後使用（避免重複下載）
+        if (imageData.mapImageData || imageData.monsterImageData) {
+          setMonsterImageCache(monsterId, imageData);
+        }
         
         // 更新 monsters.value 中的數據
         const target = monsters.value.find(m => m.id === monsterId);

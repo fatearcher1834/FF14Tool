@@ -17,6 +17,77 @@ import {
   onSnapshot,
   Timestamp
 } from "firebase/firestore";
+
+const MAX_FIRESTORE_IMAGE_BYTES = 1048487;
+
+async function compressImageDataURL(dataUrl, maxBytes = MAX_FIRESTORE_IMAGE_BYTES) {
+  if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
+  if (dataUrl.length <= maxBytes) return dataUrl;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const squareSize = Math.min(img.width, img.height);
+        const offsetX = (img.width - squareSize) / 2;
+        const offsetY = (img.height - squareSize) / 2;
+
+        const canvas = document.createElement('canvas');
+        const MAX_SIDE = 512;
+        let outputSize = Math.min(squareSize, MAX_SIDE);
+
+        const doDraw = (size) => {
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('無法取得 canvas 上下文');
+          ctx.drawImage(img, offsetX, offsetY, squareSize, squareSize, 0, 0, size, size);
+        };
+
+        doDraw(outputSize);
+
+        let quality = 0.85;
+        let compressed = canvas.toDataURL('image/jpeg', quality);
+
+        while (compressed.length > maxBytes && quality > 0.08) {
+          quality -= 0.05;
+          compressed = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        if (compressed.length > maxBytes) {
+          const scaleFactor = Math.sqrt(maxBytes / compressed.length);
+          outputSize = Math.max(100, Math.floor(outputSize * scaleFactor));
+          doDraw(outputSize);
+          quality = 0.7;
+          compressed = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        if (compressed.length > maxBytes) {
+          // 若還超過，就回傳最低壓縮
+          console.warn('[compressImageDataURL] 無法達到 maxBytes，返回最小尺寸結果');
+        }
+
+        resolve(compressed);
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    img.onerror = (err) => reject(new Error('圖片載入失敗 ' + err));
+    img.src = dataUrl;
+  });
+}
+
+async function ensureImageDataWithinLimit(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
+  if (dataUrl.length <= MAX_FIRESTORE_IMAGE_BYTES) return dataUrl;
+  const compressed = await compressImageDataURL(dataUrl);
+  if (compressed && compressed.length <= MAX_FIRESTORE_IMAGE_BYTES) return compressed;
+  if (compressed && compressed.length > MAX_FIRESTORE_IMAGE_BYTES) {
+    throw new Error(`圖片仍超過 ${MAX_FIRESTORE_IMAGE_BYTES} bytes，當前 ${compressed.length} bytes，請改用更小圖片`);
+  }
+  throw new Error('圖片壓縮失敗，無法生成有效 imageData');
+}
 import { getDb } from "./firebase";
 import { DB_PATHS, APP_ID } from "../config/firebase.config";
 
@@ -227,11 +298,12 @@ export async function addMonster(monsterData, appId = APP_ID) {
 
     // 地圖圖片獨立存到 mapPhoto/current
     if (mapImageData) {
-      console.log(`[新增怪物] 保存地圖圖片到 mapPhoto/current, 大小=${(mapImageData.length / 1024).toFixed(2)}KB`);
+      const finalMapImageData = await ensureImageDataWithinLimit(mapImageData);
+      console.log(`[新增怪物] 保存地圖圖片到 mapPhoto/current, 原始=${(mapImageData.length / 1024).toFixed(2)}KB, 最終=${(finalMapImageData.length / 1024).toFixed(2)}KB`);
       await setDoc(
         doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id, 'mapPhoto', 'current'),
         {
-          imageData: mapImageData,
+          imageData: finalMapImageData,
           updatedAt: now,
           imageUpdatedAt: monsterData.mapImageUpdatedAt ? (monsterData.mapImageUpdatedAt.toDate ? monsterData.mapImageUpdatedAt.toDate() : new Date(monsterData.mapImageUpdatedAt)) : now.toDate()
         }
@@ -241,11 +313,12 @@ export async function addMonster(monsterData, appId = APP_ID) {
 
     // 怪物照片獨立存到 monsterPhoto/current
     if (monsterImageData) {
-      console.log(`[新增怪物] 保存怪物照片到 monsterPhoto/current, 大小=${(monsterImageData.length / 1024).toFixed(2)}KB`);
+      const finalMonsterImageData = await ensureImageDataWithinLimit(monsterImageData);
+      console.log(`[新增怪物] 保存怪物照片到 monsterPhoto/current, 原始=${(monsterImageData.length / 1024).toFixed(2)}KB, 最終=${(finalMonsterImageData.length / 1024).toFixed(2)}KB`);
       await setDoc(
         doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id, 'monsterPhoto', 'current'),
         {
-          imageData: monsterImageData,
+          imageData: finalMonsterImageData,
           updatedAt: now,
           imageUpdatedAt: monsterData.monsterImageUpdatedAt ? (monsterData.monsterImageUpdatedAt.toDate ? monsterData.monsterImageUpdatedAt.toDate() : new Date(monsterData.monsterImageUpdatedAt)) : now.toDate()
         }
@@ -312,9 +385,10 @@ export async function updateMonster(monsterId, updates, appId = APP_ID) {
         }
       } else {
         // 保存地圖圖片
-        console.log(`[更新怪物] 保存地圖圖片到 mapPhoto/current, 大小=${(mapImageData.length / 1024).toFixed(2)}KB`);
+        const finalMapImageData = await ensureImageDataWithinLimit(mapImageData);
+        console.log(`[更新怪物] 保存地圖圖片到 mapPhoto/current, 原始=${(mapImageData.length / 1024).toFixed(2)}KB, 最終=${(finalMapImageData.length / 1024).toFixed(2)}KB`);
         await setDoc(mapPhotoRef, {
-          imageData: mapImageData,
+          imageData: finalMapImageData,
           updatedAt: now,
           imageUpdatedAt: updates.mapImageUpdatedAt ? (updates.mapImageUpdatedAt.toDate ? updates.mapImageUpdatedAt.toDate() : new Date(updates.mapImageUpdatedAt)) : now.toDate()
         });
@@ -338,9 +412,10 @@ export async function updateMonster(monsterId, updates, appId = APP_ID) {
         }
       } else {
         // 保存怪物照片
-        console.log(`[更新怪物] 保存怪物照片到 monsterPhoto/current, 大小=${(monsterImageData.length / 1024).toFixed(2)}KB`);
+        const finalMonsterImageData = await ensureImageDataWithinLimit(monsterImageData);
+        console.log(`[更新怪物] 保存怪物照片到 monsterPhoto/current, 原始=${(monsterImageData.length / 1024).toFixed(2)}KB, 最終=${(finalMonsterImageData.length / 1024).toFixed(2)}KB`);
         await setDoc(monsterPhotoRef, {
-          imageData: monsterImageData,
+          imageData: finalMonsterImageData,
           updatedAt: now,
           imageUpdatedAt: updates.monsterImageUpdatedAt ? (updates.monsterImageUpdatedAt.toDate ? updates.monsterImageUpdatedAt.toDate() : new Date(updates.monsterImageUpdatedAt)) : now.toDate()
         });
