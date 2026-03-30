@@ -606,10 +606,10 @@ const handleOpenLocationMap = async (monster, loc) => {
   mapModal.value.open = true
   mapModal.value.monster = monster
   mapModal.value.location = loc
-  mapModal.value.loading = !monster.mapImageData
+  mapModal.value.loading = !monster.mapImageData || !monster.monsterImageData
 
-  // 動態加載地圖圖片：避免一開始載入大量 Base64
-  if (!monster.mapImageData) {
+  // 動態加載圖片數據：避免一開始載入大量 Base64
+  if (!monster.mapImageData || !monster.monsterImageData) {
     try {
       const updated = await monstersStore.loadMonsterImageData(monster.id)
       if (updated && mapModal.value.monster?.id === monster.id) {
