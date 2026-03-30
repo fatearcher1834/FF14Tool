@@ -259,11 +259,86 @@ const readFileAsDataURL = (file) => {
   })
 }
 
+// 壓縮圖片以符合 Firestore 1MB 限制
+const compressImage = (dataUrl) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.src = dataUrl
+    img.onload = () => {
+      try {
+        const originSize = dataUrl.length
+        const MAX_SIZE = 512
+        console.log(`[圖片壓縮開始] 原始大小: ${(originSize / 1024).toFixed(2)}KB, 尺寸: ${img.width}x${img.height}`)
+        
+        const canvas = document.createElement('canvas')
+        
+        // 第一步：計算正方形尺寸（取較小值）
+        const squareSize = Math.min(img.width, img.height)
+        const offsetX = (img.width - squareSize) / 2
+        const offsetY = (img.height - squareSize) / 2
+        
+        console.log(`[正方形裁剪] 新尺寸: ${squareSize}x${squareSize}, 偏移: (${offsetX.toFixed(0)}, ${offsetY.toFixed(0)})`)
+        
+        // 第二步：將圖片轉為正方形，並限制最大尺寸 512x512
+        let displaySize = Math.min(squareSize, MAX_SIZE)
+        canvas.width = displaySize
+        canvas.height = displaySize
+        let ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('無法取得 canvas 上下文')
+        ctx.drawImage(img, offsetX, offsetY, squareSize, squareSize, 0, 0, displaySize, displaySize)
+        
+        console.log(`[正方形策略] 最終尺寸: ${displaySize}x${displaySize}`)
+        
+        let result = canvas.toDataURL('image/jpeg', 0.85)
+        console.log(`[初始壓縮] 大小: ${(result.length / 1024).toFixed(2)}KB`)
+        
+        // 第三步：逐步減小質量直到 < 800KB
+        let quality = 0.85
+        let iteration = 0
+        while (result.length > 800000 && quality > 0.1) {
+          quality -= 0.05
+          result = canvas.toDataURL('image/jpeg', quality)
+          iteration++
+        }
+        if (iteration > 0) console.log(`[品質壓縮] 迭代 ${iteration} 次, 品質: ${(quality + 0.05).toFixed(2)}, 大小: ${(result.length / 1024).toFixed(2)}KB`)
+        
+        // 第四步：若仍超過 800KB，則縮小尺寸
+        let finalWidth = displaySize
+        let finalHeight = displaySize
+        if (result.length > 800000) {
+          const scaleFactor = Math.sqrt(800000 / result.length)
+          finalWidth = Math.max(100, Math.round(displaySize * scaleFactor))
+          finalHeight = finalWidth // 保持正方形
+          canvas.width = finalWidth
+          canvas.height = finalHeight
+          ctx = canvas.getContext('2d')
+          if (!ctx) throw new Error('無法取得 canvas 上下文')
+          ctx.drawImage(img, offsetX, offsetY, squareSize, squareSize, 0, 0, finalWidth, finalHeight)
+          result = canvas.toDataURL('image/jpeg', 0.7)
+          console.log(`[縮小尺寸] 新尺寸: ${finalWidth}x${finalHeight}, 大小: ${(result.length / 1024).toFixed(2)}KB`)
+        }
+        
+        console.log(`✓ 圖片壓縮完成: ${(originSize / 1024).toFixed(2)}KB → ${(result.length / 1024).toFixed(2)}KB (最終尺寸: ${finalWidth}x${finalHeight})`)
+        resolve(result)
+      } catch (error) {
+        console.error('[圖片壓縮錯誤]', error)
+        reject(error)
+      }
+    }
+    img.onerror = () => {
+      console.error('[圖片載入失敗] 無法載入圖片')
+      reject(new Error('圖片載入失敗'))
+    }
+  })
+}
+
 const handleBatchMapImageFileChange = async (e) => {
   const file = e.target.files && e.target.files[0]
   if (!file) return
   try {
-    const dataUrl = await readFileAsDataURL(file)
+    let dataUrl = await readFileAsDataURL(file)
+    // 壓縮圖片以符合 Firestore 1MB 限制
+    dataUrl = await compressImage(dataUrl)
     config.value.mapImageData = dataUrl
   } catch (error) {
     console.error('載入地圖圖片失敗', error)
@@ -282,7 +357,9 @@ const handleBatchImagePaste = async (event) => {
       const file = item.getAsFile()
       if (!file) continue
       try {
-        const dataUrl = await readFileAsDataURL(file)
+        let dataUrl = await readFileAsDataURL(file)
+        // 壓縮圖片以符合 Firestore 1MB 限制
+        dataUrl = await compressImage(dataUrl)
         config.value.mapImageData = dataUrl
       } catch (error) {
         console.error('貼上圖片失敗', error)

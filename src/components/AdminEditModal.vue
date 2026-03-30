@@ -54,21 +54,8 @@
             tabindex="0"
             @paste.prevent="handleBatchImagePaste($event)"
           >
-            <div v-if="!form.mapImageData && !form.hasMap" class="text-slate-500 text-xs">
+            <div v-if="!form.mapImageData" class="text-slate-500 text-xs">
               尚未設定地圖
-            </div>
-            <div v-else-if="!form.mapImageData && form.hasMap" class="text-yellow-600 text-xs text-left">
-              已存在地圖資料
-              <template v-if="form.mapImageUpdatedAt">
-                （更新時間：{{ form.mapImageUpdatedAt.toLocaleString() }}）
-              </template>
-              <button
-                @click.prevent="loadMapImageDataNow"
-                class="mt-1 px-2 py-1 text-[10px] bg-blue-600 text-white rounded"
-                :disabled="isLoadingMap"
-              >
-                {{ isLoadingMap ? '載入中...' : '手動載入地圖' }}
-              </button>
             </div>
             <img
               v-if="form.mapImageData"
@@ -77,8 +64,33 @@
               class="absolute inset-0 m-auto max-h-full max-w-full"
             />
             <button
-              v-if="form.mapImageData || form.hasMap"
+              v-if="form.mapImageData"
               @click.prevent="clearMapImage"
+              class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
+            >
+              移除圖片
+            </button>
+          </div>
+        </div>
+
+        <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
+          <div
+            class="w-full h-44 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
+            tabindex="0"
+            @paste.prevent="handleMonsterImagePaste($event)"
+          >
+            <div v-if="!form.monsterImageData" class="text-slate-500 text-xs">
+              尚未設定怪物照片
+            </div>
+            <img
+              v-if="form.monsterImageData"
+              :src="form.monsterImageData"
+              alt="怪物預覽"
+              class="absolute inset-0 m-auto max-h-full max-w-full"
+            />
+            <button
+              v-if="form.monsterImageData"
+              @click.prevent="clearMonsterImage"
               class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
             >
               移除圖片
@@ -315,8 +327,9 @@ const form = ref({
   jobs: Array.isArray(props.monster.jobs) ? [...props.monster.jobs] : [],
   version: props.monster.version || VERSIONS[0],
   mapImageData: props.monster.mapImageData || '',
-  hasMap: Boolean(props.monster.mapImageData) || Boolean(props.monster.hasMap) || Boolean(props.monster.mapImageUpdatedAt),
-  mapImageUpdatedAt: normalizeDateTime(props.monster.mapImageUpdatedAt || props.monster.updatedAt),
+  mapImageUpdatedAt: normalizeDateTime(props.monster.mapImageUpdatedAt),
+  monsterImageData: props.monster.monsterImageData || '',
+  monsterImageUpdatedAt: normalizeDateTime(props.monster.monsterImageUpdatedAt),
   triggerCondition: props.monster.triggerCondition || '',
   locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
 })
@@ -329,6 +342,7 @@ const closeModal = () => {
 
 const isManualLoadMap = ref(false)
 const isLoadingMap = ref(false)
+const isLoadingMonster = ref(false)
 
 const loadMapImageDataNow = async () => {
   if (!form.value.id) return
@@ -340,12 +354,30 @@ const loadMapImageDataNow = async () => {
       if (updated.mapImageData) {
         form.value.mapImageData = updated.mapImageData
       }
-      form.value.mapImageUpdatedAt = updated.mapImageUpdatedAt || form.value.mapImageUpdatedAt
+      form.value.mapImageUpdatedAt = normalizeDateTime(updated.mapImageUpdatedAt || form.value.mapImageUpdatedAt)
       form.value.hasMap = true
       isManualLoadMap.value = true
     }
   } finally {
     isLoadingMap.value = false
+  }
+}
+
+const loadMonsterImageDataNow = async () => {
+  if (!form.value.id) return
+  isLoadingMonster.value = true
+  try {
+    const monstersStore = useMonstersStore()
+    const updated = await monstersStore.loadMonsterImageData(form.value.id)
+    if (updated) {
+      if (updated.monsterImageData) {
+        form.value.monsterImageData = updated.monsterImageData
+      }
+      form.value.monsterImageUpdatedAt = normalizeDateTime(updated.monsterImageUpdatedAt || form.value.monsterImageUpdatedAt)
+      form.value.hasMonsterImage = true
+    }
+  } finally {
+    isLoadingMonster.value = false
   }
 }
 
@@ -360,21 +392,19 @@ onMounted(async () => {
 
   const monstersStore = useMonstersStore()
 
-  // 先從本地 store 讀 metadata (不靠 mapImageData)
-  const cached = monstersStore.getMonsterById(form.value.id)
-  if (cached) {
-    form.value.hasMap = form.value.hasMap || Boolean(cached.hasMap)
-    form.value.mapImageUpdatedAt = form.value.mapImageUpdatedAt || cached.mapImageUpdatedAt || form.value.mapImageUpdatedAt
-  }
-
-  // 再從子集合/遠端查一次，僅更新 hasMap/time
+  // 直接讀取最新的圖片數據
+  console.log('[編輯模態] 載入圖片數據...');
   const updated = await monstersStore.loadMonsterImageData(form.value.id)
 
   if (updated) {
-    form.value.hasMap = Boolean(updated.hasMap)
-    form.value.mapImageUpdatedAt = updated.mapImageUpdatedAt || form.value.mapImageUpdatedAt
-    form.value.hasMonsterImage = Boolean(updated.hasMonsterImage)
-    form.value.monsterImageUpdatedAt = updated.monsterImageUpdatedAt || form.value.monsterImageUpdatedAt
+    if (updated.mapImageData) {
+      form.value.mapImageData = updated.mapImageData
+    }
+    form.value.mapImageUpdatedAt = normalizeDateTime(updated.mapImageUpdatedAt)
+    if (updated.monsterImageData) {
+      form.value.monsterImageData = updated.monsterImageData
+    }
+    form.value.monsterImageUpdatedAt = normalizeDateTime(updated.monsterImageUpdatedAt)
   }
 })
 const isJobPickerVisible = ref(false)
@@ -411,10 +441,38 @@ const readFileAsDataURL = (file) => {
   })
 }
 
+
+
 const clearMapImage = () => {
+  console.log('[地圖清除] 正在清除地圖資料');
   form.value.mapImageData = ''
-  form.value.hasMap = false
   form.value.mapImageUpdatedAt = null
+  
+  // 也要清除 sessionStorage 緩存以防止重新編輯時回復舊值
+  if (form.value.id) {
+    try {
+      sessionStorage.removeItem(`monster-map-${form.value.id}`)
+      console.log('[地圖清除] ✓ 已清除 sessionStorage 緩存');
+    } catch (error) {
+      console.warn('[地圖清除] 清除緩存失敗:', error);
+    }
+  }
+}
+
+const clearMonsterImage = () => {
+  console.log('[怪物照片清除] 正在清除怪物照片資料');
+  form.value.monsterImageData = ''
+  form.value.monsterImageUpdatedAt = null
+  
+  // 也要清除 sessionStorage 緩存以防止重新編輯時回復舊值
+  if (form.value.id) {
+    try {
+      sessionStorage.removeItem(`monster-map-${form.value.id}`)
+      console.log('[怪物照片清除] ✓ 已清除 sessionStorage 緩存');
+    } catch (error) {
+      console.warn('[怪物照片清除] 清除緩存失敗:', error);
+    }
+  }
 }
 
 const fuzzyMapMatch = (rawMap) => {
@@ -618,7 +676,7 @@ const handleBatchImagePaste = async (event) => {
       const file = item.getAsFile()
       if (!file) continue
       try {
-        const dataUrl = await readFileAsDataURL(file)
+        let dataUrl = await readFileAsDataURL(file)
         form.value.mapImageData = dataUrl
         form.value.hasMap = true
         form.value.mapImageUpdatedAt = new Date()
@@ -632,6 +690,41 @@ const handleBatchImagePaste = async (event) => {
   }
 }
 
+const handleMonsterImagePaste = async (event) => {
+  const items = event.clipboardData?.items || []
+  console.log('[怪物照片粘貼] 開始處理...', items.length, '項目')
+  for (const item of items) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (!file) {
+        console.warn('[怪物照片粘貼] 無法取得文件')
+        continue
+      }
+      try {
+        console.log('[怪物照片粘貼] 文件:', file.name, '大小:', (file.size / 1024).toFixed(2), 'KB')
+        let dataUrl = await readFileAsDataURL(file)
+        console.log('[怪物照片粘貼] 轉換為 DataURL 完成, 大小:', (dataUrl.length / 1024).toFixed(2), 'KB')
+        
+        form.value.monsterImageData = dataUrl
+        form.value.hasMonsterImage = true
+        form.value.monsterImageUpdatedAt = new Date()
+        console.log('[怪物照片粘貼] ✓ 已設定到表單', {
+          hasData: !!form.value.monsterImageData,
+          dataSize: form.value.monsterImageData.length,
+          hasMonsterImage: form.value.hasMonsterImage,
+          timestamp: form.value.monsterImageUpdatedAt
+        })
+      } catch (error) {
+        console.error('[怪物照片粘貼] ✗ 失敗:', error)
+        alert('貼上怪物照片失敗，請稍後再試。')
+      }
+      // 只處理第一張圖片
+      return
+    }
+  }
+  console.warn('[怪物照片粘貼] 未找到圖片文件')
+}
+
 const handleBatchParseFromPaste = (event) => {
   const text = event.clipboardData?.getData('text') || ''
   handleBatchParse(text)
@@ -641,6 +734,10 @@ const handleBatchParseFromPaste = (event) => {
 }
 
 const submit = () => {
+  console.log('[表單提交] monsterImageData 大小:', form.value.monsterImageData?.length || 0, 'bytes, hasMonsterImage:', form.value.hasMonsterImage)
+  if (form.value.monsterImageData) {
+    console.log('[表單提交] ✓ 欲提交怪物照片:', (form.value.monsterImageData.length / 1024).toFixed(2), 'KB')
+  }
   emit('save', form.value)
   closeModal()
 }

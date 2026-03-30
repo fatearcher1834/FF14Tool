@@ -54,7 +54,9 @@ export async function getAllMonsters(appId = APP_ID) {
         rank: 'None',
         ...data,
         mapImageData: null,
-        hasMap: data.hasMap || false
+        monsterImageData: null,
+        hasMap: data.hasMap || false,
+        hasMonsterImage: data.hasMonsterImage || false
       };
     });
   };
@@ -65,7 +67,7 @@ export async function getAllMonsters(appId = APP_ID) {
 
     const snapshot = await getDocs(monstersRef);
     const monsters = buildMonsters(snapshot);
-    console.log(`✓ 加載 ${monsters.length} 隻怪物（不含地圖圖片欄位）`);
+    console.log(`✓ 加載 ${monsters.length} 隻怪物（不含圖片欄位）`);
     return monsters;
   } catch (error) {
     console.error('✗ 加載怪物數據失敗:', error);
@@ -103,24 +105,29 @@ export async function getMonsterImageDataById(monsterId, appId = APP_ID) {
             mapImageUpdatedAt: monsterData.mapImageUpdatedAt ? (monsterData.mapImageUpdatedAt.toDate ? monsterData.mapImageUpdatedAt.toDate() : new Date(monsterData.mapImageUpdatedAt)) : (monsterData.updatedAt ? (monsterData.updatedAt.toDate ? monsterData.updatedAt.toDate() : new Date(monsterData.updatedAt)) : null),
             monsterImageData: monsterData.monsterImageData || null,
             monsterImageUpdatedAt: monsterData.monsterImageUpdatedAt ? (monsterData.monsterImageUpdatedAt.toDate ? monsterData.monsterImageUpdatedAt.toDate() : new Date(monsterData.monsterImageUpdatedAt)) : null,
-            hasMap: !!monsterData.mapImageData,
-            hasMonsterImage: !!monsterData.monsterImageData
+            hasMap: !!monsterData.mapImageData || Boolean(monsterData.hasMap),
+            hasMonsterImage: !!monsterData.monsterImageData || Boolean(monsterData.hasMonsterImage)
           };
         }
       }
 
-      console.warn(`⚠ 怪物 ${monsterId} 無地圖資料`);
+      console.warn(`⚠ 怪物 ${monsterId} 無圖片資料`);
       return null;
     }
 
     const data = imageSnap.data();
+    // 同時從根文檔讀取 flags
+    const monsterDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId);
+    const monsterSnap = await getDoc(monsterDocRef);
+    const monsterData = monsterSnap.exists() ? monsterSnap.data() : {};
+
     return {
       mapImageData: data.mapImageData || null,
-      mapImageUpdatedAt: data.mapImageUpdatedAt ? (data.mapImageUpdatedAt.toDate ? data.mapImageUpdatedAt.toDate() : new Date(data.mapImageUpdatedAt)) : (data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)) : null),
+      mapImageUpdatedAt: data.mapImageUpdatedAt ? (data.mapImageUpdatedAt.toDate ? data.mapImageUpdatedAt.toDate() : new Date(data.mapImageUpdatedAt)) : null,
       monsterImageData: data.monsterImageData || null,
       monsterImageUpdatedAt: data.monsterImageUpdatedAt ? (data.monsterImageUpdatedAt.toDate ? data.monsterImageUpdatedAt.toDate() : new Date(data.monsterImageUpdatedAt)) : null,
-      hasMap: true,
-      hasMonsterImage: !!data.monsterImageData
+      hasMap: Boolean(monsterData.hasMap),
+      hasMonsterImage: Boolean(monsterData.hasMonsterImage)
     };
   } catch (error) {
     console.error(`✗ 讀取怪物 ${monsterId} 圖片失敗:`, error);
@@ -148,7 +155,9 @@ export function watchMonsters(appId = APP_ID, callback) {
           rank: "None",
           ...data,
           mapImageData: null,
-          hasMap: data.hasMap || false
+          monsterImageData: null,
+          hasMap: data.hasMap || false,
+          hasMonsterImage: data.hasMonsterImage || false
         };
       });
       console.log('Monsters mapped:', monsters.length);
@@ -190,33 +199,42 @@ export async function searchMonsterByName(name, appId = APP_ID) {
  */
 export async function addMonster(monsterData, appId = APP_ID) {
   try {
+    console.log(`[新增怪物] 開始新增 ${monsterData.name}, monsterImageData 大小: ${monsterData.monsterImageData?.length || 0} bytes`);
     const db = getDb();
     const id = `m_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const now = Timestamp.now();
 
-    // 分離地圖數據
-    const { mapImageData, ...restData } = monsterData;
+    // 分離圖片數據
+    const { mapImageData, monsterImageData, ...restData } = monsterData;
 
-    // 保存怪物基礎數據（不含地圖）
+    // 保存怪物基礎數據（不含圖片）
+    console.log(`[新增怪物] 保存根文檔, hasMonsterImage=${!!monsterImageData}`);
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
       id,
       ...restData,
       hasMap: !!mapImageData,
+      hasMonsterImage: !!monsterImageData,
       mapImageUpdatedAt: monsterData.mapImageUpdatedAt || (mapImageData ? now.toDate() : null),
+      monsterImageUpdatedAt: monsterData.monsterImageUpdatedAt || (monsterImageData ? now.toDate() : null),
       createdAt: now,
       updatedAt: now
     });
+    console.log(`[新增怪物] ✓ 根文檔已保存, ID=${id}`);
 
-    // 如果有地圖數據，單獨保存到子集合
-    if (mapImageData) {
+    // 如果有圖片數據，單獨保存到子集合
+    if (mapImageData || monsterImageData) {
+      console.log(`[新增怪物] 保存子集合: 有 mapImageData=${!!mapImageData}, 有 monsterImageData=${!!monsterImageData}, 大小=${monsterImageData?.length || 0} bytes`);
       await setDoc(
         doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id, 'images', 'current'),
         {
           mapImageData: mapImageData || null,
-          updatedAt: monsterData.mapImageUpdatedAt ? (monsterData.mapImageUpdatedAt.toDate ? monsterData.mapImageUpdatedAt.toDate() : new Date(monsterData.mapImageUpdatedAt)) : now,
-          mapImageUpdatedAt: monsterData.mapImageUpdatedAt ? (monsterData.mapImageUpdatedAt.toDate ? monsterData.mapImageUpdatedAt.toDate() : new Date(monsterData.mapImageUpdatedAt)) : now
+          monsterImageData: monsterImageData || null,
+          updatedAt: now,
+          mapImageUpdatedAt: monsterData.mapImageUpdatedAt ? (monsterData.mapImageUpdatedAt.toDate ? monsterData.mapImageUpdatedAt.toDate() : new Date(monsterData.mapImageUpdatedAt)) : (mapImageData ? now.toDate() : null),
+          monsterImageUpdatedAt: monsterData.monsterImageUpdatedAt ? (monsterData.monsterImageUpdatedAt.toDate ? monsterData.monsterImageUpdatedAt.toDate() : new Date(monsterData.monsterImageUpdatedAt)) : (monsterImageData ? now.toDate() : null)
         }
       );
+      console.log(`[新增怪物] ✓ 子集合已保存`);
     }
 
     console.log(`✓ 成功新增怪物: ${monsterData.name}`);
@@ -232,27 +250,36 @@ export async function addMonster(monsterData, appId = APP_ID) {
  */
 export async function updateMonster(monsterId, updates, appId = APP_ID) {
   try {
+    console.log(`[更新怪物] 開始更新 ${monsterId}, monsterImageData 大小: ${updates.monsterImageData?.length || 0} bytes`);
     const db = getDb();
 
-    // 分離地圖數據
-    const { mapImageData, ...restUpdates } = updates;
+    // 分離圖片數據
+    const { mapImageData, monsterImageData, ...restUpdates } = updates;
 
-    // 更新怪物基礎數據（不含地圖）
+    // 更新怪物基礎數據（不含圖片）
     const monsterDocUpdates = {
       ...restUpdates,
       updatedAt: Timestamp.now()
     };
 
     if (mapImageData !== undefined) {
-      // 當 mapImageData 明確傳入時，用它決定 hasMap
       monsterDocUpdates.hasMap = !!mapImageData;
       monsterDocUpdates.mapImageData = deleteField();
       monsterDocUpdates.mapImageUpdatedAt = mapImageData ? (updates.mapImageUpdatedAt ? (updates.mapImageUpdatedAt.toDate ? updates.mapImageUpdatedAt.toDate() : new Date(updates.mapImageUpdatedAt)) : Timestamp.now().toDate()) : null;
     }
 
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId), monsterDocUpdates);
+    if (monsterImageData !== undefined) {
+      console.log(`[更新怪物] 處理 monsterImageData: 有數據=${!!monsterImageData}, 大小=${monsterImageData?.length || 0} bytes`);
+      monsterDocUpdates.hasMonsterImage = !!monsterImageData;
+      monsterDocUpdates.monsterImageData = deleteField();
+      monsterDocUpdates.monsterImageUpdatedAt = monsterImageData ? (updates.monsterImageUpdatedAt ? (updates.monsterImageUpdatedAt.toDate ? updates.monsterImageUpdatedAt.toDate() : new Date(updates.monsterImageUpdatedAt)) : Timestamp.now().toDate()) : null;
+    }
 
-    // 處理地圖數據子集合
+    console.log(`[更新怪物] 更新根文檔, hasMonsterImage=${monsterDocUpdates.hasMonsterImage}`);
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId), monsterDocUpdates);
+    console.log(`[更新怪物] ✓ 根文檔已更新`);
+
+    // 處理圖片數據子集合
     const imagesDocRef = doc(
       db,
       'artifacts',
@@ -265,25 +292,57 @@ export async function updateMonster(monsterId, updates, appId = APP_ID) {
       'current'
     );
 
-    if (mapImageData === '' || mapImageData === null) {
+    // 獲取現有的子集合數據
+    const existingImageSnap = await getDoc(imagesDocRef);
+    const existingData = existingImageSnap.exists() ? existingImageSnap.data() : {};
+    console.log(`[更新怪物] 現有子集合數據: 有 mapImageData=${!!existingData.mapImageData}, 有 monsterImageData=${!!existingData.monsterImageData}`);
+
+    // 準備新的子集合數據
+    const newImageData = {
+      ...existingData,
+      updatedAt: Timestamp.now()
+    };
+
+    if (mapImageData !== undefined) {
+      if (mapImageData === '' || mapImageData === null) {
+        newImageData.mapImageData = null;
+        newImageData.mapImageUpdatedAt = null;
+      } else {
+        newImageData.mapImageData = mapImageData;
+        newImageData.mapImageUpdatedAt = updates.mapImageUpdatedAt ? (updates.mapImageUpdatedAt.toDate ? updates.mapImageUpdatedAt.toDate() : new Date(updates.mapImageUpdatedAt)) : Timestamp.now().toDate();
+      }
+    }
+
+    if (monsterImageData !== undefined) {
+      console.log(`[更新怪物] 設置 newImageData.monsterImageData: 有數據=${!!monsterImageData}, 大小=${monsterImageData?.length || 0} bytes`);
+      if (monsterImageData === '' || monsterImageData === null) {
+        newImageData.monsterImageData = null;
+        newImageData.monsterImageUpdatedAt = null;
+        console.log(`[更新怪物] ➤ 清空 monsterImageData`);
+      } else {
+        newImageData.monsterImageData = monsterImageData;
+        newImageData.monsterImageUpdatedAt = updates.monsterImageUpdatedAt ? (updates.monsterImageUpdatedAt.toDate ? updates.monsterImageUpdatedAt.toDate() : new Date(updates.monsterImageUpdatedAt)) : Timestamp.now().toDate();
+        console.log(`[更新怪物] ➤ 設置 monsterImageData, 大小=${newImageData.monsterImageData.length} bytes, 更新時間=${newImageData.monsterImageUpdatedAt}`);
+      }
+    }
+
+    // 如果有任何圖片數據，保存到子集合；否則考慮刪除
+    if (newImageData.mapImageData || newImageData.monsterImageData) {
+      console.log(`[更新怪物] 保存子集合: 有 mapImageData=${!!newImageData.mapImageData}, 有 monsterImageData=${!!newImageData.monsterImageData}`);
+      await setDoc(imagesDocRef, newImageData);
+      console.log(`[更新怪物] ✓ 子集合已保存`);
+    } else if (existingImageSnap.exists()) {
+      // 如果新數據都被清空且子集合存在，刪除子集合
       try {
+        console.log(`[更新怪物] 刪除空的子集合`);
         await deleteDoc(imagesDocRef);
-        console.log(`✓ 已刪除怪物 ${monsterId} 的地圖數據`);
+        console.log(`✓ 已刪除怪物 ${monsterId} 的圖片數據`);
       } catch (error) {
         if (error.code !== 'not-found') {
-          console.warn(`⚠ 刪除地圖數據時出錯:`, error);
+          console.warn(`⚠ 刪除圖片數據時出錯:`, error);
         }
       }
-    } else if (mapImageData) {
-      await setDoc(imagesDocRef, {
-        mapImageData,
-        updatedAt: Timestamp.now(),
-        mapImageUpdatedAt: updates.mapImageUpdatedAt ? (updates.mapImageUpdatedAt.toDate ? updates.mapImageUpdatedAt.toDate() : new Date(updates.mapImageUpdatedAt)) : Timestamp.now().toDate()
-      });
-    } else {
-      // mapImageData === undefined: 不動 images 子集合，保留現有
     }
-    // 如果都沒有傳遞（undefined），則不動舊數據
 
     console.log(`✓ 成功更新怪物: ${monsterId}`);
   } catch (error) {

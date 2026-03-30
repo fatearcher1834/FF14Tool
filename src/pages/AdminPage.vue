@@ -389,12 +389,15 @@ const deleteMonster = async (monster) => {
 
 const handleSaveMonster = async (monster) => {
   try {
+    console.log('[\u5132\u5b58\u602a\u7269] \u958b\u59cb, \u602a\u7269:', monster.name, 'monsterImageData \u5927\u5c0f:', monster.monsterImageData?.length || 0, 'bytes');
+    
     if (!monster.name || !monster.version) {
       alert('怪物名稱與版本為必填');
       return;
     }
 
     if (monster.id) {
+      console.log('[\u5132\u5b58\u602a\u7269] \u66f4\u65b0\u6a21\u5f0f, ID:', monster.id);
       const updates = {
         name: monster.name,
         version: monster.version,
@@ -407,30 +410,52 @@ const handleSaveMonster = async (monster) => {
       };
 
       if (monster.rank && monster.rank !== 'None') {
+        console.log('[\u5132\u5b58\u602a\u7269] \u52e4\u7d1a \u306f', monster.rank, ', \u5904\u7406\u5b50\u96ac\u4e00');
+        console.log('[\u5132\u5b58\u602a\u7269] mapImageData:', monster.mapImageData ? `${(monster.mapImageData.length / 1024).toFixed(2)}KB` : '\u7a7a', ', hasMap:', monster.hasMap);
+        
+        // 直接根據 mapImageData 是否存在來判斷
         if (monster.mapImageData) {
           updates.mapImageData = monster.mapImageData;
           updates.hasMap = true;
           updates.mapImageUpdatedAt = monster.mapImageUpdatedAt || new Date()
-        } else if (monster.hasMap) {
-          // 保留現有地圖，不在更新中觸發刪除
-          updates.hasMap = true;
-          updates.mapImageUpdatedAt = monster.mapImageUpdatedAt || null
         } else {
           updates.mapImageData = null;
           updates.hasMap = false;
           updates.mapImageUpdatedAt = null
         }
+
+        // 直接根據 monsterImageData 是否存在來判斷
+        if (monster.monsterImageData) {
+          updates.monsterImageData = monster.monsterImageData;
+          updates.hasMonsterImage = true;
+          updates.monsterImageUpdatedAt = monster.monsterImageUpdatedAt || new Date()
+        } else {
+          updates.monsterImageData = null;
+          updates.hasMonsterImage = false;
+          updates.monsterImageUpdatedAt = null
+        }
       } else {
         updates.mapImageData = null;
         updates.hasMap = false;
-        updates.mapImageUpdatedAt = null
+        updates.mapImageUpdatedAt = null;
+        updates.monsterImageData = null;
+        updates.hasMonsterImage = false;
+        updates.monsterImageUpdatedAt = null
       }
 
+      console.log('[儲存怪物] 即將 updateMonster 之前，最終 updates:', {
+        hasMap: updates.hasMap,
+        mapImageData: updates.mapImageData ? `${(updates.mapImageData.length / 1024).toFixed(2)}KB` : 'null',
+        hasMonsterImage: updates.hasMonsterImage,
+        monsterImageData: updates.monsterImageData ? `${(updates.monsterImageData.length / 1024).toFixed(2)}KB` : 'null'
+      });
       await monstersStore.updateMonster(monster.id, updates);
     } else {
+      console.log('[\u5132\u5b58\u602a\u7269] \u65b0\u589e\u6a21\u5f0f');
       const existingByName = monstersStore.monsters.find(m => m.name === monster.name);
 
       if (existingByName) {
+        console.log('[\u5132\u5b58\u602a\u7269] \u627e\u5230\u540c\u540d\u602a\u7269, \u5c07\u66f4\u65b0\u6a21\u5757');
         // 如果同名 monster 已存在，就更新其標籤和座標
         const existingJobs = Array.isArray(existingByName.jobs) ? [...existingByName.jobs] : [];
         const newJobs = Array.isArray(monster.jobs) ? monster.jobs : [];
@@ -467,14 +492,28 @@ const handleSaveMonster = async (monster) => {
             updates.mapImageData = null;
             updates.hasMap = false;
           }
+
+          if (monster.monsterImageData) {
+            console.log('[\u5132\u5b58\u602a\u7269] \u65b0\u589e monsterImageData:', (monster.monsterImageData.length / 1024).toFixed(2), 'KB');
+            updates.monsterImageData = monster.monsterImageData;
+            updates.hasMonsterImage = true;
+          } else if (monster.hasMonsterImage) {
+            updates.hasMonsterImage = true;
+          } else {
+            updates.monsterImageData = null;
+            updates.hasMonsterImage = false;
+          }
         } else {
           updates.mapImageData = null;
           updates.hasMap = false;
+          updates.monsterImageData = null;
+          updates.hasMonsterImage = false;
         }
 
         await monstersStore.updateMonster(existingByName.id, updates);
         return;
       } else {
+        console.log('[\u5132\u5b58\u602a\u7269] \u4e0a\u4f20\u65b0\u602a\u7269 payload');
         const payload = {
           name: monster.name,
           version: monster.version,
@@ -485,9 +524,13 @@ const handleSaveMonster = async (monster) => {
           hasMap: !!monster.mapImageData,
           mapImageUpdatedAt: monster.mapImageUpdatedAt || (monster.mapImageData ? new Date() : null),
           mapImageData: monster.rank && monster.rank !== 'None' ? (monster.mapImageData || null) : null,
+          hasMonsterImage: !!monster.monsterImageData,
+          monsterImageUpdatedAt: monster.monsterImageUpdatedAt || (monster.monsterImageData ? new Date() : null),
+          monsterImageData: monster.rank && monster.rank !== 'None' ? (monster.monsterImageData || null) : null,
           jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
           locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
         };
+        console.log('[\u5132\u5b58\u602a\u7269] payload \u4e2d monsterImageData \u5927\u5c0f:', payload.monsterImageData?.length || 0, 'bytes, hasMonsterImage:', payload.hasMonsterImage);
         await monstersStore.addMonster(payload);
       }
     }
@@ -495,9 +538,10 @@ const handleSaveMonster = async (monster) => {
     await monstersStore.initializeMonsters();
     await refreshMonsters(adminCurrentPage.value);
     editingMonster.value = null;
+    console.log('[\u5132\u5b58\u602a\u7269] \u2713 \u6b63\u5449\u5b8c\u6210');
   } catch (error) {
-    console.error('Save monster failed:', error);
-    alert('儲存怪物失敗');
+    console.error('[\u5132\u5b58\u602a\u7269] \u2717 \u5132\u5b58\u5931\u6555:', error);
+    alert('\u5132\u5b58\u602a\u7269\u5931\u6551');
   }
 };
 

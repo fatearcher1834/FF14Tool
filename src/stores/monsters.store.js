@@ -92,8 +92,16 @@ export const useMonstersStore = defineStore("monsters", () => {
           };
         }
 
-        if (cache && (m.hasMap || m.hasMonsterImage)) {
-          return { ...m, ...cache };
+        if (cache) {
+          return {
+            ...m,
+            mapImageData: m.hasMap ? cache.mapImageData || null : null,
+            mapImageUpdatedAt: m.hasMap ? cache.mapImageUpdatedAt || null : null,
+            monsterImageData: m.hasMonsterImage ? cache.monsterImageData || null : null,
+            monsterImageUpdatedAt: m.hasMonsterImage ? cache.monsterImageUpdatedAt || null : null,
+            hasMap: !!m.hasMap,
+            hasMonsterImage: !!m.hasMonsterImage
+          };
         }
 
         return m;
@@ -141,15 +149,18 @@ export const useMonstersStore = defineStore("monsters", () => {
             };
           }
 
-          // 否則保留 existing 緩存，若 item 自帶為 null 則會繼續使用 cache
+          // 否則根據 hasMap/hasMonsterImage 使用新數據或緩存，若服務端已刪除則清空本地緩存
+          const hasMap = !!item.hasMap;
+          const hasMonsterImage = !!item.hasMonsterImage;
+
           return {
             ...item,
-            mapImageData: item.mapImageData !== null && item.mapImageData !== undefined ? item.mapImageData : existing.mapImageData,
-            mapImageUpdatedAt: item.mapImageUpdatedAt || existing.mapImageUpdatedAt,
-            monsterImageData: item.monsterImageData !== null && item.monsterImageData !== undefined ? item.monsterImageData : existing.monsterImageData,
-            monsterImageUpdatedAt: item.monsterImageUpdatedAt || existing.monsterImageUpdatedAt,
-            hasMap: item.hasMap !== undefined ? item.hasMap : existing.hasMap,
-            hasMonsterImage: item.hasMonsterImage !== undefined ? item.hasMonsterImage : existing.hasMonsterImage
+            mapImageData: hasMap ? (item.mapImageData !== null && item.mapImageData !== undefined ? item.mapImageData : existing.mapImageData) : null,
+            mapImageUpdatedAt: hasMap ? (item.mapImageUpdatedAt || existing.mapImageUpdatedAt) : null,
+            monsterImageData: hasMonsterImage ? (item.monsterImageData !== null && item.monsterImageData !== undefined ? item.monsterImageData : existing.monsterImageData) : null,
+            monsterImageUpdatedAt: hasMonsterImage ? (item.monsterImageUpdatedAt || existing.monsterImageUpdatedAt) : null,
+            hasMap,
+            hasMonsterImage
           };
         }
         return item;
