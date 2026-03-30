@@ -262,44 +262,31 @@ export const useMonstersStore = defineStore("monsters", () => {
   };
 
   const loadMonsterImageData = async (monsterId) => {
-    const target = monsters.value.find(m => m.id === monsterId);
-    if (!target) return null;
-
-    // 優先從 localStorage session cache 讀取，避免每次編輯都重 DB
-    const cache = getMonsterMapCache(monsterId);
-    if (cache && cache.mapImageData) {
-      target.mapImageData = cache.mapImageData;
-      target.mapImageUpdatedAt = normalizeDateTime(cache.mapImageUpdatedAt);
-      target.hasMap = cache.hasMap !== undefined ? cache.hasMap : true;
-      return target;
-    }
-
     try {
+      console.log(`[Store] 加載怪物 ${monsterId} 的圖片數據...`);
       const imageData = await db.getMonsterImageDataById(monsterId, APP_ID);
+      
       if (imageData) {
-        target.mapImageData = imageData.mapImageData || target.mapImageData || null;
-        target.mapImageUpdatedAt = imageData.mapImageUpdatedAt || target.mapImageUpdatedAt || null;
-        target.monsterImageData = imageData.monsterImageData || target.monsterImageData || null;
-        target.monsterImageUpdatedAt = imageData.monsterImageUpdatedAt || target.monsterImageUpdatedAt || null;
-        target.hasMap = !!target.mapImageData || Boolean(target.mapImageUpdatedAt);
-        target.hasMonsterImage = !!target.monsterImageData || Boolean(target.monsterImageUpdatedAt);
-
-        if (target.mapImageData || target.monsterImageData) {
-          setMonsterMapCache(monsterId, {
-            mapImageData: target.mapImageData,
-            mapImageUpdatedAt: target.mapImageUpdatedAt,
-            monsterImageData: target.monsterImageData,
-            monsterImageUpdatedAt: target.monsterImageUpdatedAt,
-            hasMap: target.hasMap,
-            hasMonsterImage: target.hasMonsterImage
-          });
-        } else {
-          removeMonsterMapCache(monsterId);
+        console.log(`[Store] ✓ 成功加載圖片數據：mapImageData=${!!imageData.mapImageData}, monsterImageData=${!!imageData.monsterImageData}`);
+        
+        // 更新 monsters.value 中的數據
+        const target = monsters.value.find(m => m.id === monsterId);
+        if (target) {
+          target.mapImageData = imageData.mapImageData;
+          target.mapImageUpdatedAt = imageData.mapImageUpdatedAt;
+          target.monsterImageData = imageData.monsterImageData;
+          target.monsterImageUpdatedAt = imageData.monsterImageUpdatedAt;
+          target.hasMap = imageData.hasMap;
+          target.hasMonsterImage = imageData.hasMonsterImage;
         }
+        
+        return imageData;
       }
-      return target;
+      
+      console.warn(`[Store] 怪物 ${monsterId} 無圖片數據`);
+      return null;
     } catch (err) {
-      console.error(`✗ 加載怪物 ${monsterId} 圖片資杻失敗:`, err);
+      console.error(`✗ 加載怪物 ${monsterId} 圖片失敗:`, err);
       return null;
     }
   };

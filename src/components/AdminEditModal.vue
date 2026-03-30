@@ -397,12 +397,17 @@ onMounted(async () => {
   const updated = await monstersStore.loadMonsterImageData(form.value.id)
 
   if (updated) {
-    if (updated.mapImageData) {
+    // 只有當 form 中沒有新數據時（空字符串），才從 DB 加載舊數據
+    // 這樣用戶新貼上的圖片就不會被舊數據覆蓋
+    if (!form.value.mapImageData && updated.mapImageData) {
       form.value.mapImageData = updated.mapImageData
+      console.log('[編輯模態] 載入地圖圖片');
     }
     form.value.mapImageUpdatedAt = normalizeDateTime(updated.mapImageUpdatedAt)
-    if (updated.monsterImageData) {
+    
+    if (!form.value.monsterImageData && updated.monsterImageData) {
       form.value.monsterImageData = updated.monsterImageData
+      console.log('[編輯模態] 載入怪物照片');
     }
     form.value.monsterImageUpdatedAt = normalizeDateTime(updated.monsterImageUpdatedAt)
   }
