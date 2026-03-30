@@ -60,14 +60,25 @@
               :src="form.mapImageData"
               alt="預覽"
               class="absolute inset-0 m-auto max-h-full max-w-full"
-            />            <button
+            />
+            <button
               v-if="form.mapImageData"
               @click.prevent="clearMapImage"
               class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
             >
               移除圖片
-            </button>          </div>
+            </button>
+          </div>
         </div>
+
+        <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
+          <input
+            v-model="form.triggerCondition"
+            class="w-full p-3 bg-white border rounded-2xl font-bold text-xs outline-none "
+            placeholder="觸發條件"
+          />
+        </div>
+
         <!-- 討伐筆記 -->
         <div class="flex flex-wrap gap-2 items-center">
           <div
@@ -273,8 +284,7 @@ const form = ref({
   jobs: Array.isArray(props.monster.jobs) ? [...props.monster.jobs] : [],
   version: props.monster.version || VERSIONS[0],
   mapImageUrl: props.monster.mapImageUrl || '',
-  mapImageData: props.monster.mapImageData || '',
-  locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
+  mapImageData: props.monster.mapImageData || '',  triggerCondition: props.monster.triggerCondition || '',  locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
 })
 const matchAccuracy = ref(90)
 

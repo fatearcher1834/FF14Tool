@@ -15,7 +15,8 @@
             <WantedTag :is-wanted="monster?.isWanted" />
             <JobTag :jobs="monster?.jobs || []" />
           </div>
-          <p class="text-[12px] text-slate-500">地圖位置：{{ location?.map || '未知' }}</p>
+          <p class="text-[14px] text-slate-500">地圖位置：{{ location?.map || '未知' }}</p>
+          <p v-if="monster?.triggerCondition" class="text-[14px] text-amber-600">觸發條件：<br>{{ monster.triggerCondition }}</p>
         </div>
         <button
           @click="$emit('close')"
@@ -24,18 +25,17 @@
           <X size="14" />
         </button>
       </div>
-      <div class="bg-slate-100 rounded-lg border p-2 overflow-auto h-[calc(100vh-8rem)]">
+      <div class="bg-slate-100 rounded-lg border p-2 overflow-auto max-h-[calc(100vh-9rem)]">
         <template v-if="monster?.mapImageData || monster?.mapImageUrl">
           <div
-            class="block max-w-none mx-auto mt-2 rounded cursor-pointer"
-            style="max-height: calc(100vh - 11rem);"
+            class="block w-full mx-auto mt-2 rounded cursor-pointer flex justify-center"
             @click.prevent="handleOpenMap"
           >
             <img
               :src="monster?.mapImageData || monster?.mapImageUrl"
               alt="地圖圖片"
-              class="block max-w-none mx-auto rounded"
-              style="max-height: calc(100vh - 11rem);"
+              class="max-h-[calc(100vh-12rem)] max-w-full rounded"
+              style="height: auto; width: auto;"
             />
           </div>
         </template>
