@@ -54,7 +54,13 @@
             tabindex="0"
             @paste.prevent="handleBatchImagePaste($event)"
           >
-            <div v-if="!form.mapImageData">按 Ctrl+V 貼上圖片</div>
+            <div v-if="!form.mapImageData && !form.hasMap">按 Ctrl+V 貼上圖片</div>
+            <div v-else-if="!form.mapImageData && form.hasMap" class="text-yellow-600 text-xs text-left">
+              已存在地圖資料
+              <template v-if="form.mapImageUpdatedAt">
+                （更新時間：{{ form.mapImageUpdatedAt.toLocaleString() }})
+              </template>
+            </div>
             <img
               v-if="form.mapImageData"
               :src="form.mapImageData"
@@ -62,7 +68,7 @@
               class="absolute inset-0 m-auto max-h-full max-w-full"
             />
             <button
-              v-if="form.mapImageData"
+              v-if="form.mapImageData || form.hasMap"
               @click.prevent="clearMapImage"
               class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
             >
@@ -243,6 +249,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useMonstersStore } from '@/stores/monsters.store'
 import { X } from 'lucide-vue-next'
 import { GAME_VERSIONS, MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS } from '@/config/constants'
 import { DUNGEON_MAPS_SIMPLE_MAP, simplifiedToTraditional, simplifiedJobBaseMap } from '@/config/locale-translation'
@@ -275,6 +282,21 @@ const normalizeLocations = (locations = [], version = VERSIONS[0]) => {
   }))
 }
 
+const normalizeDateTime = (val) => {
+  if (!val) return null
+  if (typeof val === 'string' || typeof val === 'number') {
+    const d = new Date(val)
+    return isNaN(d.getTime()) ? null : d
+  }
+  if (val.toDate && typeof val.toDate === 'function') {
+    return val.toDate()
+  }
+  if (val instanceof Date) {
+    return val
+  }
+  return null
+}
+
 const form = ref({
   id: props.monster.id || null,
   name: props.monster.name || '',
@@ -283,8 +305,11 @@ const form = ref({
   isWanted: props.monster.isWanted || false,
   jobs: Array.isArray(props.monster.jobs) ? [...props.monster.jobs] : [],
   version: props.monster.version || VERSIONS[0],
-  mapImageUrl: props.monster.mapImageUrl || '',
-  mapImageData: props.monster.mapImageData || '',  triggerCondition: props.monster.triggerCondition || '',  locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
+  mapImageData: props.monster.mapImageData || '',
+  hasMap: Boolean(props.monster.mapImageData) || Boolean(props.monster.hasMap),
+  mapImageUpdatedAt: normalizeDateTime(props.monster.mapImageUpdatedAt),
+  triggerCondition: props.monster.triggerCondition || '',
+  locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
 })
 const matchAccuracy = ref(90)
 
@@ -293,9 +318,24 @@ const closeModal = () => {
   emit('close')
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (modalRef.value) {
     modalRef.value.focus()
+  }
+
+  // 只有在無 mapImageData 也無 hasMap 時，才嘗試向 DB 加載舊圖。
+  if (!form.value.mapImageData && !form.value.hasMap && form.value.id) {
+    const monstersStore = useMonstersStore()
+    const updated = await monstersStore.loadMonsterImageData(form.value.id)
+    if (updated && updated.mapImageData) {
+      form.value.mapImageData = updated.mapImageData
+      form.value.mapImageUpdatedAt = updated.mapImageUpdatedAt || null
+      form.value.hasMap = true
+    }
+    else if (updated && updated.hasMap) {
+      form.value.hasMap = true
+      form.value.mapImageUpdatedAt = updated.mapImageUpdatedAt || null
+    }
   }
 })
 const showJobPicker = ref(false)
@@ -332,6 +372,8 @@ const readFileAsDataURL = (file) => {
 
 const clearMapImage = () => {
   form.value.mapImageData = ''
+  form.value.hasMap = false
+  form.value.mapImageUpdatedAt = null
 }
 
 const fuzzyMapMatch = (rawMap) => {
@@ -537,7 +579,8 @@ const handleBatchImagePaste = async (event) => {
       try {
         const dataUrl = await readFileAsDataURL(file)
         form.value.mapImageData = dataUrl
-        form.value.mapImageUrl = ''
+        form.value.hasMap = true
+        form.value.mapImageUpdatedAt = new Date()
       } catch (error) {
         console.error('貼上圖片失敗', error)
         alert('貼上圖片失敗，請稍後再試。')

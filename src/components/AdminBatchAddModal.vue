@@ -154,9 +154,6 @@
               <div v-if="typeof entry !== 'string' && entry.otherLocations && entry.otherLocations.length > 0" class="text-xs text-amber-500 mt-1">
                 其他版本（副本）：<span v-for="(d, di) in entry.otherLocations" :key="di" class="mr-2">{{ d }}</span>
               </div>
-              <div v-if="config.mapImageUrl && config.rank !== 'None'" class="text-xs text-emerald-500 mt-1">
-                地圖圖片 URL：<a :href="config.mapImageUrl" class="underline" target="_blank" rel="noopener">查看</a>
-              </div>
             </div>
             <div v-if="bulkParsedList.length === 0" class="text-slate-500 text-center py-8 text-xs">輸入名稱後會在此預覽</div>
           </div>
@@ -212,7 +209,6 @@ const config = ref({
   rank: 'None',
   isFate: false,
   isWanted: false,
-  mapImageUrl: '',
   mapImageData: '',
   jobs: []
 })
@@ -269,7 +265,6 @@ const handleBatchMapImageFileChange = async (e) => {
   try {
     const dataUrl = await readFileAsDataURL(file)
     config.value.mapImageData = dataUrl
-    config.value.mapImageUrl = ''
   } catch (error) {
     console.error('載入地圖圖片失敗', error)
     alert('載入地圖圖片失敗，請重試。')
@@ -289,7 +284,6 @@ const handleBatchImagePaste = async (event) => {
       try {
         const dataUrl = await readFileAsDataURL(file)
         config.value.mapImageData = dataUrl
-        config.value.mapImageUrl = ''
       } catch (error) {
         console.error('貼上圖片失敗', error)
         alert('貼上圖片失敗，請稍後再試。')
@@ -607,7 +601,6 @@ const submit = async () => {
             rank: config.value.rank || existing.rank || 'None',
             isFate: existing.isFate || config.value.isFate,
             isWanted: existing.isWanted || config.value.isWanted,
-            mapImageUrl: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageUrl || existing.mapImageUrl || null) : null,
             mapImageData: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageData || existing.mapImageData || null) : null,
             jobs: mergeJobs.length > 0 ? mergeJobs : null,
             locations: updatedLocations.length > 0 ? updatedLocations : [],
@@ -624,7 +617,6 @@ const submit = async () => {
           rank: config.value.rank,
           isFate: config.value.isFate,
           isWanted: config.value.isWanted,
-          mapImageUrl: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageUrl || null) : null,
           mapImageData: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageData || null) : null,
           jobs: entryJobs.length > 0 ? entryJobs : null,
           locations: entryLocations.length > 0 ? entryLocations : [],

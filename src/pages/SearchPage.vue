@@ -607,7 +607,7 @@ const handleOpenLocationMap = async (monster, loc) => {
   mapModal.value.location = loc
 
   // 動態加載地圖圖片：避免一開始載入大量 Base64
-  if (!monster.mapImageData && !monster.mapImageUrl) {
+  if (!monster.mapImageData) {
     const updated = await monstersStore.loadMonsterImageData(monster.id)
     if (updated && mapModal.value.monster?.id === monster.id) {
       mapModal.value.monster = updated
@@ -623,9 +623,12 @@ const openMapInNewTab = (src) => {
   if (!w) return
 
   const title = mapModal.value.monster?.name || '地圖'
-  const escapedSrc = src.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-  w.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>body{margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;}img{max-width:100vw;max-height:100vh;object-fit:contain;}</style></head><body><img src="${escapedSrc}" alt="${title}"/></body></html>`)
+  w.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>body{margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;}img{max-width:100vw;max-height:100vh;object-fit:contain;}</style></head><body><img id="mapImage" alt="${title}"/></body></html>`)
   w.document.close()
+
+  // 直接 DOM 賦值，避免 URL 編碼/轉義導致 data URL 或特殊 URL 錯誤
+  const img = w.document.getElementById('mapImage')
+  if (img) img.src = src
 }
 
 const handleCloseMapModal = () => {

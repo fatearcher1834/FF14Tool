@@ -26,21 +26,24 @@
         </button>
       </div>
       <div class="bg-slate-100 rounded-lg border p-2 overflow-auto max-h-[calc(100vh-9rem)]">
-        <template v-if="monster?.mapImageData || monster?.mapImageUrl">
+        <template v-if="monster?.mapImageData">
           <div
             class="block w-full mx-auto mt-2 rounded cursor-pointer flex justify-center"
             @click.prevent="handleOpenMap"
           >
             <img
-              :src="monster?.mapImageData || monster?.mapImageUrl"
+              :src="monster?.mapImageData"
               alt="地圖圖片"
               class="max-h-[calc(100vh-12rem)] max-w-full rounded"
               style="height: auto; width: auto;"
             />
           </div>
         </template>
+        <template v-else-if="monster?.hasMap">
+          <div class="w-full h-56 flex items-center justify-center text-yellow-600 text-xs">已有地圖資料（尚未載入地圖）</div>
+        </template>
         <template v-else>
-          <div class="w-full h-56 flex items-center justify-center text-slate-400">未設定地圖圖片，或尚在載入中</div>
+          <div class="w-full h-56 flex items-center justify-center text-slate-400">未設定地圖圖片。</div>
         </template>
       </div>
     </div>
@@ -67,7 +70,12 @@ const emit = defineEmits(['close'])
 
 const handleOpenMap = () => {
   if (typeof props.onOpenMap === 'function') {
-    props.onOpenMap(props.monster, props.location)
+    const imageSrc = props.monster?.mapImageData
+    if (imageSrc) {
+      props.onOpenMap(imageSrc)
+    } else {
+      console.warn('沒有可開啟的地圖資訊')
+    }
   }
 }
 </script>

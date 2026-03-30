@@ -137,7 +137,8 @@ export const useMonstersStore = defineStore("monsters", () => {
       const imageData = await db.getMonsterImageDataById(monsterId, APP_ID);
       if (imageData) {
         target.mapImageData = imageData.mapImageData || null;
-        target.mapImageUrl = imageData.mapImageUrl || null;
+        target.mapImageUpdatedAt = imageData.mapImageUpdatedAt || null;
+        target.hasMap = !!imageData.mapImageData;
       }
       return target;
     } catch (err) {

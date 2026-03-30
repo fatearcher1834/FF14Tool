@@ -349,12 +349,13 @@ const newMonster = () => {
     locations: [],
     jobs: [],
     isFate: false,
-    isWanted: false
+    isWanted: false,
+    hasMap: false
   };
 };
 
 const editMonster = (monster) => {
-  editingMonster.value = { ...monster };
+  editingMonster.value = { ...monster, hasMap: Boolean(monster.mapImageData) || Boolean(monster.hasMap) };
 };
 
 const deleteMonster = async (monster) => {
@@ -389,11 +390,30 @@ const handleSaveMonster = async (monster) => {
         isFate: !!monster.isFate,
         isWanted: !!monster.isWanted,
         triggerCondition: monster.triggerCondition || '',
-        mapImageUrl: monster.rank && monster.rank !== 'None' ? (monster.mapImageUrl || null) : null,
-        mapImageData: monster.rank && monster.rank !== 'None' ? (monster.mapImageData || null) : null,
         jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
         locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
       };
+
+      if (monster.rank && monster.rank !== 'None') {
+        if (monster.mapImageData) {
+          updates.mapImageData = monster.mapImageData;
+          updates.hasMap = true;
+          updates.mapImageUpdatedAt = monster.mapImageUpdatedAt || new Date()
+        } else if (monster.hasMap) {
+          // 保留現有地圖，不在更新中觸發刪除
+          updates.hasMap = true;
+          updates.mapImageUpdatedAt = monster.mapImageUpdatedAt || null
+        } else {
+          updates.mapImageData = null;
+          updates.hasMap = false;
+          updates.mapImageUpdatedAt = null
+        }
+      } else {
+        updates.mapImageData = null;
+        updates.hasMap = false;
+        updates.mapImageUpdatedAt = null
+      }
+
       await monstersStore.updateMonster(monster.id, updates);
     } else {
       const existingByName = monstersStore.monsters.find(m => m.name === monster.name);
@@ -416,16 +436,32 @@ const handleSaveMonster = async (monster) => {
           }
         });
 
-        await monstersStore.updateMonster(existingByName.id, {
+        const updates = {
           rank: monster.rank || existingByName.rank || 'None',
           isFate: monster.isFate || existingByName.isFate || false,
           isWanted: monster.isWanted || existingByName.isWanted || false,
           triggerCondition: monster.triggerCondition || existingByName.triggerCondition || '',
-          mapImageUrl: monster.rank && monster.rank !== 'None' ? (monster.mapImageUrl || existingByName.mapImageUrl || null) : null,
-          mapImageData: monster.rank && monster.rank !== 'None' ? (monster.mapImageData || existingByName.mapImageData || null) : null,
           jobs: existingJobs.length > 0 ? existingJobs : null,
           locations: existingLocations.length > 0 ? existingLocations : []
-        });
+        };
+
+        if (monster.rank && monster.rank !== 'None') {
+          if (monster.mapImageData) {
+            updates.mapImageData = monster.mapImageData;
+            updates.hasMap = true;
+          } else if (monster.hasMap) {
+            updates.hasMap = true;
+          } else {
+            updates.mapImageData = null;
+            updates.hasMap = false;
+          }
+        } else {
+          updates.mapImageData = null;
+          updates.hasMap = false;
+        }
+
+        await monstersStore.updateMonster(existingByName.id, updates);
+        return;
       } else {
         const payload = {
           name: monster.name,
@@ -434,7 +470,8 @@ const handleSaveMonster = async (monster) => {
           isFate: !!monster.isFate,
           isWanted: !!monster.isWanted,
           triggerCondition: monster.triggerCondition || '',
-          mapImageUrl: monster.rank && monster.rank !== 'None' ? (monster.mapImageUrl || null) : null,
+          hasMap: !!monster.mapImageData,
+          mapImageUpdatedAt: monster.mapImageUpdatedAt || (monster.mapImageData ? new Date() : null),
           mapImageData: monster.rank && monster.rank !== 'None' ? (monster.mapImageData || null) : null,
           jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
           locations: monster.locations && monster.locations.length > 0 ? monster.locations : []

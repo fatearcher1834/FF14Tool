@@ -54,7 +54,7 @@ export async function getAllMonsters(appId = APP_ID) {
         rank: 'None',
         ...data,
         mapImageData: null,
-        mapImageUrl: null
+        hasMap: data.hasMap || false
       };
     });
   };
@@ -99,7 +99,7 @@ export async function getMonsterImageDataById(monsterId, appId = APP_ID) {
     const data = imageSnap.data();
     return {
       mapImageData: data.mapImageData || null,
-      mapImageUrl: data.mapImageUrl || null
+      mapImageUpdatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)) : null
     };
   } catch (error) {
     console.error(`✗ 讀取怪物 ${monsterId} 圖片失敗:`, error);
@@ -127,7 +127,7 @@ export function watchMonsters(appId = APP_ID, callback) {
           rank: "None",
           ...data,
           mapImageData: null,
-          mapImageUrl: null
+          hasMap: data.hasMap || false
         };
       });
       console.log('Monsters mapped:', monsters.length);
@@ -174,24 +174,26 @@ export async function addMonster(monsterData, appId = APP_ID) {
     const now = Timestamp.now();
 
     // 分離地圖數據
-    const { mapImageData, mapImageUrl, ...restData } = monsterData;
+    const { mapImageData, ...restData } = monsterData;
 
     // 保存怪物基礎數據（不含地圖）
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id), {
       id,
       ...restData,
+      hasMap: !!mapImageData,
+      mapImageUpdatedAt: monsterData.mapImageUpdatedAt || (mapImageData ? now.toDate() : null),
       createdAt: now,
       updatedAt: now
     });
 
     // 如果有地圖數據，單獨保存到子集合
-    if (mapImageData || mapImageUrl) {
+    if (mapImageData) {
       await setDoc(
         doc(db, 'artifacts', appId, 'public', 'data', 'monsters', id, 'images', 'current'),
         {
           mapImageData: mapImageData || null,
-          mapImageUrl: mapImageUrl || null,
-          updatedAt: now
+          updatedAt: monsterData.mapImageUpdatedAt ? (monsterData.mapImageUpdatedAt.toDate ? monsterData.mapImageUpdatedAt.toDate() : new Date(monsterData.mapImageUpdatedAt)) : now,
+          mapImageUpdatedAt: monsterData.mapImageUpdatedAt ? (monsterData.mapImageUpdatedAt.toDate ? monsterData.mapImageUpdatedAt.toDate() : new Date(monsterData.mapImageUpdatedAt)) : now
         }
       );
     }
@@ -212,16 +214,22 @@ export async function updateMonster(monsterId, updates, appId = APP_ID) {
     const db = getDb();
 
     // 分離地圖數據
-    const { mapImageData, mapImageUrl, ...restUpdates } = updates;
+    const { mapImageData, ...restUpdates } = updates;
 
-    // 更新怪物基礎數據（不含地圖）並刪除舊的 mapImageData/mapImageUrl 字段
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId), {
+    // 更新怪物基礎數據（不含地圖）
+    const monsterDocUpdates = {
       ...restUpdates,
-      // 刪除舊字段（遷移用）
-      mapImageData: deleteField(),
-      mapImageUrl: deleteField(),
       updatedAt: Timestamp.now()
-    });
+    };
+
+    if (mapImageData !== undefined) {
+      // 當 mapImageData 明確傳入時，用它決定 hasMap
+      monsterDocUpdates.hasMap = !!mapImageData;
+      monsterDocUpdates.mapImageData = deleteField();
+      monsterDocUpdates.mapImageUpdatedAt = mapImageData ? (updates.mapImageUpdatedAt ? (updates.mapImageUpdatedAt.toDate ? updates.mapImageUpdatedAt.toDate() : new Date(updates.mapImageUpdatedAt)) : Timestamp.now().toDate()) : null;
+    }
+
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId), monsterDocUpdates);
 
     // 處理地圖數據子集合
     const imagesDocRef = doc(
@@ -236,25 +244,23 @@ export async function updateMonster(monsterId, updates, appId = APP_ID) {
       'current'
     );
 
-    // 如果圖片都是空的，刪除舊數據
-    if ((mapImageData === '' || mapImageData === null || mapImageData === undefined) &&
-        (mapImageUrl === '' || mapImageUrl === null || mapImageUrl === undefined)) {
+    if (mapImageData === '' || mapImageData === null) {
       try {
         await deleteDoc(imagesDocRef);
         console.log(`✓ 已刪除怪物 ${monsterId} 的地圖數據`);
       } catch (error) {
-        // 如果文檔不存在也不報錯
         if (error.code !== 'not-found') {
           console.warn(`⚠ 刪除地圖數據時出錯:`, error);
         }
       }
-    } else if (mapImageData !== undefined || mapImageUrl !== undefined) {
-      // 否則有新圖片就保存/更新
+    } else if (mapImageData) {
       await setDoc(imagesDocRef, {
-        mapImageData: mapImageData || null,
-        mapImageUrl: mapImageUrl || null,
-        updatedAt: Timestamp.now()
+        mapImageData,
+        updatedAt: Timestamp.now(),
+        mapImageUpdatedAt: updates.mapImageUpdatedAt ? (updates.mapImageUpdatedAt.toDate ? updates.mapImageUpdatedAt.toDate() : new Date(updates.mapImageUpdatedAt)) : Timestamp.now().toDate()
       });
+    } else {
+      // mapImageData === undefined: 不動 images 子集合，保留現有
     }
     // 如果都沒有傳遞（undefined），則不動舊數據
 
