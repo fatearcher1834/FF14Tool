@@ -286,49 +286,59 @@
         </div>
       </div>
 
-      <div v-if="mapModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="handleCloseMapModal">
-        <div class="bg-white rounded-2xl w-full max-w-2xl p-4 shadow-xl border">
-          <div class="flex justify-between items-center mb-2">
-            <div class="text-left">
-              <div class="flex flex-wrap items-center gap-2 mb-1">
-                <h3 class="text-base font-black text-slate-800">{{ mapModal.monster?.name || '未知怪物' }}</h3>
-                <VersionTag :version="mapModal.monster?.version" />
-                <RankTag :rank="mapModal.monster?.rank" />
-                <FateTag :is-fate="mapModal.monster?.isFate" />
-                <WantedTag :is-wanted="mapModal.monster?.isWanted" />
-                <JobTag :jobs="mapModal.monster?.jobs || []" />
-              </div>
-              <p class="text-[12px] text-slate-500">地圖位置：{{ mapModal.location?.map || '未知' }}</p>
-            </div>
-            <button @click="handleCloseMapModal" class="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:text-slate-800 hover:border-slate-400 transition-colors">
-              <X size="14" />
-            </button>
-          </div>
-          <div class="flex gap-2 mb-2">
-          </div>
-          <div class="bg-slate-100 rounded-lg border p-2 overflow-auto h-[calc(100vh-8rem)]">
-            <template v-if="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl">
-              <div
-                class="block max-w-none mx-auto mt-2 rounded cursor-pointer"
-                style="max-height: calc(100vh - 11rem);"
-                @click.prevent="openMapInNewTab(mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl)"
-              >
-                <img
-                  :src="mapModal.monster?.mapImageData || mapModal.monster?.mapImageUrl"
-                  alt="地圖圖片"
-                  class="block max-w-none mx-auto rounded"
-                  style="max-height: calc(100vh - 11rem);"
-                />
-              </div>
-            </template>
-            <template v-else>
-              <div class="w-full h-56 flex items-center justify-center text-slate-400">未設定地圖圖片，或尚在載入中</div>
-            </template>
-          </div>
-        </div>
-      </div>
+      <MapModal
+        :open="mapModal.open"
+        :monster="mapModal.monster"
+        :location="mapModal.location"
+        :onOpenMap="openMapInNewTab"
+        @close="handleCloseMapModal"
+      />
 
-      <!-- 右邊 - 追蹤看板 -->
+      <KanbanPanel
+        :show="showKanban"
+        :copyMessage="copyMessage"
+        :isKbGlobalExpanded="isKbGlobalExpanded"
+        :kbSearchTerm="kbSearchTerm"
+        :kbFilterVer="kbFilterVer"
+        :kbFilterMap="kbFilterMap"
+        :kbFilterRank="kbFilterRank"
+        :kbFilterFate="kbFilterFate"
+        :kbFilterWanted="kbFilterWanted"
+        :kbFilterJob="kbFilterJob"
+        :showKbJobFilter="showKbJobFilter"
+        :customGroups="customGroups"
+        :userPins="userPins"
+        :expandedIds="expandedIds"
+        :kbFilteredMonsters="kbFilteredMonsters"
+        :dragOverMonsterId="dragOverMonsterId"
+        :copyFeedback="copyFeedback"
+        :getGroupMonsters="getGroupMonsters"
+        @toggle-kb-all-expanded="toggleKbAllExpanded"
+        @close-kanban="showKanban = false"
+        @add-new-group="addNewGroup"
+        @kb-version-change="onKbVersionChange"
+        @toggle-kb-job-filter="toggleKbJobFilter"
+        @group-drop="handleGroupDrop"
+        @update-group-name="updateGroupName"
+        @copy-group-locations="handleCopyGroupLocations"
+        @delete-group="deleteGroup"
+        @monster-drag-start="handleMonsterDragStart"
+        @monster-drag-over="handleMonsterDragOver"
+        @monster-drag-leave="handleMonsterDragLeave"
+        @monster-drop="handleMonsterDrop"
+        @toggle-kb-expanded="toggleKbExpanded"
+        @copy-monster-locations="handleCopyMonsterLocations"
+        @remove-pin="pinsStore.removePin($event, userStore.virtualId)"
+        @monster-location-click="(m, loc, key) => m.rank && m.rank !== 'None' ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, key)"
+        @copy-all-locations="handleCopyAllLocations"
+        @update:kbSearchTerm="val => kbSearchTerm = val"
+        @update:kbFilterVer="val => kbFilterVer = val"
+        @update:kbFilterMap="val => kbFilterMap = val"
+        @update:kbFilterRank="val => kbFilterRank = val"
+        @update:kbFilterFate="val => kbFilterFate = val"
+        @update:kbFilterWanted="val => kbFilterWanted = val"
+        @update:kbFilterJob="val => kbFilterJob = val"
+      />
       <div :class="['absolute right-0 top-0 bottom-0 sm:w-[380px] w-full bg-slate-100 border-l sm:border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 overflow-hidden', showKanban ? 'translate-x-0' : 'translate-x-full']">
         <div v-if="copyMessage" class="absolute top-16 right-4 z-50 px-3 py-1 rounded-lg bg-black/80 text-white text-xs font-bold">
           {{ copyMessage }}
@@ -653,6 +663,8 @@ import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
+import MapModal from '@/components/MapModal.vue'
+import KanbanPanel from '@/components/KanbanPanel.vue'
 
 const userStore = useUserStore()
 const monstersStore = useMonstersStore()
