@@ -290,6 +290,7 @@
         :open="mapModal.open"
         :monster="mapModal.monster"
         :location="mapModal.location"
+        :loading="mapModal.loading"
         :onOpenMap="openMapInNewTab"
         @close="handleCloseMapModal"
       />
@@ -605,13 +606,20 @@ const handleOpenLocationMap = async (monster, loc) => {
   mapModal.value.open = true
   mapModal.value.monster = monster
   mapModal.value.location = loc
+  mapModal.value.loading = !monster.mapImageData
 
   // 動態加載地圖圖片：避免一開始載入大量 Base64
   if (!monster.mapImageData) {
-    const updated = await monstersStore.loadMonsterImageData(monster.id)
-    if (updated && mapModal.value.monster?.id === monster.id) {
-      mapModal.value.monster = updated
+    try {
+      const updated = await monstersStore.loadMonsterImageData(monster.id)
+      if (updated && mapModal.value.monster?.id === monster.id) {
+        mapModal.value.monster = updated
+      }
+    } finally {
+      mapModal.value.loading = false
     }
+  } else {
+    mapModal.value.loading = false
   }
 
   console.log('Opening map modal for', monster)
@@ -720,7 +728,8 @@ const copyMessage = ref('')
 const mapModal = ref({
   open: false,
   monster: null,
-  location: null
+  location: null,
+  loading: false
 })
 
 // 自訂分組

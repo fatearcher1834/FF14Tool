@@ -26,7 +26,10 @@
         </button>
       </div>
       <div class="bg-slate-100 rounded-lg border p-2 overflow-auto max-h-[calc(100vh-9rem)]">
-        <template v-if="monster?.mapImageData">
+        <template v-if="props.loading">
+          <div class="w-full h-56 flex items-center justify-center text-blue-500">載入地圖中...</div>
+        </template>
+        <template v-else-if="monster?.mapImageData">
           <div
             class="block w-full mx-auto mt-2 rounded cursor-pointer flex justify-center"
             @click.prevent="handleOpenMap"
@@ -63,6 +66,7 @@ const props = defineProps({
   open: Boolean,
   monster: Object,
   location: Object,
+  loading: Boolean,
   onOpenMap: Function
 })
 
