@@ -54,12 +54,21 @@
             tabindex="0"
             @paste.prevent="handleBatchImagePaste($event)"
           >
-            <div v-if="!form.mapImageData && !form.hasMap">按 Ctrl+V 貼上圖片</div>
+            <div v-if="!form.mapImageData && !form.hasMap" class="text-slate-500 text-xs">
+              尚未設定地圖
+            </div>
             <div v-else-if="!form.mapImageData && form.hasMap" class="text-yellow-600 text-xs text-left">
               已存在地圖資料
               <template v-if="form.mapImageUpdatedAt">
-                （更新時間：{{ form.mapImageUpdatedAt.toLocaleString() }})
+                （更新時間：{{ form.mapImageUpdatedAt.toLocaleString() }}）
               </template>
+              <button
+                @click.prevent="loadMapImageDataNow"
+                class="mt-1 px-2 py-1 text-[10px] bg-blue-600 text-white rounded"
+                :disabled="isLoadingMap"
+              >
+                {{ isLoadingMap ? '載入中...' : '手動載入地圖' }}
+              </button>
             </div>
             <img
               v-if="form.mapImageData"
@@ -98,7 +107,7 @@
             </button>
           </div>
           <button
-            @click="showJobPicker = true"
+            @click="isJobPickerVisible = true"
             class="px-3 py-1 rounded-full text-xs font-black border border-dashed border-blue-300 text-blue-600 hover:bg-blue-50"
           >
             + 討伐筆記
@@ -106,32 +115,32 @@
         </div>
 
         <!-- 討伐筆記九宮格選擇器 -->
-        <div v-if="showJobPicker" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+        <div v-if="isJobPickerVisible" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
           <div class="bg-white rounded-[2rem] w-full max-w-md p-6 space-y-5 shadow-2xl">
             <div class="flex justify-between items-center">
               <h4 class="text-lg font-black text-slate-900">選擇討伐筆記</h4>
-              <button @click="showJobPicker = false; selectedJobBase = null; selectedJobLevel = null" class="p-1 bg-slate-100 rounded-full hover:bg-slate-200">
+              <button @click="isJobPickerVisible = false; jobPickerBase = null; jobPickerLevel = null" class="p-1 bg-slate-100 rounded-full hover:bg-slate-200">
                 <X :size="18" />
               </button>
             </div>
             <!-- 職業九宮格 -->
-            <div v-if="!selectedJobBase" class="space-y-3">
+            <div v-if="!jobPickerBase" class="space-y-3">
               <div class="grid grid-cols-3 gap-2">
-                <button v-for="job in JOB_BASE_NAMES" :key="job" @click="selectedJobBase = job" class="py-3 px-2 bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white rounded-xl text-xs font-bold transition-all">
+                <button v-for="job in JOB_BASE_NAMES" :key="job" @click="jobPickerBase = job" class="py-3 px-2 bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white rounded-xl text-xs font-bold transition-all">
                   {{ job }}
                 </button>
               </div>
             </div>
             <!-- 編號格子選擇 -->
-            <div v-if="selectedJobBase" class="space-y-3">
+            <div v-if="jobPickerBase" class="space-y-3">
               <div class="flex items-center gap-2">
-                <button @click="selectedJobBase = null" class="p-1 hover:bg-slate-100 rounded transition-colors">
+                <button @click="jobPickerBase = null" class="p-1 hover:bg-slate-100 rounded transition-colors">
                   <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                 </button>
-                <h5 class="text-sm font-black text-slate-900">{{ selectedJobBase }} - 選擇層級 (1~50)</h5>
+                <h5 class="text-sm font-black text-slate-900">{{ jobPickerBase }} - 選擇層級 (1~50)</h5>
               </div>
               <div class="grid grid-cols-5 gap-1 max-h-48 overflow-y-auto">
-                <button v-for="level in 50" :key="level" @click="confirmJobWithLevel(selectedJobBase, level)" :class="['py-2 px-1 rounded-lg text-[10px] font-black transition-all', selectedJobLevel === level ? 'bg-blue-600 text-white' : 'bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white']">
+                <button v-for="level in 50" :key="level" @click="confirmJobWithLevel(jobPickerBase, level)" :class="['py-2 px-1 rounded-lg text-[10px] font-black transition-all', jobPickerLevel === level ? 'bg-blue-600 text-white' : 'bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white']">
                   {{ level }}
                 </button>
               </div>
@@ -306,8 +315,8 @@ const form = ref({
   jobs: Array.isArray(props.monster.jobs) ? [...props.monster.jobs] : [],
   version: props.monster.version || VERSIONS[0],
   mapImageData: props.monster.mapImageData || '',
-  hasMap: Boolean(props.monster.mapImageData) || Boolean(props.monster.hasMap),
-  mapImageUpdatedAt: normalizeDateTime(props.monster.mapImageUpdatedAt),
+  hasMap: Boolean(props.monster.mapImageData) || Boolean(props.monster.hasMap) || Boolean(props.monster.mapImageUpdatedAt),
+  mapImageUpdatedAt: normalizeDateTime(props.monster.mapImageUpdatedAt || props.monster.updatedAt),
   triggerCondition: props.monster.triggerCondition || '',
   locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
 })
@@ -318,28 +327,57 @@ const closeModal = () => {
   emit('close')
 }
 
+const isManualLoadMap = ref(false)
+const isLoadingMap = ref(false)
+
+const loadMapImageDataNow = async () => {
+  if (!form.value.id) return
+  isLoadingMap.value = true
+  try {
+    const monstersStore = useMonstersStore()
+    const updated = await monstersStore.loadMonsterImageData(form.value.id)
+    if (updated) {
+      if (updated.mapImageData) {
+        form.value.mapImageData = updated.mapImageData
+      }
+      form.value.mapImageUpdatedAt = updated.mapImageUpdatedAt || form.value.mapImageUpdatedAt
+      form.value.hasMap = true
+      isManualLoadMap.value = true
+    }
+  } finally {
+    isLoadingMap.value = false
+  }
+}
+
 onMounted(async () => {
   if (modalRef.value) {
     modalRef.value.focus()
   }
 
-  // 只有在無 mapImageData 也無 hasMap 時，才嘗試向 DB 加載舊圖。
-  if (!form.value.mapImageData && !form.value.hasMap && form.value.id) {
-    const monstersStore = useMonstersStore()
-    const updated = await monstersStore.loadMonsterImageData(form.value.id)
-    if (updated && updated.mapImageData) {
-      form.value.mapImageData = updated.mapImageData
-      form.value.mapImageUpdatedAt = updated.mapImageUpdatedAt || null
-      form.value.hasMap = true
-    }
-    else if (updated && updated.hasMap) {
-      form.value.hasMap = true
-      form.value.mapImageUpdatedAt = updated.mapImageUpdatedAt || null
-    }
+  if (!form.value.id) {
+    return
+  }
+
+  const monstersStore = useMonstersStore()
+
+  // 先從本地 store 讀 metadata (不靠 mapImageData)
+  const cached = monstersStore.getMonsterById(form.value.id)
+  if (cached) {
+    form.value.hasMap = form.value.hasMap || Boolean(cached.hasMap)
+    form.value.mapImageUpdatedAt = form.value.mapImageUpdatedAt || cached.mapImageUpdatedAt || form.value.mapImageUpdatedAt
+  }
+
+  // 再從子集合/遠端查一次，僅更新 hasMap/time
+  const updated = await monstersStore.loadMonsterImageData(form.value.id)
+
+  if (updated) {
+    form.value.hasMap = form.value.hasMap || Boolean(updated.hasMap)
+    form.value.mapImageUpdatedAt = form.value.mapImageUpdatedAt || updated.mapImageUpdatedAt
   }
 })
-const showJobPicker = ref(false)
-const selectedJobBase = ref(null)
+const isJobPickerVisible = ref(false)
+const jobPickerBase = ref(null)
+const jobPickerLevel = ref(null)
 
 // 比照批量新增九宮格選擇器
 const removeJob = (idx) => {
@@ -347,7 +385,7 @@ const removeJob = (idx) => {
 }
 
 const selectJobBase = (job) => {
-  selectedJobBase.value = job
+  jobPickerBase.value = job
 }
 
 const confirmJobWithLevel = (jobBase, level) => {
@@ -357,8 +395,9 @@ const confirmJobWithLevel = (jobBase, level) => {
       form.value.jobs.push(fullJob)
     }
   }
-  showJobPicker.value = false
-  selectedJobBase.value = null
+  isJobPickerVisible.value = false
+  jobPickerBase.value = null
+  jobPickerLevel.value = null
 }
 
 const readFileAsDataURL = (file) => {

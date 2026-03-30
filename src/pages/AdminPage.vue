@@ -354,8 +354,20 @@ const newMonster = () => {
   };
 };
 
-const editMonster = (monster) => {
-  editingMonster.value = { ...monster, hasMap: Boolean(monster.mapImageData) || Boolean(monster.hasMap) };
+const editMonster = async (monster) => {
+  // 先向子集合同步一次，但編輯頁保留原始 mapImageData（避免自動變為圖片）
+  const updated = await monstersStore.loadMonsterImageData(monster.id)
+
+  const mapImageData = '' // 管理頁預設不帶圖，僅顯示 state/時間
+  const mapImageUpdatedAt = monster.mapImageUpdatedAt || monster.updatedAt || updated?.mapImageUpdatedAt || null
+  const hasMap = Boolean(monster.hasMap) || Boolean(updated?.hasMap) || Boolean(mapImageUpdatedAt)
+
+  editingMonster.value = {
+    ...monster,
+    mapImageData,
+    hasMap,
+    mapImageUpdatedAt
+  };
 };
 
 const deleteMonster = async (monster) => {

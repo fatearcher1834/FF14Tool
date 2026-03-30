@@ -99,7 +99,8 @@ export async function getMonsterImageDataById(monsterId, appId = APP_ID) {
     const data = imageSnap.data();
     return {
       mapImageData: data.mapImageData || null,
-      mapImageUpdatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)) : null
+      mapImageUpdatedAt: data.mapImageUpdatedAt ? (data.mapImageUpdatedAt.toDate ? data.mapImageUpdatedAt.toDate() : new Date(data.mapImageUpdatedAt)) : (data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)) : null),
+      hasMap: true
     };
   } catch (error) {
     console.error(`✗ 讀取怪物 ${monsterId} 圖片失敗:`, error);
