@@ -4,7 +4,8 @@
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
     @keydown.esc="closeModal"
-    @click.self="closeModal"
+    @mousedown="handleOverlayMouseDown"
+    @click.self="handleOverlayClick"
   >
     <div class="bg-white rounded-[2.5rem] w-full max-w-4xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh]">
       <div class="flex justify-between items-center">
@@ -213,6 +214,8 @@ const config = ref({
   jobs: []
 })
 
+const overlayMouseDownOnSelf = ref(false)
+
 const normalizeJobName = (name) => {
   if (!name) return name
   const normalized = (name || '').trim()
@@ -224,6 +227,28 @@ const normalizeJobName = (name) => {
 
 const closeModal = () => {
   emit('close')
+}
+
+const handleOverlayMouseDown = (event) => {
+  overlayMouseDownOnSelf.value = event.target === event.currentTarget
+}
+
+const handleOverlayClick = (event) => {
+  if (!overlayMouseDownOnSelf.value) {
+    overlayMouseDownOnSelf.value = false
+    return
+  }
+
+  if (typeof window !== 'undefined') {
+    const selection = window.getSelection?.()
+    if (selection && selection.type === 'Range') {
+      overlayMouseDownOnSelf.value = false
+      return
+    }
+  }
+
+  overlayMouseDownOnSelf.value = false
+  closeModal()
 }
 
 onMounted(() => {
@@ -299,6 +324,17 @@ const handleBatchImagePaste = async (event) => {
 const coordPattern = /([Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?))\s*/g
 const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
 
+const getVersionByMap = (mapName) => {
+  if (!mapName) return null
+  const normalized = mapName.trim()
+  for (const [version, maps] of Object.entries(MAP_DATA)) {
+    if (maps.includes(normalized)) {
+      return version
+    }
+  }
+  return null
+}
+
 const findMapFromText = (text) => {
   const normalized = utilSimplifiedToTraditional(text || '').replace(/\s+/g, '').toLowerCase()
   if (!normalized) return ''
@@ -343,6 +379,11 @@ const parseLocationsFromLine = (line) => {
     }
     const map = findMapFromText(mapCandidate)
     if (!map) continue
+
+    const locationVersion = getVersionByMap(map)
+    if (locationVersion && config.value.version !== locationVersion) {
+      config.value.version = locationVersion
+    }
 
     locations.push({ map, x, y, type: 'map' })
   }
@@ -452,6 +493,13 @@ const parseNames = () => {
         .trim()
 
       if (!line) continue
+
+      if (/通緝令/i.test(line)) {
+        config.value.isWanted = true
+      }
+      if (/命運|fate/i.test(line)) {
+        config.value.isFate = true
+      }
 
       const jobs = parseJobTagsFromLine(line)
       const locations = parseLocationsFromLine(line)

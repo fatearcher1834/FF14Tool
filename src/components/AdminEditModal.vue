@@ -4,7 +4,8 @@
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
     @keydown.esc="closeModal"
-    @click.self="closeModal"
+    @mousedown="handleOverlayMouseDown"
+    @click.self="handleOverlayClick"
   >
     <div class="bg-white rounded-[2.5rem] w-full max-w-lg p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div class="flex justify-between items-center">
@@ -336,9 +337,32 @@ const form = ref({
 })
 const matchAccuracy = ref(90)
 
+const overlayMouseDownOnSelf = ref(false)
 
 const closeModal = () => {
   emit('close')
+}
+
+const handleOverlayMouseDown = (event) => {
+  overlayMouseDownOnSelf.value = event.target === event.currentTarget
+}
+
+const handleOverlayClick = (event) => {
+  if (!overlayMouseDownOnSelf.value) {
+    overlayMouseDownOnSelf.value = false
+    return
+  }
+
+  if (typeof window !== 'undefined') {
+    const selection = window.getSelection?.()
+    if (selection && selection.type === 'Range') {
+      overlayMouseDownOnSelf.value = false
+      return
+    }
+  }
+
+  overlayMouseDownOnSelf.value = false
+  closeModal()
 }
 
 const isManualLoadMap = ref(false)
@@ -505,6 +529,17 @@ const fuzzyMapMatch = (rawMap) => {
   return includes || rawMap
 }
 
+const getVersionByMap = (mapName) => {
+  if (!mapName) return null
+  const normalized = mapName.trim()
+  for (const [version, maps] of Object.entries(MAP_DATA)) {
+    if (maps.includes(normalized)) {
+      return version
+    }
+  }
+  return null
+}
+
 const extractLocationFromLine = (line) => {
   // 優先處理制表符分隔資料（人為輸入可能包含多欄）
   const parts = line.split(/\t+/).map(p => p.trim()).filter(Boolean)
@@ -638,6 +673,13 @@ const handleBatchParse = (text) => {
   let currentJobTag = null
 
   lines.forEach(line => {
+    if (/通緝令/i.test(line)) {
+      form.value.isWanted = true
+    }
+    if (/命運|fate/i.test(line)) {
+      form.value.isFate = true
+    }
+
     const nameCandidate = parseNameFromLine(line)
     if (nameCandidate && !form.value.name) {
       form.value.name = nameCandidate
@@ -653,6 +695,11 @@ const handleBatchParse = (text) => {
 
     const loc = extractLocationFromLine(line)
     if (!loc) return
+
+    const locationVersion = loc.map ? getVersionByMap(loc.map) : null
+    if (locationVersion && form.value.version !== locationVersion) {
+      form.value.version = locationVersion
+    }
 
     if (!form.value.locations) form.value.locations = []
 
