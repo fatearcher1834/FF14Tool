@@ -31,6 +31,9 @@ export const simplifiedToTraditional = {
   '基拉巴尼亚山区': '基拉巴尼亞山區',
   '基拉巴尼亚湖区': '基拉巴尼亞湖區',
   '太陽神草原': '太陽神草原',
+  '红玉海': '紅玉海',
+  '太阳神草原': '太陽神草原',
+  '延夏': '延夏',
 }
 
 export const simplifiedJobBaseMap = {
