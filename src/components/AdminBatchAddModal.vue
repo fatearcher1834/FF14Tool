@@ -38,31 +38,6 @@
             通緝令
           </button>
         </div>
-        <div v-if="config.rank && config.rank !== 'None'" class="space-y-2">
-          <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">貼上地圖圖片 (B/A/S/SS)</label>
-          <div
-            class="w-full h-36 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
-            tabindex="0"
-            @paste.prevent="handleBatchImagePaste($event)"
-          >
-            <div v-if="!config.mapImageData">在此處按 Ctrl+V 貼上圖片</div>
-            <img
-              v-if="config.mapImageData"
-              :src="config.mapImageData"
-              alt="地圖預覽"
-              class="absolute inset-0 m-auto max-h-full max-w-full"
-            />
-            <button
-              v-if="config.mapImageData"
-              @click.prevent="clearBatchMapImage"
-              class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
-            >
-              移除圖片
-            </button>
-          </div>
-          <p class="text-[10px] text-slate-500">僅在有等級時顯示並保留圖片，坐標解析不受影響。</p>
-        </div>
-
 
         <!-- 討伐筆記 -->
         <div class="flex flex-wrap gap-2 items-center">
@@ -128,7 +103,8 @@
             v-model="bulkInput"
             class="flex-1 p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] font-bold text-sm resize-none"
             placeholder="例如：劍術師01 石殼蟹 拉諾西亞高地 (X: 13.6, Y: 24.3)"
-            @paste.prevent="handleBatchImagePaste($event)"
+            @paste="handleBatchPaste($event)"
+            @input="parseNames"
           />
         </div>
 
@@ -142,7 +118,8 @@
                 <div class="flex gap-1 items-center scale-75 origin-right">
                   <VersionTag :version="config.version" />
                   <RankTag :rank="config.rank" />
-                  <FateTag v-if="config.isFate" :is-fate="true" />
+                  <FateTag v-if="(typeof entry !== 'string' ? entry.isFate : false) || config.isFate" :is-fate="(typeof entry !== 'string' ? entry.isFate : false) || config.isFate" />
+                  <WantedTag v-if="(typeof entry !== 'string' ? entry.isWanted : false) || config.isWanted" :is-wanted="(typeof entry !== 'string' ? entry.isWanted : false) || config.isWanted" />
                   <div v-for="job in (typeof entry === 'string' ? config.jobs : entry.jobs)" :key="job" class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-[10px] font-black">{{ job }}</div>
                 </div>
               </div>
@@ -184,6 +161,7 @@ import { collection, query, where, getDocs, setDoc, updateDoc, doc } from 'fireb
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
+import WantedTag from '@/components/WantedTag.vue'
 
 const props = defineProps({
   monsterMode: {
@@ -321,6 +299,22 @@ const handleBatchImagePaste = async (event) => {
   }
 }
 
+const handleBatchPaste = (event) => {
+  handleBatchImagePaste(event)
+
+  const items = event.clipboardData?.items ? Array.from(event.clipboardData.items) : []
+  const isImagePaste = items.some(item => item.kind === 'file' && item.type.startsWith('image/'))
+
+  if (!isImagePaste) {
+    // 保留預設文字貼上位置，不自行改寫 bulkInput
+    // 於下一 tick 解析內容
+    setTimeout(() => {
+      parseNames()
+    }, 0)
+  }
+}
+
+
 const coordPattern = /([Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?))\s*/g
 const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
 
@@ -362,6 +356,13 @@ const findMapFromText = (text) => {
   return ''
 }
 
+const findMapInAnyText = (text) => {
+  if (!text) return ''
+  const normalizedLine = utilSimplifiedToTraditional(text).replace(/\s+/g, '').toLowerCase()
+  const allMapList = Object.values(MAP_DATA).flat()
+  return allMapList.find(map => normalizedLine.includes(map.replace(/\s+/g, '').toLowerCase())) || ''
+}
+
 const parseLocationsFromLine = (line) => {
   const locations = []
   const pattern = /(.+?)\s*\(?\s*[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*\)?/g
@@ -377,7 +378,21 @@ const parseLocationsFromLine = (line) => {
     if (!mapCandidate) {
       mapCandidate = findMapFromText(line.slice(0, m.index))
     }
-    const map = findMapFromText(mapCandidate)
+
+    let map = findMapFromText(mapCandidate)
+    if (!map) {
+      const words = mapCandidate.split(/\s+/).filter(Boolean)
+      for (let i = words.length - 1; i >= 0; i--) {
+        const part = words.slice(i).join(' ')
+        map = findMapFromText(part)
+        if (map) break
+      }
+    }
+
+    if (!map) {
+      map = findMapInAnyText(line)
+    }
+
     if (!map) continue
 
     const locationVersion = getVersionByMap(map)
@@ -494,12 +509,8 @@ const parseNames = () => {
 
       if (!line) continue
 
-      if (/通緝令/i.test(line)) {
-        config.value.isWanted = true
-      }
-      if (/命運|fate/i.test(line)) {
-        config.value.isFate = true
-      }
+      const lineIsWanted = /通緝令/i.test(line)
+      const lineIsFate = /命運|fate/i.test(line)
 
       const jobs = parseJobTagsFromLine(line)
       const locations = parseLocationsFromLine(line)
@@ -528,6 +539,9 @@ const parseNames = () => {
         // 若同名已存在，合併座標與討伐筆記；否則新建
         const existing = parsedEntries.find(entry => entry.name === name)
         if (existing) {
+          existing.isWanted = existing.isWanted || lineIsWanted
+          existing.isFate = existing.isFate || lineIsFate
+
           locations.forEach(loc => {
             if (!existing.locations.some(l => l.map === loc.map && l.x === loc.x && l.y === loc.y)) {
               existing.locations.push(loc)
@@ -552,13 +566,18 @@ const parseNames = () => {
           name,
           jobs: jobs.length > 0 ? jobs : [],
           locations: locations.length > 0 ? locations : [],
-          otherLocations: shouldMarkDungeon ? [matchedDungeon] : []
+          otherLocations: shouldMarkDungeon ? [matchedDungeon] : [],
+          isWanted: lineIsWanted,
+          isFate: lineIsFate
         }
         parsedEntries.push(current)
         continue
       }
 
       if (!name && locations.length > 0 && current) {
+        current.isWanted = current.isWanted || lineIsWanted
+        current.isFate = current.isFate || lineIsFate
+
         locations.forEach(loc => {
           if (!current.locations.some(l => l.map === loc.map && l.x === loc.x && l.y === loc.y)) {
             current.locations.push(loc)
@@ -581,6 +600,8 @@ const parseNames = () => {
       }
 
       if (!name && shouldMarkDungeon && current) {
+        current.isWanted = current.isWanted || lineIsWanted
+        current.isFate = current.isFate || lineIsFate
         current.otherLocations = current.otherLocations || []
         if (!current.otherLocations.includes(matchedDungeon)) {
           current.otherLocations.push(matchedDungeon)
@@ -605,6 +626,9 @@ const submit = async () => {
       let entryLocations
 
       let entryOtherLocations = []
+      let entryIsWanted = config.value.isWanted
+      let entryIsFate = config.value.isFate
+
       if (typeof entry === 'string') {
         name = utilSimplifiedToTraditional(entry)
         entryJobs = [...config.value.jobs]
@@ -616,6 +640,9 @@ const submit = async () => {
         if (Array.isArray(entry.otherLocations) && entry.otherLocations.length > 0) {
           entryOtherLocations = [...entry.otherLocations]
         }
+
+        if (typeof entry.isWanted === 'boolean') entryIsWanted = entry.isWanted
+        if (typeof entry.isFate === 'boolean') entryIsFate = entry.isFate
       }
 
       if (!name) continue
@@ -650,8 +677,8 @@ const submit = async () => {
 
           await updateDoc(existingDoc.ref, {
             rank: config.value.rank || existing.rank || 'None',
-            isFate: existing.isFate || config.value.isFate,
-            isWanted: existing.isWanted || config.value.isWanted,
+            isFate: existing.isFate || entryIsFate,
+            isWanted: existing.isWanted || entryIsWanted,
             mapImageData: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageData || existing.mapImageData || null) : null,
             jobs: mergeJobs.length > 0 ? mergeJobs : null,
             locations: updatedLocations.length > 0 ? updatedLocations : [],
@@ -666,8 +693,8 @@ const submit = async () => {
           name,
           version: config.value.version,
           rank: config.value.rank,
-          isFate: config.value.isFate,
-          isWanted: config.value.isWanted,
+          isFate: entryIsFate,
+          isWanted: entryIsWanted,
           mapImageData: config.value.rank && config.value.rank !== 'None' ? (config.value.mapImageData || null) : null,
           jobs: entryJobs.length > 0 ? entryJobs : null,
           locations: entryLocations.length > 0 ? entryLocations : [],
