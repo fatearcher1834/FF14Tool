@@ -99,10 +99,11 @@
         </div>
 
         <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
-          <input
+          <textarea
             v-model="form.triggerCondition"
             class="w-full p-3 bg-white border rounded-2xl font-bold text-xs outline-none "
             placeholder="觸發條件"
+            rows="4"
           />
         </div>
 
