@@ -47,6 +47,9 @@
         >
           進入系統
         </button>
+        <div v-if="errorMessage" class="text-red-600 text-sm font-bold pt-2">
+          {{ errorMessage }}
+        </div>
       </div>
     </div>
   </div>
@@ -67,18 +70,22 @@ const router = useRouter()
 
 const isLoading = computed(() => userStore.isLoading)
 const error = computed(() => userStore.error)
+const errorMessage = computed(() => error.value)
 
 async function login() {
+  console.log('LoginPage: login()', form.value.account)
   if (!form.value.account.trim()) {
+    userStore.error = '請輸入帳號'
     return
   }
 
   try {
-    await userStore.login(form.value.account)
-    // 登入成功後重定向到搜索頁面
+    await userStore.login(form.value.account, form.value.password)
+    console.log('LoginPage: login success, redirecting')
     await router.push('/search')
   } catch (err) {
-    console.error('登入失敗:', err)
+    console.error('LoginPage: 登入失敗:', err)
+    alert(err.message || '登入失敗，請查看控制台')
   }
 }
 </script>

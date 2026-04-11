@@ -5,7 +5,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import {
-  loginAnonymously,
   onAuthStateChange,
   logout as firebaseLogout
 } from "../services/firebase";
@@ -36,29 +35,22 @@ export const useUserStore = defineStore("user", () => {
         virtualId.value = savedAccount;
         isLoggedIn.value = true;
 
-        // 檢查是否為管理員帳號
-        const adminAccounts = ['admin', 'adm', 'administrator'];
-        if (adminAccounts.includes(savedAccount.toLowerCase())) {
-          isAdmin.value = true;
-          console.log(`✅ 帳號 [${savedAccount}] 已設置為管理員`);
-        } else {
-          // 從數據庫讀取管理員狀態
-          try {
-            console.log(`🔍 讀取用戶 [${savedAccount}] 的數據...`);
-            const userDoc = await db.getUserFromDatabase(savedAccount);
-            console.log(`📋 用戶文檔:`, userDoc);
+        // 讀取帳號註冊資料，檢查管理員狀態
+        try {
+          console.log(`🔍 讀取註冊資料 [${savedAccount}] ...`);
+          const registryDoc = await db.getUserRegistry(savedAccount);
+          console.log(`📋 註冊資料:`, registryDoc);
 
-            if (userDoc && userDoc.isAdmin) {
-              isAdmin.value = userDoc.isAdmin;
-              console.log(`✅ 用戶 [${savedAccount}] 是管理員`);
-            } else {
-              isAdmin.value = false;
-              console.log(`ℹ️ 用戶 [${savedAccount}] 不是管理員或無 isAdmin 屬性`);
-            }
-          } catch (err) {
-            console.warn("⚠ 初始化時讀取管理員狀態失敗:", err);
+          if (registryDoc && registryDoc.isAdmin) {
+            isAdmin.value = true;
+            console.log(`✅ 帳號 [${savedAccount}] 是管理員`);
+          } else {
             isAdmin.value = false;
+            console.log(`ℹ️ 帳號 [${savedAccount}] 不是管理員或無 isAdmin 屬性`);
           }
+        } catch (err) {
+          console.warn("⚠ 初始化時讀取註冊資料失敗:", err);
+          isAdmin.value = false;
         }
       } else {
         // 沒有保存用戶，確保為未登入狀態
@@ -71,12 +63,6 @@ export const useUserStore = defineStore("user", () => {
       // 監聽 Firebase 身份驗證狀態
       onAuthStateChange((firebaseUser) => {
         user.value = firebaseUser;
-        if (!isLoggedIn.value && firebaseUser) {
-          // 如果用戶未登入但 Firebase 已認證，進行匿名登入
-          if (!virtualId.value) {
-            virtualId.value = firebaseUser.uid;
-          }
-        }
       });
 
       error.value = null;
@@ -89,35 +75,32 @@ export const useUserStore = defineStore("user", () => {
   };
 
   // 登入
-  const login = async (account) => {
+  const login = async (account, password) => {
     isLoading.value = true;
     try {
-      // 先進行 Firebase 匿名登入
-      const fbUser = await loginAnonymously();
+      console.log('user.store.login()', account)
+      if (!account || !account.trim()) {
+        throw new Error('請輸入帳號');
+      }
 
-      // 保存虛擬帳戶
-      virtualId.value = account;
-      isLoggedIn.value = true;
+      // 讀取註冊資料，僅用於管理員驗證
+      const registryDoc = await db.getUserRegistry(account);
+      console.log('user.store.login() registryDoc', registryDoc)
+      const isAdminAccount = Boolean(registryDoc && registryDoc.isAdmin);
 
-      // 檢查是否為管理員帳號
-      const adminAccounts = ['admin', 'adm', 'administrator'];
-      if (adminAccounts.includes(account.toLowerCase())) {
-        isAdmin.value = true;
-        console.log(`✅ 帳號 [${account}] 已設置為管理員`);
-      } else {
-        // 從數據庫讀取用戶的管理員狀態
-        try {
-          const userDoc = await db.getUserFromDatabase(account);
-          if (userDoc && userDoc.isAdmin) {
-            isAdmin.value = userDoc.isAdmin;
-          } else {
-            isAdmin.value = false;
-          }
-        } catch (err) {
-          console.warn("⚠ 讀取用戶管理員狀態失敗:", err);
-          isAdmin.value = false;
+      if (isAdminAccount) {
+        console.log('user.store.login() admin account detected')
+        if (!password || !password.trim()) {
+          throw new Error('管理員帳號需要輸入密碼');
+        }
+        if (registryDoc.password !== password) {
+          throw new Error('密碼錯誤');
         }
       }
+
+      virtualId.value = account;
+      isLoggedIn.value = true;
+      isAdmin.value = isAdminAccount;
 
       // 保存到本地存儲
       localStorageHelper.set(APP_CONFIG.storage.userAccount, account);
@@ -138,6 +121,8 @@ export const useUserStore = defineStore("user", () => {
       console.error("✗ 登入失敗:", err);
       error.value = err.message;
       isLoggedIn.value = false;
+      isAdmin.value = false;
+      throw err;
     } finally {
       isLoading.value = false;
     }

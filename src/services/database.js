@@ -114,6 +114,27 @@ export async function getUserFromDatabase(userId, appId = APP_ID) {
 }
 
 /**
+ * 獲取註冊表登錄資料
+ */
+export async function getUserRegistry(account, appId = APP_ID) {
+  try {
+    const db = getDb();
+    const regDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'registry', account);
+    const regSnapshot = await getDoc(regDocRef);
+
+    if (regSnapshot.exists()) {
+      return regSnapshot.data();
+    }
+
+    console.log(`⚠ 帳號 [${account}] 的註冊資料不存在`);
+    return null;
+  } catch (error) {
+    console.error(`✗ 讀取帳號 [${account}] 註冊資料失敗:`, error);
+    throw error;
+  }
+}
+
+/**
  * 獲取所有怪物數據
  */
 export async function getAllMonsters(appId = APP_ID) {
