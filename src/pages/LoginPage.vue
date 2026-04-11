@@ -51,6 +51,7 @@
             class="w-full px-6 py-4 bg-slate-100 rounded-2xl font-bold outline-none"
             placeholder="輸入帳號"
             @keydown.enter="login"
+            @input="handleAccountInput"
           />
           <input
             v-if="showPasswordField"
@@ -81,12 +82,14 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores'
 import { useRouter } from 'vue-router'
+import { getUserRegistry } from '@/services/database'
 
 const form = ref({
   account: '',
   password: ''
 })
 const showAccountFields = ref(false)
+const showPasswordField = ref(false)
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -96,18 +99,17 @@ const error = computed(() => userStore.error)
 const errorMessage = computed(() => error.value)
 const savedAccount = computed(() => userStore.savedAccount)
 const savedAccountIsAdmin = computed(() => userStore.savedAccountIsAdmin)
-const showPasswordField = computed(() => {
-  return showAccountFields.value || (savedAccountIsAdmin.value && form.value.account === savedAccount.value)
-})
 
 async function useSavedAccount() {
   form.value.account = savedAccount.value
   form.value.password = ''
   userStore.error = null
+  showPasswordField.value = false
+
   if (!savedAccountIsAdmin.value) {
     await login()
   } else {
-    showAccountFields.value = true
+    showPasswordField.value = true
   }
 }
 
@@ -116,6 +118,15 @@ function switchAccount() {
   form.value.password = ''
   userStore.error = null
   showAccountFields.value = true
+  showPasswordField.value = false
+}
+
+function handleAccountInput() {
+  if (showPasswordField.value) {
+    showPasswordField.value = false
+    form.value.password = ''
+  }
+  userStore.error = null
 }
 
 async function login() {
@@ -126,6 +137,15 @@ async function login() {
   }
 
   try {
+    if (!showPasswordField.value) {
+      const registryDoc = await getUserRegistry(form.value.account)
+      if (registryDoc && registryDoc.isAdmin) {
+        showPasswordField.value = true
+        userStore.error = '管理員帳號，請輸入密碼'
+        return
+      }
+    }
+
     await userStore.login(form.value.account, form.value.password)
     console.log('LoginPage: login success, redirecting')
     await router.push('/search')

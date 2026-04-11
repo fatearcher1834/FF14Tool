@@ -457,7 +457,6 @@ localStorage.ff14_virtual_account
 
 - 普通用戶：可新增/編輯自己的 PIN 與分組
 - 管理員：可編輯全局怪物清單
-- 管理員帳號：`["fatearcher"]`
 
 ---
 
@@ -611,7 +610,6 @@ xl: 1280px  (桌面)
 
 | 資訊 | 內容 |  
 |------|------|
-| 開發者 | fatearcher |
 | 專案名稱 | FF14 Hunt Finder Tool |
 | 最後更新 | 2026年3月19日 |
 | 當前版本 | v17 |
