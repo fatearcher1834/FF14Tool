@@ -40,10 +40,7 @@ export const useUserStore = defineStore("user", () => {
 
         // 讀取帳號註冊資料，檢查管理員狀態，但不自動登入
         try {
-          console.log(`🔍 讀取註冊資料 [${storedAccount}] ...`);
           const registryDoc = await db.getUserRegistry(storedAccount);
-          console.log(`📋 註冊資料:`, registryDoc);
-
           if (registryDoc && registryDoc.isAdmin) {
             savedAccountIsAdmin.value = true;
           } else {
