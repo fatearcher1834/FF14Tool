@@ -134,6 +134,39 @@ export async function getUserRegistry(account, appId = APP_ID) {
   }
 }
 
+export async function linkAuthAccount(authUid, account, isAdmin, appId = APP_ID) {
+  if (!authUid || !account) {
+    throw new Error('authUid 與 account 都必須提供');
+  }
+
+  try {
+    const db = getDb();
+    const mappingRef = doc(db, 'artifacts', appId, 'public', 'data', 'authMappings', authUid);
+    await setDoc(mappingRef, {
+      account,
+      isAdmin: Boolean(isAdmin),
+      linkedAt: new Date()
+    });
+    console.log(`✓ 已將 authUid=${authUid} 連結到 account=${account}`);
+  } catch (error) {
+    console.error(`✗ 連結 authUid=${authUid} 到 account=${account} 失敗:`, error);
+    throw error;
+  }
+}
+
+export async function getAuthMapping(authUid, appId = APP_ID) {
+  if (!authUid) return null;
+  try {
+    const db = getDb();
+    const mappingRef = doc(db, 'artifacts', appId, 'public', 'data', 'authMappings', authUid);
+    const mappingSnap = await getDoc(mappingRef);
+    return mappingSnap.exists() ? mappingSnap.data() : null;
+  } catch (error) {
+    console.error(`✗ 讀取 authUid=${authUid} 對應資料失敗:`, error);
+    throw error;
+  }
+}
+
 /**
  * 獲取所有怪物數據
  */

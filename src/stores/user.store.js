@@ -5,7 +5,9 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import {
+  getAuthInstance,
   onAuthStateChange,
+  loginAnonymously,
   logout as firebaseLogout
 } from "../services/firebase";
 import * as db from "../services/database";
@@ -63,9 +65,31 @@ export const useUserStore = defineStore("user", () => {
       }
 
       // 監聽 Firebase 身份驗證狀態
-      onAuthStateChange((firebaseUser) => {
+      onAuthStateChange(async (firebaseUser) => {
         user.value = firebaseUser;
+
+        if (!firebaseUser) {
+          try {
+            const anonUser = await loginAnonymously();
+            user.value = anonUser;
+            console.log(`✓ 匿名登入成功: ${anonUser.uid}`);
+          } catch (authError) {
+            console.warn('⚠ 無法匿名登入 Firebase:', authError);
+          }
+        }
       });
+
+      // 若尚未有認證，立即建立匿名登入
+      try {
+        const auth = getAuthInstance();
+        if (!auth.currentUser) {
+          const anonUser = await loginAnonymously();
+          user.value = anonUser;
+          console.log(`✓ 初始化時匿名登入成功: ${anonUser.uid}`);
+        }
+      } catch (authError) {
+        console.warn('⚠ 初始化時匿名登入失敗:', authError);
+      }
 
       error.value = null;
     } catch (err) {
@@ -105,6 +129,20 @@ export const useUserStore = defineStore("user", () => {
       savedAccountIsAdmin.value = isAdminAccount;
       isLoggedIn.value = true;
       isAdmin.value = isAdminAccount;
+
+      // 若尚未有 Firebase 身份，先建立匿名 auth
+      try {
+        const auth = getAuthInstance();
+        let authUser = auth.currentUser;
+        if (!authUser) {
+          authUser = await loginAnonymously();
+          user.value = authUser;
+          console.log(`✓ 登入時補充匿名 Firebase 身份: ${authUser.uid}`);
+        }
+        await db.linkAuthAccount(authUser.uid, account, isAdminAccount, APP_ID);
+      } catch (authMappingError) {
+        console.warn('⚠ 連結 Auth 帳號失敗:', authMappingError);
+      }
 
       // 保存到本地存儲
       localStorageHelper.set(APP_CONFIG.storage.userAccount, account);
