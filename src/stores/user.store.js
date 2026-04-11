@@ -17,6 +17,8 @@ export const useUserStore = defineStore("user", () => {
   // 狀態
   const user = ref(null); // Firebase 用戶
   const virtualId = ref(""); // 虛擬帳戶ID
+  const savedAccount = ref(""); // 本地儲存的帳號
+  const savedAccountIsAdmin = ref(false); // 本地儲存帳號是否為管理員
   const appId = ref(APP_ID); // 應用ID
   const isLoggedIn = ref(false);
   const isAdmin = ref(false); // 從數據庫中讀取
@@ -28,27 +30,27 @@ export const useUserStore = defineStore("user", () => {
     isLoading.value = true;
     try {
       // 檢查本地保存的帳戶
-      const savedAccount = localStorageHelper.get(APP_CONFIG.storage.userAccount);
-      console.log(`📌 檢查本地帳戶: ${savedAccount || "無"}`);
+      const storedAccount = localStorageHelper.get(APP_CONFIG.storage.userAccount);
+      console.log(`📌 檢查本地帳戶: ${storedAccount || "無"}`);
       
-      if (savedAccount) {
-        virtualId.value = savedAccount;
-        isLoggedIn.value = true;
+      if (storedAccount) {
+        savedAccount.value = storedAccount;
 
-        // 讀取帳號註冊資料，檢查管理員狀態
+        // 讀取帳號註冊資料，檢查管理員狀態，但不自動登入
         try {
-          console.log(`🔍 讀取註冊資料 [${savedAccount}] ...`);
-          const registryDoc = await db.getUserRegistry(savedAccount);
+          console.log(`🔍 讀取註冊資料 [${storedAccount}] ...`);
+          const registryDoc = await db.getUserRegistry(storedAccount);
           console.log(`📋 註冊資料:`, registryDoc);
 
           if (registryDoc && registryDoc.isAdmin) {
-            isAdmin.value = true;
-            console.log(`✅ 帳號 [${savedAccount}] 是管理員`);
+            savedAccountIsAdmin.value = true;
+            console.log(`✅ 帳號 [${storedAccount}] 是管理員`);
           } else {
-            isAdmin.value = false;
-            console.log(`ℹ️ 帳號 [${savedAccount}] 不是管理員或無 isAdmin 屬性`);
+            savedAccountIsAdmin.value = false;
+            console.log(`ℹ️ 帳號 [${storedAccount}] 不是管理員或無 isAdmin 屬性`);
           }
         } catch (err) {
+          savedAccountIsAdmin.value = false;
           console.warn("⚠ 初始化時讀取註冊資料失敗:", err);
           isAdmin.value = false;
         }
@@ -99,6 +101,8 @@ export const useUserStore = defineStore("user", () => {
       }
 
       virtualId.value = account;
+      savedAccount.value = account;
+      savedAccountIsAdmin.value = isAdminAccount;
       isLoggedIn.value = true;
       isAdmin.value = isAdminAccount;
 
@@ -138,7 +142,8 @@ export const useUserStore = defineStore("user", () => {
       user.value = null;
       isLoggedIn.value = false;
 
-      localStorageHelper.remove(APP_CONFIG.storage.userAccount);
+      // logout 時保留 savedAccount 但取消登入狀態
+      // localStorageHelper.remove(APP_CONFIG.storage.userAccount);
       
       error.value = null;
       console.log("✓ 成功登出");
@@ -153,6 +158,8 @@ export const useUserStore = defineStore("user", () => {
   return {
     user,
     virtualId,
+    savedAccount,
+    savedAccountIsAdmin,
     appId,
     isLoggedIn,
     isAdmin,
