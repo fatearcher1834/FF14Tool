@@ -165,6 +165,8 @@
           <div class="flex items-center gap-3">
             <span class="text-[12px] font-bold text-slate-600">
               第 <span class="font-black text-slate-800">{{ searchCurrentPage }}</span> 頁
+              <span class="text-slate-400">| 本頁 {{ searchPagedMonsters.length }} 筆</span>
+              <span class="text-slate-400">| 共 {{ totalMonsters === null ? '...' : totalMonsters }} 筆</span>
             </span>
             <select
               v-model.number="searchPageSize"
@@ -671,7 +673,7 @@ import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore
 import { getFirebaseInstance } from '@/services/firebase'
 import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
 import { APP_CONFIG } from '@/config/app.config'
-import { getMonstersPage } from '@/services/database'
+import { getMonstersPage, getMonsterCount } from '@/services/database'
 import { applyFilter, sortMonsters, getMapsForVersion, copyToClipboard } from '@/services/hunterUtils'
 import { useUserStore } from '@/stores/user.store'
 import { useMonstersStore } from '@/stores/monsters.store'
@@ -782,6 +784,11 @@ const handleCopyAllLocations = async () => {
 // 用戶 PIN
 const userPins = computed(() => pinsStore.pins)
 
+const pageCursors = ref({ 1: null })
+const pageHasMore = ref(false)
+const lastQueryKey = ref('')
+const totalMonsters = ref(null)
+
 const pageFilters = computed(() => ({
   searchTerm: searchTerm.value,
   version: filterVer.value || undefined,
@@ -790,29 +797,91 @@ const pageFilters = computed(() => ({
   isFate: filterFate.value ? true : undefined,
   isWanted: filterWanted.value ? true : undefined,
   job: filterJob.value && filterJob.value !== '*' ? filterJob.value : undefined,
-  sortDir: searchSortDir.value
+  sortDir: searchSortDir.value,
+  sortField: searchSortField.value
 }))
 
 const searchPagedMonsters = computed(() => {
-  const sorted = sortMonsters(
+  if (searchSortField.value === 'name') {
+    return pageMonsters.value
+  }
+  return sortMonsters(
     pageMonsters.value,
     searchSortField.value,
     searchSortDir.value,
     searchSortJobs.value
   )
-  const start = (Math.max(1, searchCurrentPage.value) - 1) * searchPageSize.value
-  return sorted.slice(start, start + searchPageSize.value)
 })
-const searchHasNextPage = computed(() => pageMonsters.value.length > searchCurrentPage.value * searchPageSize.value)
+const searchHasNextPage = computed(() => pageHasMore.value)
 
-const loadMonsterPage = async () => {
+const getQueryKey = () => JSON.stringify({
+  searchTerm: searchTerm.value,
+  version: filterVer.value || '',
+  map: filterMap.value || '',
+  rank: filterRank.value || '',
+  isFate: filterFate.value ? '1' : '0',
+  isWanted: filterWanted.value ? '1' : '0',
+  job: filterJob.value && filterJob.value !== '*' ? filterJob.value : '',
+  sortDir: searchSortDir.value,
+  sortField: searchSortField.value,
+  pageSize: searchPageSize.value
+})
+
+const resetSearchPagination = () => {
+  pageCursors.value = { 1: null }
+  pageHasMore.value = false
+}
+
+const loadMonsterCount = async (filters) => {
+  try {
+    totalMonsters.value = await getMonsterCount(filters)
+  } catch (error) {
+    console.error('✗ 讀取怪物總數失敗:', error)
+    totalMonsters.value = null
+  }
+}
+
+const loadMonsterPage = async (targetPage = searchCurrentPage.value) => {
   isLoadingMonsters.value = true
   try {
+    const queryKey = getQueryKey()
     const filters = pageFilters.value
-    pageMonsters.value = await getMonstersPage(searchCurrentPage.value, searchPageSize.value, filters)
+    if (lastQueryKey.value !== queryKey) {
+      resetSearchPagination()
+      lastQueryKey.value = queryKey
+      targetPage = 1
+      searchCurrentPage.value = 1
+      totalMonsters.value = null
+      await loadMonsterCount(filters)
+    }
+
+    const pageNumber = Math.max(1, targetPage)
+
+    for (let page = 1; page < pageNumber; page++) {
+      if (pageCursors.value[page] === undefined) {
+        break
+      }
+      if (pageCursors.value[page + 1] !== undefined) {
+        continue
+      }
+      const result = await getMonstersPage(searchPageSize.value, filters, pageCursors.value[page])
+      pageCursors.value[page + 1] = result.lastDoc
+      if (!result.hasMore) {
+        break
+      }
+    }
+
+    const cursor = pageCursors.value[pageNumber] || null
+    const result = await getMonstersPage(searchPageSize.value, filters, cursor)
+    pageMonsters.value = result.monsters
+    pageHasMore.value = result.hasMore
+    if (result.lastDoc) {
+      pageCursors.value[pageNumber + 1] = result.lastDoc
+    }
   } catch (error) {
     console.error('✗ 讀取分頁怪物失敗:', error)
     pageMonsters.value = []
+    pageHasMore.value = false
   } finally {
     isLoadingMonsters.value = false
   }
@@ -850,8 +919,11 @@ watch([
   searchSortField,
   searchSortJobs,
   searchPageSize
-], () => {
+], async () => {
+  suppressPageLoad = true
   searchCurrentPage.value = 1
+  await loadMonsterPage()
+  suppressPageLoad = false
 })
 
 watch(searchCurrentPage, () => {
@@ -894,7 +966,8 @@ const handleTogglePin = async mId => {
     await pinsStore.removePin(mId, userStore.virtualId)
   } else {
     expandedIds.value[mId] = isKbGlobalExpanded.value
-    await pinsStore.addPin(mId, userStore.virtualId, customGroups.value[0]?.id)
+    const targetGroupId = customGroups.value[0]?.id || pinsStore.defaultGroup?.id || 'default'
+    await pinsStore.addPin(mId, userStore.virtualId, targetGroupId)
   }
 }
 
@@ -1142,6 +1215,9 @@ onMounted(async () => {
   } else {
     await pinsStore.initialize(userStore.virtualId)
     await pinsStore.watchPins(userStore.virtualId)
+
+    // 為釘選面板載入怪物資料
+    await monstersStore.initializeMonsters()
   }
 
   // 監聽分組

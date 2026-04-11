@@ -4,6 +4,7 @@
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
     @keydown.esc="closeModal"
+    @keydown.enter.prevent="submit"
     @mousedown="handleOverlayMouseDown"
     @click.self="handleOverlayClick"
   >
@@ -260,10 +261,25 @@
           </div>
           <button @click="addLocation" class="w-full p-4 border-2 border-dashed rounded-2xl text-slate-400 text-xs font-black">+ 新增座標</button>
         </div>
+        <!-- 儲存狀態提示 -->
+        <div v-if="modalMessage" class="rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 p-3 text-xs font-bold">
+          {{ modalMessage }}
+        </div>
         <!-- 按鈕 -->
         <div class="flex gap-3 pt-4">
           <button @click="$emit('close')" class="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-xs">取消</button>
-          <button @click="submit" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg">儲存</button>
+          <button
+            @click="submit"
+            :disabled="isLoadingImages || isLoadingMap || isLoadingMonster"
+            :class="[
+              'flex-1 py-4 rounded-2xl font-black text-xs shadow-lg',
+              (isLoadingImages || isLoadingMap || isLoadingMonster)
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white'
+            ]"
+          >
+            儲存
+          </button>
         </div>
       </div>
     </div>
@@ -271,7 +287,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { X } from 'lucide-vue-next'
 import { MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS } from '@/config/constants'
@@ -332,6 +348,8 @@ const form = ref({
   mapImageUpdatedAt: normalizeDateTime(props.monster.mapImageUpdatedAt),
   monsterImageData: props.monster.monsterImageData || '',
   monsterImageUpdatedAt: normalizeDateTime(props.monster.monsterImageUpdatedAt),
+  hasMap: props.monster.hasMap || false,
+  hasMonsterImage: props.monster.hasMonsterImage || false,
   triggerCondition: props.monster.triggerCondition || '',
   locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
 })
@@ -368,6 +386,38 @@ const handleOverlayClick = (event) => {
 const isManualLoadMap = ref(false)
 const isLoadingMap = ref(false)
 const isLoadingMonster = ref(false)
+const isLoadingImages = ref(false)
+const showImageLoadingWarning = ref(false)
+let imageLoadingWarningTimer = null
+
+const imageLoadExpected = computed(() => {
+  return !!(
+    props.monster.hasMap ||
+    props.monster.hasMonsterImage ||
+    props.monster.mapImageData ||
+    props.monster.monsterImageData
+  )
+})
+
+const startImageLoadingWarning = () => {
+  if (imageLoadingWarningTimer) {
+    clearTimeout(imageLoadingWarningTimer)
+  }
+  showImageLoadingWarning.value = false
+  imageLoadingWarningTimer = setTimeout(() => {
+    if (isLoadingImages.value || isLoadingMap.value || isLoadingMonster.value) {
+      showImageLoadingWarning.value = true
+    }
+  }, 250)
+}
+
+const stopImageLoadingWarning = () => {
+  if (imageLoadingWarningTimer) {
+    clearTimeout(imageLoadingWarningTimer)
+    imageLoadingWarningTimer = null
+  }
+  showImageLoadingWarning.value = false
+}
 
 const loadMapImageDataNow = async () => {
   if (!form.value.id) return
@@ -411,30 +461,37 @@ onMounted(async () => {
     modalRef.value.focus()
   }
 
-  if (!form.value.id) {
+  if (!form.value.id || !imageLoadExpected.value) {
     return
   }
 
   const monstersStore = useMonstersStore()
 
-  // 直接讀取最新的圖片數據
-  console.log('[編輯模態] 載入圖片數據...');
-  const updated = await monstersStore.loadMonsterImageData(form.value.id)
+  isLoadingImages.value = true
+  startImageLoadingWarning()
+  try {
+    // 直接讀取最新的圖片數據
+    console.log('[編輯模態] 載入圖片數據...');
+    const updated = await monstersStore.loadMonsterImageData(form.value.id)
 
-  if (updated) {
-    // 只有當 form 中沒有新數據時（空字符串），才從 DB 加載舊數據
-    // 這樣用戶新貼上的圖片就不會被舊數據覆蓋
-    if (!form.value.mapImageData && updated.mapImageData) {
-      form.value.mapImageData = updated.mapImageData
-      console.log('[編輯模態] 載入地圖圖片');
+    if (updated) {
+      // 只有當 form 中沒有新數據時（空字符串），才從 DB 加載舊數據
+      // 這樣用戶新貼上的圖片就不會被舊數據覆蓋
+      if (!form.value.mapImageData && updated.mapImageData) {
+        form.value.mapImageData = updated.mapImageData
+        console.log('[編輯模態] 載入地圖圖片');
+      }
+      form.value.mapImageUpdatedAt = normalizeDateTime(updated.mapImageUpdatedAt)
+      
+      if (!form.value.monsterImageData && updated.monsterImageData) {
+        form.value.monsterImageData = updated.monsterImageData
+        console.log('[編輯模態] 載入怪物照片');
+      }
+      form.value.monsterImageUpdatedAt = normalizeDateTime(updated.monsterImageUpdatedAt)
     }
-    form.value.mapImageUpdatedAt = normalizeDateTime(updated.mapImageUpdatedAt)
-    
-    if (!form.value.monsterImageData && updated.monsterImageData) {
-      form.value.monsterImageData = updated.monsterImageData
-      console.log('[編輯模態] 載入怪物照片');
-    }
-    form.value.monsterImageUpdatedAt = normalizeDateTime(updated.monsterImageUpdatedAt)
+  } finally {
+    isLoadingImages.value = false
+    stopImageLoadingWarning()
   }
 })
 const isJobPickerVisible = ref(false)
@@ -477,6 +534,7 @@ const clearMapImage = () => {
   console.log('[地圖清除] 正在清除地圖資料');
   form.value.mapImageData = ''
   form.value.mapImageUpdatedAt = null
+  form.value.hasMap = false
   
   // 也要清除 sessionStorage 緩存以防止重新編輯時回復舊值
   if (form.value.id) {
@@ -493,6 +551,7 @@ const clearMonsterImage = () => {
   console.log('[怪物照片清除] 正在清除怪物照片資料');
   form.value.monsterImageData = ''
   form.value.monsterImageUpdatedAt = null
+  form.value.hasMonsterImage = false
   
   // 也要清除 sessionStorage 緩存以防止重新編輯時回復舊值
   if (form.value.id) {
@@ -735,7 +794,7 @@ const handleBatchImagePaste = async (event) => {
         form.value.mapImageUpdatedAt = new Date()
       } catch (error) {
         console.error('貼上圖片失敗', error)
-        alert('貼上圖片失敗，請稍後再試。')
+        formMessage.value = '貼上圖片失敗，請稍後再試。'
       }
       // 只處理第一張圖片
       return
@@ -769,7 +828,7 @@ const handleMonsterImagePaste = async (event) => {
         })
       } catch (error) {
         console.error('[怪物照片粘貼] ✗ 失敗:', error)
-        alert('貼上怪物照片失敗，請稍後再試。')
+        formMessage.value = '貼上怪物照片失敗，請稍後再試。'
       }
       // 只處理第一張圖片
       return
@@ -786,7 +845,21 @@ const handleBatchParseFromPaste = (event) => {
   }
 }
 
+const formMessage = ref('')
+const saveBlockedMessage = computed(() => {
+  if ((isLoadingImages.value || isLoadingMap.value || isLoadingMonster.value) && imageLoadExpected.value && showImageLoadingWarning.value) {
+    return '圖片載入中，請等載入完成再按儲存。'
+  }
+  return ''
+})
+const modalMessage = computed(() => saveBlockedMessage.value || formMessage.value)
+
 const submit = () => {
+  if (saveBlockedMessage.value) {
+    formMessage.value = saveBlockedMessage.value
+    return
+  }
+  formMessage.value = ''
   console.log('[表單提交] monsterImageData 大小:', form.value.monsterImageData?.length || 0, 'bytes, hasMonsterImage:', form.value.hasMonsterImage)
   if (form.value.monsterImageData) {
     console.log('[表單提交] ✓ 欲提交怪物照片:', (form.value.monsterImageData.length / 1024).toFixed(2), 'KB')

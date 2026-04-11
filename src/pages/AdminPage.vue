@@ -354,13 +354,11 @@ const newMonster = () => {
   };
 };
 
-const editMonster = async (monster) => {
-  // 先向子集合同步一次，但編輯頁保留原始 mapImageData（避免自動變為圖片）
-  const updated = await monstersStore.loadMonsterImageData(monster.id)
-
+const editMonster = (monster) => {
+  // 直接使用目前表格已有的怪物資料，避免因讀取圖片數據而產生多筆 API 請求
   const mapImageData = '' // 管理頁預設不帶圖，僅顯示 state/時間
-  const mapImageUpdatedAt = monster.mapImageUpdatedAt || monster.updatedAt || updated?.mapImageUpdatedAt || null
-  const hasMap = Boolean(monster.hasMap) || Boolean(updated?.hasMap) || Boolean(mapImageUpdatedAt)
+  const mapImageUpdatedAt = monster.mapImageUpdatedAt || monster.updatedAt || null
+  const hasMap = Boolean(monster.hasMap) || Boolean(mapImageUpdatedAt)
 
   editingMonster.value = {
     ...monster,
@@ -388,6 +386,7 @@ const deleteMonster = async (monster) => {
 };
 
 const handleSaveMonster = async (monster) => {
+  const currentEditingId = monster.id || null
   try {
     console.log('[\u5132\u5b58\u602a\u7269] \u958b\u59cb, \u602a\u7269:', monster.name, 'monsterImageData \u5927\u5c0f:', monster.monsterImageData?.length || 0, 'bytes');
     
@@ -413,22 +412,26 @@ const handleSaveMonster = async (monster) => {
         console.log('[\u5132\u5b58\u602a\u7269] \u52e4\u7d1a \u306f', monster.rank, ', \u5904\u7406\u5b50\u96ac\u4e00');
         console.log('[\u5132\u5b58\u602a\u7269] mapImageData:', monster.mapImageData ? `${(monster.mapImageData.length / 1024).toFixed(2)}KB` : '\u7a7a', ', hasMap:', monster.hasMap);
         
-        // 直接根據 mapImageData 是否存在來判斷
         if (monster.mapImageData) {
           updates.mapImageData = monster.mapImageData;
           updates.hasMap = true;
           updates.mapImageUpdatedAt = monster.mapImageUpdatedAt || new Date()
+        } else if (monster.hasMap) {
+          updates.hasMap = true;
+          // 保留原本的 mapImageData，避免尚未載入完成時誤判為移除
         } else {
           updates.mapImageData = null;
           updates.hasMap = false;
           updates.mapImageUpdatedAt = null
         }
 
-        // 直接根據 monsterImageData 是否存在來判斷
         if (monster.monsterImageData) {
           updates.monsterImageData = monster.monsterImageData;
           updates.hasMonsterImage = true;
           updates.monsterImageUpdatedAt = monster.monsterImageUpdatedAt || new Date()
+        } else if (monster.hasMonsterImage) {
+          updates.hasMonsterImage = true;
+          // 保留原本的 monsterImageData，避免尚未載入完成時誤判為移除
         } else {
           updates.monsterImageData = null;
           updates.hasMonsterImage = false;
@@ -488,6 +491,7 @@ const handleSaveMonster = async (monster) => {
             updates.hasMap = true;
           } else if (monster.hasMap) {
             updates.hasMap = true;
+            // 保留原本的 mapImageData，避免尚未載入完成時誤判為移除
           } else {
             updates.mapImageData = null;
             updates.hasMap = false;
@@ -499,6 +503,7 @@ const handleSaveMonster = async (monster) => {
             updates.hasMonsterImage = true;
           } else if (monster.hasMonsterImage) {
             updates.hasMonsterImage = true;
+            // 保留原本的 monsterImageData，避免尚未載入完成時誤判為移除
           } else {
             updates.monsterImageData = null;
             updates.hasMonsterImage = false;
@@ -537,7 +542,9 @@ const handleSaveMonster = async (monster) => {
 
     await monstersStore.initializeMonsters();
     await refreshMonsters(adminCurrentPage.value);
-    editingMonster.value = null;
+    if (editingMonster.value?.id === currentEditingId) {
+      editingMonster.value = null;
+    }
     console.log('[\u5132\u5b58\u602a\u7269] \u2713 \u6b63\u5449\u5b8c\u6210');
   } catch (error) {
     console.error('[\u5132\u5b58\u602a\u7269] \u2717 \u5132\u5b58\u5931\u6555:', error);

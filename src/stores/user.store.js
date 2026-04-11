@@ -37,19 +37,23 @@ export const useUserStore = defineStore("user", () => {
       
       if (storedAccount) {
         savedAccount.value = storedAccount;
+        virtualId.value = storedAccount;
+        isLoggedIn.value = true;
 
-        // 讀取帳號註冊資料，檢查管理員狀態，但不自動登入
+        // 讀取帳號註冊資料，檢查管理員狀態
         try {
           const registryDoc = await db.getUserRegistry(storedAccount);
           if (registryDoc && registryDoc.isAdmin) {
             savedAccountIsAdmin.value = true;
+            isAdmin.value = true;
           } else {
             savedAccountIsAdmin.value = false;
+            isAdmin.value = false;
           }
         } catch (err) {
           savedAccountIsAdmin.value = false;
-          console.warn("⚠ 初始化時讀取註冊資料失敗:", err);
           isAdmin.value = false;
+          console.warn("⚠ 初始化時讀取註冊資料失敗:", err);
         }
       } else {
         // 沒有保存用戶，確保為未登入狀態
