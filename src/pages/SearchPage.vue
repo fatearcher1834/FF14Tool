@@ -9,7 +9,10 @@
           </svg>
         </div>
         <div>
-          <span class="font-black text-xs tracking-tighter uppercase">FINAL FANTASY XIV 繁體中文怪物座標查詢工具</span>
+          <div class="flex items-center gap-2">
+            <span class="font-black text-xs tracking-tighter uppercase">FINAL FANTASY XIV 繁體中文怪物座標查詢工具</span>
+            <span class="inline-flex items-center px-2 py-1 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black tracking-widest">v{{ appVersion }}</span>
+          </div>
           <div class="text-[9px] text-blue-400 font-bold uppercase">{{ userStore.virtualId }}</div>
         </div>
       </div>
@@ -668,6 +671,7 @@ import {
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
 import { getFirebaseInstance } from '@/services/firebase'
 import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
+import { APP_CONFIG } from '@/config/app.config'
 import { applyFilter, sortMonsters, getMapsForVersion, copyToClipboard } from '@/services/hunterUtils'
 import { useUserStore } from '@/stores/user.store'
 import { useMonstersStore } from '@/stores/monsters.store'
@@ -684,6 +688,7 @@ const userStore = useUserStore()
 const monstersStore = useMonstersStore()
 const pinsStore = useUserPinsStore()
 const router = useRouter()
+const appVersion = APP_CONFIG.version
 
 // 搜尋狀態
 const searchTerm = ref('')
