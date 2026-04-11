@@ -46,10 +46,8 @@ export const useUserStore = defineStore("user", () => {
 
           if (registryDoc && registryDoc.isAdmin) {
             savedAccountIsAdmin.value = true;
-            console.log(`✅ 帳號 [${storedAccount}] 是管理員`);
           } else {
             savedAccountIsAdmin.value = false;
-            console.log(`ℹ️ 帳號 [${storedAccount}] 不是管理員或無 isAdmin 屬性`);
           }
         } catch (err) {
           savedAccountIsAdmin.value = false;

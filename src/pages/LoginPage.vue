@@ -104,6 +104,7 @@ async function useSavedAccount() {
   form.value.account = savedAccount.value
   form.value.password = ''
   userStore.error = null
+  showAccountFields.value = true
   showPasswordField.value = false
 
   if (!savedAccountIsAdmin.value) {
