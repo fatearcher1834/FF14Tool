@@ -8,12 +8,15 @@ import {
   doc,
   getDocs,
   getDoc,
+  getCountFromServer,
   setDoc,
   updateDoc,
   deleteDoc,
   deleteField,
   query,
   where,
+  orderBy,
+  limit,
   onSnapshot,
   Timestamp
 } from "firebase/firestore";
@@ -141,7 +144,7 @@ export async function linkAuthAccount(authUid, account, isAdmin, appId = APP_ID)
 
   try {
     const db = getDb();
-    const mappingRef = doc(db, 'artifacts', appId, 'public', 'data', 'authMappings', authUid);
+    const mappingRef = doc(db, 'artifacts', appId, 'users', authUid, 'auth', 'mapping');
     await setDoc(mappingRef, {
       account,
       isAdmin: Boolean(isAdmin),
@@ -158,7 +161,7 @@ export async function getAuthMapping(authUid, appId = APP_ID) {
   if (!authUid) return null;
   try {
     const db = getDb();
-    const mappingRef = doc(db, 'artifacts', appId, 'public', 'data', 'authMappings', authUid);
+    const mappingRef = doc(db, 'artifacts', appId, 'users', authUid, 'auth', 'mapping');
     const mappingSnap = await getDoc(mappingRef);
     return mappingSnap.exists() ? mappingSnap.data() : null;
   } catch (error) {
@@ -170,6 +173,87 @@ export async function getAuthMapping(authUid, appId = APP_ID) {
 /**
  * 獲取所有怪物數據
  */
+function buildMonstersSearchQuery(filters = {}, appId = APP_ID) {
+  const db = getDb();
+  const monstersRef = collection(db, 'artifacts', appId, 'public', 'data', 'monsters');
+  const clauses = [];
+
+  if (filters.searchTerm) {
+    const trimmed = filters.searchTerm.trim();
+    if (trimmed.length > 0) {
+      clauses.push(where('name', '>=', trimmed));
+      clauses.push(where('name', '<=', `${trimmed}\uf8ff`));
+    }
+  }
+
+  clauses.push(orderBy('name', filters.sortDir === 'desc' ? 'desc' : 'asc'));
+  return query(monstersRef, ...clauses);
+}
+
+function matchesMonsterFilters(monster, filters = {}) {
+  if (filters.version && monster.version !== filters.version) {
+    return false;
+  }
+
+  const hasNoLocation = !monster.locations || monster.locations.length === 0;
+  if (filters.map && !hasNoLocation) {
+    const matched = (monster.locations || []).some(loc => loc.map === filters.map);
+    if (!matched) {
+      return false;
+    }
+  }
+
+  if (filters.rank && monster.rank !== filters.rank) {
+    return false;
+  }
+
+  if (filters.isFate !== undefined && monster.isFate !== filters.isFate) {
+    return false;
+  }
+
+  if (filters.isWanted !== undefined && monster.isWanted !== filters.isWanted) {
+    return false;
+  }
+
+  if (filters.job) {
+    const jobs = Array.isArray(monster.jobs)
+      ? monster.jobs
+      : monster.jobs
+      ? [monster.jobs]
+      : [];
+    const hasJob = jobs.some(j => typeof j === 'string' && j.startsWith(filters.job));
+    if (!hasJob) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export async function getMonsterCount(filters = {}, appId = APP_ID) {
+  try {
+    const searchQuery = buildMonstersSearchQuery(filters, appId);
+    const snapshot = await getDocs(searchQuery);
+    const monsters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return monsters.filter(monster => matchesMonsterFilters(monster, filters)).length;
+  } catch (error) {
+    console.error('✗ 讀取怪物總數失敗:', error);
+    throw error;
+  }
+}
+
+export async function getMonstersPage(page = 1, pageSize = 100, filters = {}, appId = APP_ID) {
+  try {
+    const searchQuery = buildMonstersSearchQuery(filters, appId);
+    const snapshot = await getDocs(searchQuery);
+    const monsters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return monsters.filter(monster => matchesMonsterFilters(monster, filters));
+  } catch (error) {
+    console.error('✗ 讀取分頁怪物失敗:', error);
+    throw error;
+  }
+}
+
 export async function getAllMonsters(appId = APP_ID) {
   const buildMonsters = (snapshot) => {
     return snapshot.docs.map(doc => {

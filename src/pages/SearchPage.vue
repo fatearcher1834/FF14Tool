@@ -164,8 +164,7 @@
           <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-2 border">
           <div class="flex items-center gap-3">
             <span class="text-[12px] font-bold text-slate-600">
-              共 <span class="font-black text-slate-800">{{ filteredMonsters.length }}</span> 筆 | 第
-              <span class="font-black text-slate-800">{{ searchCurrentPage }}</span> 頁
+              第 <span class="font-black text-slate-800">{{ searchCurrentPage }}</span> 頁
             </span>
             <select
               v-model.number="searchPageSize"
@@ -215,8 +214,8 @@
               ← 上一頁
             </button>
             <button
-              @click="searchCurrentPage = Math.min(searchCurrentPage + 1, searchTotalPages)"
-              :disabled="searchCurrentPage >= searchTotalPages"
+              @click="searchCurrentPage = searchCurrentPage + 1"
+              :disabled="!searchHasNextPage"
               class="px-3 py-1.5 bg-white border rounded-lg text-xs font-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
             >
               下一頁 →
@@ -672,6 +671,7 @@ import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore
 import { getFirebaseInstance } from '@/services/firebase'
 import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
 import { APP_CONFIG } from '@/config/app.config'
+import { getMonstersPage } from '@/services/database'
 import { applyFilter, sortMonsters, getMapsForVersion, copyToClipboard } from '@/services/hunterUtils'
 import { useUserStore } from '@/stores/user.store'
 import { useMonstersStore } from '@/stores/monsters.store'
@@ -689,6 +689,9 @@ const monstersStore = useMonstersStore()
 const pinsStore = useUserPinsStore()
 const router = useRouter()
 const appVersion = APP_CONFIG.version
+
+const pageMonsters = ref([])
+const isLoadingMonsters = ref(false)
 
 // 搜尋狀態
 const searchTerm = ref('')
@@ -779,37 +782,85 @@ const handleCopyAllLocations = async () => {
 // 用戶 PIN
 const userPins = computed(() => pinsStore.pins)
 
-// 計算過濾的怪物
-const filteredMonsters = computed(() => {
-  if (!monstersStore.monsters || monstersStore.monsters.length === 0) {
-    return []
-  }
-  return applyFilter(
-    monstersStore.monsters,
-    searchTerm.value,
-    filterVer.value,
-    filterMap.value,
-    filterRank.value,
-    filterFate.value,
-    filterWanted.value,
-    filterJob.value
-  )
-})
-
-// 排序和分頁
-const sortedFilteredMonsters = computed(() =>
-  sortMonsters(filteredMonsters.value, searchSortField.value, searchSortDir.value, searchSortJobs.value)
-)
+const pageFilters = computed(() => ({
+  searchTerm: searchTerm.value,
+  version: filterVer.value || undefined,
+  map: filterMap.value || undefined,
+  rank: filterRank.value || undefined,
+  isFate: filterFate.value ? true : undefined,
+  isWanted: filterWanted.value ? true : undefined,
+  job: filterJob.value && filterJob.value !== '*' ? filterJob.value : undefined,
+  sortDir: searchSortDir.value
+}))
 
 const searchPagedMonsters = computed(() => {
-  const startIdx = (searchCurrentPage.value - 1) * searchPageSize.value
-  const endIdx = startIdx + searchPageSize.value
-  return sortedFilteredMonsters.value.slice(startIdx, endIdx)
+  const sorted = sortMonsters(
+    pageMonsters.value,
+    searchSortField.value,
+    searchSortDir.value,
+    searchSortJobs.value
+  )
+  const start = (Math.max(1, searchCurrentPage.value) - 1) * searchPageSize.value
+  return sorted.slice(start, start + searchPageSize.value)
+})
+const searchHasNextPage = computed(() => pageMonsters.value.length > searchCurrentPage.value * searchPageSize.value)
+
+const loadMonsterPage = async () => {
+  isLoadingMonsters.value = true
+  try {
+    const filters = pageFilters.value
+    pageMonsters.value = await getMonstersPage(searchCurrentPage.value, searchPageSize.value, filters)
+  } catch (error) {
+    console.error('✗ 讀取分頁怪物失敗:', error)
+    pageMonsters.value = []
+  } finally {
+    isLoadingMonsters.value = false
+  }
+}
+
+let searchTermTimeout = null
+let suppressPageLoad = false
+
+watch(searchTerm, () => {
+  clearTimeout(searchTermTimeout)
+  searchTermTimeout = setTimeout(async () => {
+    suppressPageLoad = true
+    searchCurrentPage.value = 1
+    await loadMonsterPage()
+    suppressPageLoad = false
+  }, 300)
 })
 
-const searchTotalPages = computed(() =>
-  Math.ceil(filteredMonsters.value.length / searchPageSize.value)
-)
+watch([
+  filterVer,
+  filterMap,
+  filterRank,
+  filterFate,
+  filterWanted,
+  filterJob
+], async () => {
+  suppressPageLoad = true
+  searchCurrentPage.value = 1
+  await loadMonsterPage()
+  suppressPageLoad = false
+})
+
+watch([
+  searchSortDir,
+  searchSortField,
+  searchSortJobs,
+  searchPageSize
+], () => {
+  searchCurrentPage.value = 1
+})
+
+watch(searchCurrentPage, () => {
+  if (!suppressPageLoad) {
+    loadMonsterPage()
+  }
+})
+
+loadMonsterPage()
 
 // 追蹤看板過濾
 const kbFilteredMonsters = computed(() => {
@@ -1082,23 +1133,8 @@ onMounted(async () => {
   console.log('AppID:', userStore.appId)
   console.log('VirtualID:', userStore.virtualId)
   
-  // 先一次性加載所有怪物數據
-  console.log('📡 配置加載怪物數據...')
-  try {
-    await monstersStore.initializeMonsters()
-    console.log(`✅ 怪物初始化完成，當前怪物數: ${monstersStore.monsters.length}`)
-  } catch (err) {
-    console.error('❌ 初始化怪物失敗:', err)
-  }
-  
-  // 然後啟動實時監聽
-  console.log('📡 啟動怪物數據實時監聽...')
-  try {
-    monstersStore.watchMonsters()
-    console.log('✅ 怪物監聽已啟動')
-  } catch (err) {
-    console.error('❌ 啟動監聽失敗:', err)
-  }
+  // 目前只載入頁面分頁怪物資料，避免全量讀取和實時監聽
+  console.log('📡 單次載入分頁怪物資料，不啟用整批讀取或實時監聽')
 
   // 初始化用戶追蹤清單 + 實時監聽
   if (!userStore.virtualId || !userStore.virtualId.trim()) {
