@@ -29,6 +29,10 @@ export const DB_PATHS = {
     pins: (appId, userId) => `artifacts/${appId}/users/${userId}/pins`,
     groups: (appId, userId) => `artifacts/${appId}/users/${userId}/groups`,
     settings: (appId, userId) => `artifacts/${appId}/users/${userId}/settings`
+  },
+  authMapping: {
+    root: (appId) => `artifacts/${appId}/public/data/automapping`,
+    doc: (appId, authUid) => `artifacts/${appId}/public/data/automapping/${authUid}`
   }
 };
 

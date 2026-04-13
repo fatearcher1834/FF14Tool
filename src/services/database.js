@@ -145,7 +145,7 @@ export async function linkAuthAccount(authUid, account, isAdmin, appId = APP_ID)
 
   try {
     const db = getDb();
-    const mappingRef = doc(db, 'artifacts', appId, 'users', authUid, 'auth', 'mapping');
+    const mappingRef = doc(db, 'artifacts', appId, 'public', 'data', 'automapping', authUid);
     await setDoc(mappingRef, {
       account,
       isAdmin: Boolean(isAdmin),
@@ -162,7 +162,7 @@ export async function getAuthMapping(authUid, appId = APP_ID) {
   if (!authUid) return null;
   try {
     const db = getDb();
-    const mappingRef = doc(db, 'artifacts', appId, 'users', authUid, 'auth', 'mapping');
+    const mappingRef = doc(db, 'artifacts', appId, 'public', 'data', 'automapping', authUid);
     const mappingSnap = await getDoc(mappingRef);
     return mappingSnap.exists() ? mappingSnap.data() : null;
   } catch (error) {
