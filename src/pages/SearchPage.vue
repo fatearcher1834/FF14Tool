@@ -16,7 +16,7 @@
           <div class="text-[9px] text-blue-400 font-bold uppercase">{{ userStore.virtualId }}</div>
         </div>
       </div>
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <RouterLink
           v-if="userStore.isAdmin"
           to="/admin"
@@ -24,6 +24,19 @@
         >
           管理員
         </RouterLink>
+
+        <button
+          @click="appStore.toggleThemeMode()"
+          :title="appStore.themeMode === 'dark' ? '切換回一般模式' : '切換到護眼模式'"
+          class="p-2 rounded-full border border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700 transition-colors"
+        >
+          <template v-if="appStore.themeMode === 'dark'">
+            <Sun size="18" />
+          </template>
+          <template v-else>
+            <Moon size="18" />
+          </template>
+        </button>
 
         <button
           @click="logout"
@@ -675,6 +688,8 @@ import {
   Check,
   ArrowUpDown,
   ArrowUpRight,
+  Moon,
+  Sun,
   X
 } from 'lucide-vue-next'
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
@@ -686,6 +701,7 @@ import { applyFilter, sortMonsters, getMapsForVersion, copyToClipboard } from '@
 import { useUserStore } from '@/stores/user.store'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { useUserPinsStore } from '@/stores/user-pins.store'
+import { useAppStore } from '@/stores/app.store'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
@@ -697,6 +713,7 @@ import KanbanPanel from '@/components/KanbanPanel.vue'
 const userStore = useUserStore()
 const monstersStore = useMonstersStore()
 const pinsStore = useUserPinsStore()
+const appStore = useAppStore()
 const router = useRouter()
 const appVersion = APP_CONFIG.version
 

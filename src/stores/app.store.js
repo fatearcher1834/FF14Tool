@@ -35,6 +35,9 @@ export const useAppStore = defineStore("app", () => {
     currentPage: 1
   });
 
+  // 主題模式
+  const themeMode = ref('light');
+
   // Kanban 篩選器
   const kanbanFilter = ref({
     term: "",
@@ -83,6 +86,7 @@ export const useAppStore = defineStore("app", () => {
         if (saved.searchFilter) searchFilter.value = { ...searchFilter.value, ...saved.searchFilter };
         if (saved.kanbanFilter) kanbanFilter.value = { ...kanbanFilter.value, ...saved.kanbanFilter };
         if (saved.similarityThreshold) similarityThreshold.value = saved.similarityThreshold;
+        if (saved.themeMode) themeMode.value = saved.themeMode;
       }
       console.log("✓ 應用狀態已初始化");
     } catch (err) {
@@ -96,7 +100,8 @@ export const useAppStore = defineStore("app", () => {
       const state = {
         searchFilter: searchFilter.value,
         kanbanFilter: kanbanFilter.value,
-        similarityThreshold: similarityThreshold.value
+        similarityThreshold: similarityThreshold.value,
+        themeMode: themeMode.value
       };
       localStorageHelper.set(APP_CONFIG.storage.uiState, state);
     } catch (err) {
@@ -158,6 +163,16 @@ export const useAppStore = defineStore("app", () => {
 
   const toggleAllKbExpanded = () => {
     isKbGlobalExpanded.value = !isKbGlobalExpanded.value;
+  };
+
+  const setThemeMode = (mode) => {
+    themeMode.value = mode === 'dark' ? 'dark' : 'light';
+    saveAppState();
+  };
+
+  const toggleThemeMode = () => {
+    themeMode.value = themeMode.value === 'dark' ? 'light' : 'dark';
+    saveAppState();
   };
 
   // 設置展開狀態
@@ -226,6 +241,9 @@ export const useAppStore = defineStore("app", () => {
     toggleMainExpanded,
     toggleAllMainExpanded,
     toggleAllKbExpanded,
+    setThemeMode,
+    toggleThemeMode,
+    themeMode,
     setExpandedState,
     showCopyFeedback,
     updateBulkAddState,

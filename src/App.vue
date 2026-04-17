@@ -13,11 +13,15 @@
 import { RouterView, useRouter } from 'vue-router'
 import { useUserStore, useAppStore } from '@/stores'
 import { initializeFirebase } from '@/services/firebase'
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 
 const userStore = useUserStore()
 const appStore = useAppStore()
 const router = useRouter()
+
+const updateBodyTheme = (mode) => {
+  document.body.classList.toggle('theme-dark', mode === 'dark')
+}
 
 // 初始化應用
 onMounted(async () => {
@@ -30,12 +34,15 @@ onMounted(async () => {
 
     // 初始化應用狀態
     appStore.initializeAppState()
+    updateBodyTheme(appStore.themeMode)
 
     console.log('✓ 應用初始化完成')
   } catch (error) {
     console.error('✗ 應用初始化失敗:', error)
   }
 })
+
+watch(() => appStore.themeMode, updateBodyTheme)
 </script>
 
 <style scoped>
