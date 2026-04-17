@@ -503,7 +503,7 @@
                 v-for="m in getGroupMonsters(group.id)"
                 :key="`kb-${m.id}`"
                 :class="['border rounded-xl relative group/card cursor-grab active:cursor-grabbing shadow-sm transition-all', 
-                  m.rank === 'S' || m.rank === 'SS' ? 'bg-amber-50 border-amber-100' : 'bg-[#fdfcf0] border-orange-100']"
+                  m.rank === 'S' || m.rank === 'SS' ? 'bg-amber-50 border-amber-100' : 'bg-orange-50 border-orange-100']"
                 draggable="true"
                 @dragstart="handleMonsterDragStart($event, m.id)"
                 @dragover="handleMonsterDragOver($event, m.id)"

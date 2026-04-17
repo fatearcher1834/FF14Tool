@@ -61,9 +61,45 @@ body.theme-dark .bg-slate-100 {
   color: #e2e8f0 !important;
 }
 
+body.theme-dark .bg-blue-50,
+body.theme-dark .bg-orange-50,
+body.theme-dark .bg-amber-50,
+body.theme-dark .bg-amber-100 {
+  background-color: #111827 !important;
+  color: #e2e8f0 !important;
+}
+
+body.theme-dark .bg-amber-100 {
+  background-color: #332d1f !important;
+  color: #fcd34d !important;
+}
+
+body.theme-dark .text-amber-800 {
+  color: #fcd34d !important;
+}
+
+body.theme-dark .text-slate-800,
+body.theme-dark .text-slate-900,
+body.theme-dark .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+
 body.theme-dark .bg-slate-200 {
   background-color: #1e293b !important;
   color: #e2e8f0 !important;
+}
+
+body.theme-dark .border-blue-100,
+body.theme-dark .border-orange-100,
+body.theme-dark .border-amber-100,
+body.theme-dark .border-slate-200,
+body.theme-dark .border-slate-300,
+body.theme-dark .border-slate-400 {
+  border-color: #334155 !important;
+}
+
+body.theme-dark .hover\:bg-black\/5:hover {
+  background-color: rgba(148, 163, 184, 0.12) !important;
 }
 
 body.theme-dark .bg-slate-900 {
