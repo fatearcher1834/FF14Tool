@@ -153,10 +153,10 @@
           </tr>
         </thead>
         <tbody class="divide-y">
-          <tr v-for="m in (adminMonstersList || [])" :key="m.id" class="hover:bg-slate-50 transition-colors">
+          <tr v-for="m in (adminMonstersList || [])" :key="m.id" class="hover:bg-slate-50 transition-colors dark:hover:bg-slate-700">
             <td class="p-4 text-center" style="width: 48px"></td>
             <td class="p-4 flex items-center gap-3">
-              <span class="font-bold text-sm text-slate-800 mr-1">{{ m.name }}</span>
+              <span class="font-bold text-sm text-slate-800 dark:text-slate-100 mr-1">{{ m.name }}</span>
               <div class="flex items-center gap-1.5">
                 <VersionTag :version="m.version" />
                 <RankTag :rank="m.rank" />
