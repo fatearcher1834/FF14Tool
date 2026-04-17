@@ -57,7 +57,7 @@
             @paste.prevent="handleBatchImagePaste($event)"
           >
             <div v-if="!form.mapImageData" class="text-slate-500 text-xs">
-              尚未設定地圖
+              尚未設定地圖 請直接貼上圖片
             </div>
             <img
               v-if="form.mapImageData"
@@ -82,7 +82,7 @@
             @paste.prevent="handleMonsterImagePaste($event)"
           >
             <div v-if="!form.monsterImageData" class="text-slate-500 text-xs">
-              尚未設定怪物照片
+              尚未設定怪物照片 請直接貼上圖片
             </div>
             <img
               v-if="form.monsterImageData"
