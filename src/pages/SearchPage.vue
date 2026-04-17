@@ -590,7 +590,13 @@ const handleCopyMonsterLocations = async (monster) => {
   await copyToClipboard(text)
   copyFeedback.value = `monster-${monster.id}`
   copyMessage.value = `已複製：${monster.name}`
-  setTimeout(() => { if (copyFeedback.value === `monster-${monster.id}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${monster.name}`) copyMessage.value = '' }, 120)
+  const currentMessage = copyMessage.value
+  setTimeout(() => {
+    if (copyFeedback.value === `monster-${monster.id}`) copyFeedback.value = null
+  }, 120)
+  setTimeout(() => {
+    if (copyMessage.value === currentMessage) copyMessage.value = ''
+  }, 1000)
 }
 
 // 複製指定分組的所有怪物位置座標
@@ -618,7 +624,13 @@ const handleCopyGroupLocations = async (groupId) => {
   await copyToClipboard(text)
   copyFeedback.value = `group-${groupId}`
   copyMessage.value = `已複製：${groupName}`
-  setTimeout(() => { if (copyFeedback.value === `group-${groupId}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${groupName}`) copyMessage.value = '' }, 120)
+  const currentMessage = copyMessage.value
+  setTimeout(() => {
+    if (copyFeedback.value === `group-${groupId}`) copyFeedback.value = null
+  }, 120)
+  setTimeout(() => {
+    if (copyMessage.value === currentMessage) copyMessage.value = ''
+  }, 1000)
 }
 
 const handleOpenLocationMap = async (monster, loc) => {
@@ -798,10 +810,12 @@ const handleCopyAllLocations = async () => {
   await copyToClipboard(text)
   copyFeedback.value = 'all-locations'
   copyMessage.value = '已複製：全部區域'
-  // 1 秒後清除提示
+  const currentMessage = copyMessage.value
   setTimeout(() => {
     if (copyFeedback.value === 'all-locations') copyFeedback.value = null
-    if (copyMessage.value === '已複製：全部區域') copyMessage.value = ''
+  }, 120)
+  setTimeout(() => {
+    if (copyMessage.value === currentMessage) copyMessage.value = ''
   }, 1000)
 }
 
@@ -1084,7 +1098,13 @@ const handleCopyLocation = async (name, loc, key) => {
   await copyToClipboard(text)
   copyFeedback.value = key
   copyMessage.value = `已複製：${name}`
-  setTimeout(() => { copyFeedback.value = null; copyMessage.value = '' }, 120)
+  const currentMessage = copyMessage.value
+  setTimeout(() => {
+    if (copyFeedback.value === key) copyFeedback.value = null
+  }, 120)
+  setTimeout(() => {
+    if (copyMessage.value === currentMessage) copyMessage.value = ''
+  }, 1200)
 }
 
 // 全部展開 / 摺疊
