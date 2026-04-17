@@ -296,12 +296,7 @@
                       <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">
                         <ArrowUpRight size="16" />
                       </span>
-                      <div
-                        v-if="copyFeedback === `${m.id}-${i}`"
-                        class="absolute inset-0 z-10 rounded-xl flex items-center justify-center bg-green-500/90 ring-2 ring-white/70"
-                      >
-                        <Check size="12" class="text-white" />
-                      </div>
+                      <CopyFeedbackOverlay :visible="copyFeedback === `${m.id}-${i}`" />
                     </div>
                   </button>
                 </div>
@@ -563,9 +558,7 @@
                       <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">
                         <ArrowUpRight size="16" />
                       </span>
-                      <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 rounded-xl flex items-center justify-center bg-green-500/90 ring-2 ring-white/70">
-                        <Check size="12" class="text-white" />
-                      </div>
+                      <CopyFeedbackOverlay :visible="copyFeedback === `kb-${m.id}-${i}`" />
                     </div>
                     </button>
                   </div>
@@ -597,7 +590,7 @@ const handleCopyMonsterLocations = async (monster) => {
   await copyToClipboard(text)
   copyFeedback.value = `monster-${monster.id}`
   copyMessage.value = `已複製：${monster.name}`
-  setTimeout(() => { if (copyFeedback.value === `monster-${monster.id}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${monster.name}`) copyMessage.value = '' }, 1000)
+  setTimeout(() => { if (copyFeedback.value === `monster-${monster.id}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${monster.name}`) copyMessage.value = '' }, 120)
 }
 
 // 複製指定分組的所有怪物位置座標
@@ -625,7 +618,7 @@ const handleCopyGroupLocations = async (groupId) => {
   await copyToClipboard(text)
   copyFeedback.value = `group-${groupId}`
   copyMessage.value = `已複製：${groupName}`
-  setTimeout(() => { if (copyFeedback.value === `group-${groupId}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${groupName}`) copyMessage.value = '' }, 1000)
+  setTimeout(() => { if (copyFeedback.value === `group-${groupId}`) copyFeedback.value = null; if (copyMessage.value === `已複製：${groupName}`) copyMessage.value = '' }, 120)
 }
 
 const handleOpenLocationMap = async (monster, loc) => {
@@ -712,6 +705,7 @@ import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
+import CopyFeedbackOverlay from '@/components/CopyFeedbackOverlay.vue'
 import MonsterDetailModal from '@/components/MonsterDetailModal.vue'
 import KanbanPanel from '@/components/KanbanPanel.vue'
 
@@ -1090,7 +1084,7 @@ const handleCopyLocation = async (name, loc, key) => {
   await copyToClipboard(text)
   copyFeedback.value = key
   copyMessage.value = `已複製：${name}`
-  setTimeout(() => { copyFeedback.value = null; copyMessage.value = '' }, 1000)
+  setTimeout(() => { copyFeedback.value = null; copyMessage.value = '' }, 120)
 }
 
 // 全部展開 / 摺疊

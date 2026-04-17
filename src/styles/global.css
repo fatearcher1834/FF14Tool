@@ -51,6 +51,21 @@ body.theme-dark {
   background-color: #0f172a;
 }
 
+..copy-feedback-enter-active {
+  transition: none;
+}
+.copy-feedback-leave-active {
+  transition: opacity 0.55s ease;
+}
+.copy-feedback-enter-from,
+.copy-feedback-enter-to,
+.copy-feedback-leave-from {
+  opacity: 1;
+}
+.copy-feedback-leave-to {
+  opacity: 0;
+}
+
 body.theme-dark .bg-white {
   background-color: #111827 !important;
   color: #e2e8f0 !important;

@@ -194,9 +194,7 @@
                     <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
                     <div class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
                     <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
-                    <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 rounded-xl flex items-center justify-center bg-green-500/90 ring-2 ring-white/70">
-                      <Check size="12" class="text-white" />
-                    </div>
+                    <CopyFeedbackOverlay :visible="copyFeedback === `kb-${m.id}-${i}`" />
                   </div>
                 </button>
               </div>
@@ -217,6 +215,7 @@ import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
+import CopyFeedbackOverlay from '@/components/CopyFeedbackOverlay.vue'
 import { Filter, Plus, ChevronDown, ChevronUp, ChevronRight, Copy, Trash2, Check } from 'lucide-vue-next'
 
 const props = defineProps({
