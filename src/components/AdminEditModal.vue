@@ -75,7 +75,7 @@
           </div>
         </div>
 
-        <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
+        <div v-if="(form.rank && form.rank !== 'None') || form.isFate" class="space-y-2">
           <div
             class="w-full h-44 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
             tabindex="0"
@@ -100,7 +100,16 @@
           </div>
         </div>
 
-        <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
+        <div v-if="form.isFate" class="space-y-2">
+          <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">命運事件名稱</label>
+          <input
+            v-model="form.fateEventName"
+            class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none"
+            placeholder="事件名稱"
+          />
+        </div>
+
+        <div v-if="form.isFate || form.rank === 'S' || form.rank === 'SS'" class="space-y-2">
           <textarea
             v-model="form.triggerCondition"
             class="w-full p-3 bg-white border rounded-2xl font-bold text-xs outline-none "
@@ -351,6 +360,7 @@ const form = ref({
   hasMap: props.monster.hasMap || false,
   hasMonsterImage: props.monster.hasMonsterImage || false,
   triggerCondition: props.monster.triggerCondition || '',
+  fateEventName: props.monster.fateEventName || '',
   locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
 })
 const matchAccuracy = ref(90)

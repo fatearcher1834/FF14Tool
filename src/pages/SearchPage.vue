@@ -267,9 +267,9 @@
                   <button
                     v-for="(loc, i) in m.locations"
                     :key="i"
-                    @click="m.rank && m.rank !== 'None' ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, `${m.id}-${i}`)"
+                    @click="m.isFate || (m.rank && m.rank !== 'None') ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, `${m.id}-${i}`)"
                     class="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc"
-                    :title="m.rank && m.rank !== 'None' ? '打開地圖視圖' : '複製座標'"
+                    :title="m.isFate || (m.rank && m.rank !== 'None') ? '打開地圖視圖' : '複製座標'"
                   >
                     <div class="flex items-center gap-2">
                       <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
@@ -334,7 +334,7 @@
         @toggle-kb-expanded="toggleKbExpanded"
         @copy-monster-locations="handleCopyMonsterLocations"
         @remove-pin="pinsStore.removePin($event, userStore.virtualId)"
-        @monster-location-click="(m, loc, key) => m.rank && m.rank !== 'None' ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, key)"
+        @monster-location-click="(m, loc, key) => m.isFate || (m.rank && m.rank !== 'None') ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, key)"
         @copy-all-locations="handleCopyAllLocations"
         @update:kbSearchTerm="val => kbSearchTerm = val"
         @update:kbFilterVer="val => kbFilterVer = val"
@@ -531,9 +531,9 @@
                 <div v-if="expandedIds[m.id] && m.locations && m.locations.length > 0" class="p-3 bg-slate-50 space-y-1 text-[10px] border-t">
                   <div v-for="(loc, i) in m.locations" :key="i" class="flex items-center gap-2">
                     <button
-                      @click="m.rank && m.rank !== 'None' ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, `kb-${m.id}-${i}`)"
+                      @click="m.isFate || (m.rank && m.rank !== 'None') ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, `kb-${m.id}-${i}`)"
                       class="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc text-[10px]"
-                      :title="m.rank && m.rank !== 'None' ? '打開地圖視圖' : '複製座標'"
+                      :title="m.isFate || (m.rank && m.rank !== 'None') ? '打開地圖視圖' : '複製座標'"
                     >
                     <div class="flex items-center gap-2">
                       <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
@@ -610,10 +610,11 @@ const handleOpenLocationMap = async (monster, loc) => {
   mapModal.value.open = true
   mapModal.value.monster = monster
   mapModal.value.location = loc
-  mapModal.value.loading = !monster.mapImageData || !monster.monsterImageData
+  mapModal.value.loading = monster.isFate ? !monster.monsterImageData : (!monster.mapImageData || !monster.monsterImageData)
 
   // 動態加載圖片數據：避免一開始載入大量 Base64
-  if (!monster.mapImageData || !monster.monsterImageData) {
+  const shouldLoadImages = monster.isFate ? !monster.monsterImageData : (!monster.mapImageData || !monster.monsterImageData)
+  if (shouldLoadImages) {
     try {
       const updated = await monstersStore.loadMonsterImageData(monster.id)
       if (updated && mapModal.value.monster?.id === monster.id) {

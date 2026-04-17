@@ -404,11 +404,12 @@ const handleSaveMonster = async (monster) => {
         isFate: !!monster.isFate,
         isWanted: !!monster.isWanted,
         triggerCondition: monster.triggerCondition || '',
+        fateEventName: monster.fateEventName || '',
         jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
         locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
       };
 
-      if (monster.rank && monster.rank !== 'None') {
+      if ((monster.rank && monster.rank !== 'None') || monster.isFate) {
         console.log('[\u5132\u5b58\u602a\u7269] \u52e4\u7d1a \u306f', monster.rank, ', \u5904\u7406\u5b50\u96ac\u4e00');
         console.log('[\u5132\u5b58\u602a\u7269] mapImageData:', monster.mapImageData ? `${(monster.mapImageData.length / 1024).toFixed(2)}KB` : '\u7a7a', ', hasMap:', monster.hasMap);
         
@@ -481,11 +482,12 @@ const handleSaveMonster = async (monster) => {
           isFate: monster.isFate || existingByName.isFate || false,
           isWanted: monster.isWanted || existingByName.isWanted || false,
           triggerCondition: monster.triggerCondition || existingByName.triggerCondition || '',
+          fateEventName: monster.fateEventName || existingByName.fateEventName || '',
           jobs: existingJobs.length > 0 ? existingJobs : null,
           locations: existingLocations.length > 0 ? existingLocations : []
         };
 
-        if (monster.rank && monster.rank !== 'None') {
+        if ((monster.rank && monster.rank !== 'None') || monster.isFate) {
           if (monster.mapImageData) {
             updates.mapImageData = monster.mapImageData;
             updates.hasMap = true;
@@ -526,12 +528,13 @@ const handleSaveMonster = async (monster) => {
           isFate: !!monster.isFate,
           isWanted: !!monster.isWanted,
           triggerCondition: monster.triggerCondition || '',
+          fateEventName: monster.fateEventName || '',
           hasMap: !!monster.mapImageData,
           mapImageUpdatedAt: monster.mapImageUpdatedAt || (monster.mapImageData ? new Date() : null),
-          mapImageData: monster.rank && monster.rank !== 'None' ? (monster.mapImageData || null) : null,
+          mapImageData: ((monster.rank && monster.rank !== 'None') || monster.isFate) ? (monster.mapImageData || null) : null,
           hasMonsterImage: !!monster.monsterImageData,
           monsterImageUpdatedAt: monster.monsterImageUpdatedAt || (monster.monsterImageData ? new Date() : null),
-          monsterImageData: monster.rank && monster.rank !== 'None' ? (monster.monsterImageData || null) : null,
+          monsterImageData: ((monster.rank && monster.rank !== 'None') || monster.isFate) ? (monster.monsterImageData || null) : null,
           jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
           locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
         };

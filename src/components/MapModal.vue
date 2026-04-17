@@ -16,7 +16,23 @@
             <JobTag :jobs="monster?.jobs || []" />
           </div>
           <p class="text-[14px] text-slate-500">地圖位置：{{ location?.map || '未知' }}</p>
-          <p v-if="monster?.triggerCondition" class="text-[14px] text-amber-600">觸發條件：<br>{{ monster.triggerCondition }}</p>
+          <p v-if="monster?.isFate" class="text-[14px] text-slate-700">事件名稱：{{ monster.fateEventName || '未設定事件名稱' }}</p>
+          <div class="flex flex-wrap gap-2 items-center text-[14px] text-slate-500">
+            <span>座標位置 (X: {{ location?.x || '--' }}, Y: {{ location?.y || '--' }})</span>
+            <button
+              @click.prevent="copyLocation()"
+              :class="['ml-3 p-2 rounded-full shadow transition-all', copied ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-white text-blue-400 hover:text-white hover:bg-blue-500']"
+              title="複製座標"
+            >
+              <template v-if="copied">
+                <Check size="14" />
+              </template>
+              <template v-else>
+                <Copy size="14" />
+              </template>
+            </button>
+          </div>
+          <p v-if="monster?.triggerCondition" class="text-[14px] text-amber-600">觸發條件：{{ monster.triggerCondition }}</p>
         </div>
         <button
           @click="$emit('close')"
@@ -31,7 +47,7 @@
         </template>
 
         <!-- 地圖部分 -->
-        <div class="space-y-2">
+        <div v-if="!monster?.isFate" class="space-y-2">
           <h4 class="text-xs font-bold text-slate-600">地圖位置</h4>
           <template v-if="monster?.mapImageData">
             <div
@@ -76,13 +92,14 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
+import { defineProps, defineEmits, ref } from 'vue'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
-import { X } from 'lucide-vue-next'
+import { X, Copy, Check } from 'lucide-vue-next'
+import { copyToClipboard } from '@/services/hunterUtils'
 
 const props = defineProps({
   open: Boolean,
@@ -93,6 +110,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+const copied = ref(false)
 
 const handleOpenMap = () => {
   if (typeof props.onOpenMap === 'function') {
@@ -103,5 +121,17 @@ const handleOpenMap = () => {
       console.warn('沒有可開啟的地圖資訊')
     }
   }
+}
+
+const copyLocation = async () => {
+  if (!props.monster || !props.location) return
+
+  const prefix = props.monster.isFate ? `FATE: ${props.monster.fateEventName || '未設定事件名稱'} ` : ''
+  const text = `${prefix}${props.monster.name || '未知怪物'} ${props.location.map || '未知'} (X: ${props.location.x || '--'}, Y: ${props.location.y || '--'})`
+  await copyToClipboard(text)
+  copied.value = true
+  setTimeout(() => {
+    copied.value = false
+  }, 1000)
 }
 </script>
