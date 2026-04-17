@@ -25,7 +25,7 @@
                 <span class="font-semibold text-slate-800">事件</span>
                 <span class="flex-1 px-3 py-1 rounded-full bg-amber-100 text-amber-800">{{ monster.fateEventName || '未設定事件名稱' }}</span>
               </div>
-              <div class="flex flex-wrap items-center gap-2">
+              <div v-if="monster?.isFate" class="flex flex-wrap items-center gap-2">
                 <span class="font-semibold text-slate-800">座標</span>
                 <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">X: {{ location?.x || '--' }}, Y: {{ location?.y || '--' }}</span>
                 <button

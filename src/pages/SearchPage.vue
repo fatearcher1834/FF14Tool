@@ -273,8 +273,11 @@
                   >
                     <div class="flex items-center gap-2">
                       <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
-                      <div class="font-mono font-bold text-[10px]">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                      <div v-if="m.isFate || !m.rank || m.rank === 'None'" class="font-mono font-bold text-[10px]">X:{{ loc.x }} Y:{{ loc.y }}</div>
                       <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
+                      <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">
+                        <ArrowUpRight size="16" />
+                      </span>
                       <div
                         v-if="copyFeedback === `${m.id}-${i}`"
                         class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse"
@@ -537,8 +540,11 @@
                     >
                     <div class="flex items-center gap-2">
                       <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
-                      <div class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                      <div v-if="m.isFate || !m.rank || m.rank === 'None'" class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
                       <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
+                      <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">
+                        <ArrowUpRight size="16" />
+                      </span>
                       <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse">
                         <Check size="12" class="text-white" />
                       </div>
@@ -668,6 +674,7 @@ import {
   Copy,
   Check,
   ArrowUpDown,
+  ArrowUpRight,
   X
 } from 'lucide-vue-next'
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
