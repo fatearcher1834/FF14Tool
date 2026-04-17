@@ -5,43 +5,56 @@
     @click.self="$emit('close')"
   >
     <div class="bg-white rounded-2xl w-full max-w-2xl p-4 shadow-xl border">
-      <div class="flex justify-between items-center mb-2">
-        <div class="text-left">
-          <div class="flex flex-wrap items-center gap-2 mb-1">
-            <h3 class="text-base font-black text-slate-800">{{ monster?.name || '未知怪物' }}</h3>
-            <VersionTag :version="monster?.version" />
-            <RankTag :rank="monster?.rank" />
-            <FateTag :is-fate="monster?.isFate" />
-            <WantedTag :is-wanted="monster?.isWanted" />
-            <JobTag :jobs="monster?.jobs || []" />
+      <div class="space-y-4 mb-4">
+        <div class="flex justify-between gap-4 items-start">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <h3 class="text-lg font-black text-slate-900 truncate">{{ monster?.name || '未知怪物' }}</h3>
+              <VersionTag :version="monster?.version" />
+              <RankTag :rank="monster?.rank" />
+              <FateTag :is-fate="monster?.isFate" />
+              <WantedTag :is-wanted="monster?.isWanted" />
+              <JobTag :jobs="monster?.jobs || []" />
+            </div>
+            <div class="grid gap-2 text-sm text-slate-600">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-semibold text-slate-800">地圖</span>
+                <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">{{ location?.map || '未知' }}</span>
+              </div>
+              <div v-if="monster?.isFate" class="flex flex-wrap items-center gap-2">
+                <span class="font-semibold text-slate-800">事件</span>
+                <span class="flex-1 px-3 py-1 rounded-full bg-amber-100 text-amber-800">{{ monster.fateEventName || '未設定事件名稱' }}</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-semibold text-slate-800">座標</span>
+                <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">X: {{ location?.x || '--' }}, Y: {{ location?.y || '--' }}</span>
+                <button
+                  @click.prevent="copyLocation()"
+                  :class="['flex items-center justify-center w-10 h-10 rounded-full shadow transition-all', copied ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-white text-blue-400 hover:text-white hover:bg-blue-500']"
+                  title="複製座標"
+                >
+                  <template v-if="copied">
+                    <Check size="16" />
+                  </template>
+                  <template v-else>
+                    <Copy size="16" />
+                  </template>
+                </button>
+              </div>
+            </div>
           </div>
-          <p class="text-[14px] text-slate-500">地圖位置：{{ location?.map || '未知' }}</p>
-          <p v-if="monster?.isFate" class="text-[14px] text-slate-700">事件名稱：{{ monster.fateEventName || '未設定事件名稱' }}</p>
-          <div class="flex flex-wrap gap-2 items-center text-[14px] text-slate-500">
-            <span>座標位置 (X: {{ location?.x || '--' }}, Y: {{ location?.y || '--' }})</span>
-            <button
-              @click.prevent="copyLocation()"
-              :class="['ml-3 p-2 rounded-full shadow transition-all', copied ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-white text-blue-400 hover:text-white hover:bg-blue-500']"
-              title="複製座標"
-            >
-              <template v-if="copied">
-                <Check size="14" />
-              </template>
-              <template v-else>
-                <Copy size="14" />
-              </template>
-            </button>
-          </div>
-          <p v-if="monster?.triggerCondition" class="text-[14px] text-amber-600">觸發條件：{{ monster.triggerCondition }}</p>
+          <button
+            @click="$emit('close')"
+            class="flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-400 hover:text-slate-800 hover:border-slate-400 transition-colors"
+          >
+            <X size="16" />
+          </button>
         </div>
-        <button
-          @click="$emit('close')"
-          class="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:text-slate-800 hover:border-slate-400 transition-colors"
-        >
-          <X size="14" />
-        </button>
+        <div v-if="monster?.triggerCondition" class="rounded-3xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
+          <span class="font-semibold">觸發條件：</span>{{ monster.triggerCondition }}
+        </div>
       </div>
-      <div class="bg-slate-100 rounded-lg border p-2 overflow-auto max-h-[calc(100vh-9rem)] space-y-4">
+      <div class="bg-slate-100 rounded-3xl border border-slate-200 p-4 overflow-auto max-h-[calc(100vh-9rem)] space-y-4">
         <template v-if="props.loading">
           <div class="w-full h-56 flex items-center justify-center text-blue-500">載入中...</div>
         </template>
