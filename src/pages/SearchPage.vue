@@ -262,14 +262,19 @@
                   </div>
                   <button
                     @click="handleCopyMonsterLocations(m)"
-                    class="p-2 text-blue-400 hover:text-white hover:bg-blue-500 bg-white rounded-full shadow transition-all"
+                    class="p-2 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95"
                     title="複製怪物所有位置座標"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>
                   </button>
                   <button
                     @click="handleTogglePin(m.id)"
-                    :class="['p-2 rounded-xl transition-all', userPins[m.id] ? 'bg-amber-100 text-amber-600' : 'text-slate-200 hover:text-amber-300']"
+                    :class="[
+                      'p-2 rounded-xl border border-slate-200 bg-white shadow transition-all focus:outline-none focus:ring-2 focus:ring-slate-400/30 active:scale-95',
+                      userPins[m.id]
+                        ? 'bg-amber-100 text-amber-600 border-amber-200'
+                        : 'text-slate-500 hover:text-amber-300'
+                    ]"
                   >
                     <Pin size="14" :fill="userPins[m.id] ? 'currentColor' : 'none'" />
                   </button>
@@ -281,7 +286,7 @@
                     v-for="(loc, i) in m.locations"
                     :key="i"
                     @click="m.isFate || (m.rank && m.rank !== 'None') ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, `${m.id}-${i}`)"
-                    class="w-full p-2 bg-slate-50 rounded-xl hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc"
+                    class="w-full p-2 bg-slate-50 rounded-xl border border-slate-200 hover:bg-blue-600 hover:text-white text-left relative transition-all group/loc"
                     :title="m.isFate || (m.rank && m.rank !== 'None') ? '打開地圖視圖' : '複製座標'"
                   >
                     <div class="flex items-center gap-2">
@@ -293,7 +298,7 @@
                       </span>
                       <div
                         v-if="copyFeedback === `${m.id}-${i}`"
-                        class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse"
+                        class="absolute inset-0 z-10 rounded-xl flex items-center justify-center bg-green-500/90 ring-2 ring-white/70"
                       >
                         <Check size="12" class="text-white" />
                       </div>
@@ -315,6 +320,9 @@
         @close="handleCloseMonsterDetailModal"
       />
 
+      <div v-if="copyMessage" class="fixed top-4 left-1/2 z-50 -translate-x-1/2 px-4 py-2 rounded-2xl bg-slate-950/90 text-white text-xs font-bold shadow-xl backdrop-blur-sm max-w-[280px] text-center">
+        {{ copyMessage }}
+      </div>
       <KanbanPanel
         :show="showKanban"
         :copyMessage="copyMessage"
@@ -361,9 +369,6 @@
         @update:kbFilterJob="val => kbFilterJob = val"
       />
       <div :class="['absolute right-0 top-0 bottom-0 sm:w-[380px] w-full bg-slate-100 border-l sm:border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 overflow-hidden', showKanban ? 'translate-x-0' : 'translate-x-full']">
-        <div v-if="copyMessage" class="absolute top-16 right-4 z-50 px-3 py-1 rounded-lg bg-black/80 text-white text-xs font-bold">
-          {{ copyMessage }}
-        </div>
         <!-- 追蹤看板頭部 -->
         <div class="p-4 bg-white border-b flex justify-between items-center">
           <div class="flex items-center gap-3">
@@ -558,7 +563,7 @@
                       <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">
                         <ArrowUpRight size="16" />
                       </span>
-                      <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse">
+                      <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 rounded-xl flex items-center justify-center bg-green-500/90 ring-2 ring-white/70">
                         <Check size="12" class="text-white" />
                       </div>
                     </div>

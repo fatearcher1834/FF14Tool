@@ -2,10 +2,6 @@
   <div
     :class="['absolute right-0 top-0 bottom-0 sm:w-[380px] w-full bg-slate-100 border-l sm:border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 overflow-hidden', show ? 'translate-x-0' : 'translate-x-full']"
   >
-    <div v-if="copyMessage" class="absolute top-16 right-4 z-50 px-3 py-1 rounded-lg bg-black/80 text-white text-xs font-bold">
-      {{ copyMessage }}
-    </div>
-
     <div class="p-4 bg-white border-b flex justify-between items-center">
       <div class="flex items-center gap-3">
         <h2 class="font-black text-xs text-slate-800 uppercase tracking-widest shrink-0">追蹤看板</h2>
@@ -45,7 +41,7 @@
         />
         <button
           @click="$emit('copy-all-locations')"
-          class="ml-2 p-1.5 rounded-full bg-slate-100 hover:bg-blue-500 hover:text-white text-blue-500 transition-all border border-blue-100"
+          class="ml-2 p-1.5 rounded-full border border-slate-200 bg-white text-blue-500 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 dark:bg-slate-900 dark:border-slate-700 dark:text-blue-300"
           title="一鍵複製所有怪物位置"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>
@@ -129,7 +125,7 @@
             <button
               @click="$emit('copy-group-locations', group.id)"
               title="區域複製：複製此分組中怪物的座標"
-              class="p-1 text-blue-400 hover:text-white hover:bg-blue-500 bg-white rounded-full shadow transition-all"
+              class="p-1 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 dark:bg-slate-900 dark:border-slate-700 dark:text-blue-300"
             >
               <Copy size="12" />
             </button>
@@ -173,7 +169,7 @@
               <div class="absolute top-2 right-2 flex gap-1">
                 <button
                   @click.stop="$emit('copy-monster-locations', m)"
-                  class="p-1 text-blue-400 hover:text-white hover:bg-blue-500 bg-white rounded-full shadow transition-all"
+                  class="p-1 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 dark:bg-slate-900 dark:border-slate-700 dark:text-blue-300"
                   title="複製所有位置座標"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>
@@ -198,7 +194,7 @@
                     <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
                     <div class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
                     <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
-                    <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 bg-green-500 rounded-xl flex items-center justify-center animate-pulse">
+                    <div v-if="copyFeedback === `kb-${m.id}-${i}`" class="absolute inset-0 rounded-xl flex items-center justify-center bg-green-500/90 ring-2 ring-white/70">
                       <Check size="12" class="text-white" />
                     </div>
                   </div>
