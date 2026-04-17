@@ -45,6 +45,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* App dark mode is controlled by body.theme-dark only. Tailwind dark: classes are configured to use .theme-dark. */
 body.theme-dark {
   color: #e2e8f0;
   background-color: #0f172a;
@@ -72,6 +73,17 @@ body.theme-dark .bg-amber-100 {
 body.theme-dark .bg-amber-100 {
   background-color: #332d1f !important;
   color: #fcd34d !important;
+}
+
+body.theme-dark .app-copy-btn {
+  background-color: #111827 !important;
+  border-color: #334155 !important;
+  color: #93c5fd !important;
+}
+
+body.theme-dark .app-copy-btn:hover {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
 }
 
 body.theme-dark .text-amber-800 {

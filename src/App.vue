@@ -20,6 +20,7 @@ const userStore = useUserStore()
 const appStore = useAppStore()
 const router = useRouter()
 
+// App dark mode is controlled by body.theme-dark, not by the user's system preference.
 const updateBodyTheme = (mode) => {
   document.body.classList.toggle('theme-dark', mode === 'dark')
 }

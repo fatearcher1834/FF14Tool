@@ -262,7 +262,7 @@
                   </div>
                   <button
                     @click="handleCopyMonsterLocations(m)"
-                    class="p-2 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95"
+                    class="p-2 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 app-copy-btn"
                     title="複製怪物所有位置座標"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>
@@ -489,7 +489,7 @@
                 <button
                   @click="handleCopyGroupLocations(group.id)"
                   title="區域複製：複製此分組中怪物的座標"
-                  class="p-1 text-blue-400 hover:text-white hover:bg-blue-500 bg-white rounded-full shadow transition-all"
+                  class="p-1 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 app-copy-btn"
                 >
                   <Copy size="12" />
                 </button>
@@ -533,7 +533,7 @@
                   <div class="absolute top-2 right-2 flex gap-1">
                     <button
                       @click.stop="handleCopyMonsterLocations(m)"
-                      class="p-1 text-blue-400 hover:text-white hover:bg-blue-500 bg-white rounded-full shadow transition-all"
+                      class="p-1 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 app-copy-btn"
                       title="複製所有位置座標"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>
