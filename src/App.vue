@@ -13,6 +13,7 @@
 import { RouterView, useRouter } from 'vue-router'
 import { useUserStore, useAppStore } from '@/stores'
 import { initializeFirebase } from '@/services/firebase'
+import { APP_CONFIG } from '@/config/app.config'
 import { onMounted, watch } from 'vue'
 
 const userStore = useUserStore()
@@ -22,6 +23,20 @@ const router = useRouter()
 const updateBodyTheme = (mode) => {
   document.body.classList.toggle('theme-dark', mode === 'dark')
 }
+
+const getSavedThemeMode = () => {
+  if (typeof window === 'undefined') return 'light'
+  try {
+    const raw = window.localStorage.getItem(APP_CONFIG.storage.uiState)
+    if (!raw) return 'light'
+    const parsed = JSON.parse(raw)
+    return parsed?.themeMode === 'dark' ? 'dark' : 'light'
+  } catch {
+    return 'light'
+  }
+}
+
+updateBodyTheme(getSavedThemeMode())
 
 // 初始化應用
 onMounted(async () => {
