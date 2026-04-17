@@ -72,7 +72,7 @@
               <Search size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 v-model="searchTerm"
-                @input="searchCurrentPage = 1"
+                @input="resetSearchPageSilent()"
                 class="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-2xl text-xs outline-none font-bold"
                 placeholder="搜尋怪物..."
               />
@@ -108,7 +108,7 @@
 
             <select
               v-model="filterMap"
-              @change="searchCurrentPage = 1"
+              @change="resetSearchPageSilent()"
               class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none"
             >
               <option value="">{{ filterVer ? `${filterVer} 所有地圖` : '所有地圖' }}</option>
@@ -117,7 +117,7 @@
 
             <select
               v-model="filterRank"
-              @change="searchCurrentPage = 1"
+              @change="resetSearchPageSilent()"
               class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none"
             >
               <option value="">等級</option>
@@ -125,7 +125,7 @@
             </select>
 
             <button
-              @click="filterFate = !filterFate; searchCurrentPage = 1"
+              @click="filterFate = !filterFate; resetSearchPageSilent()"
               :class="[
                 'px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all',
                 filterFate
@@ -137,7 +137,7 @@
             </button>
 
             <button
-              @click="filterWanted = !filterWanted; searchCurrentPage = 1"
+              @click="filterWanted = !filterWanted; resetSearchPageSilent()"
               :class="[
                 'px-3 py-1.5 rounded-xl text-[14px] font-black border transition-all',
                 filterWanted
@@ -163,7 +163,7 @@
             <select
               v-if="showJobFilter"
               v-model="filterJob"
-              @change="searchCurrentPage = 1"
+              @change="resetSearchPageSilent()"
               class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none border"
             >
               <option value="*">全部</option>
@@ -183,7 +183,7 @@
             </span>
             <select
               v-model.number="searchPageSize"
-              @change="searchCurrentPage = 1"
+              @change="resetSearchPageSilent()"
               class="bg-white border p-1.5 rounded text-[11px] font-black outline-none"
             >
               <option value="20">20筆</option>
@@ -205,7 +205,7 @@
             <select
               v-if="searchSortField === 'job'"
               v-model="searchSortJobs"
-              @change="searchCurrentPage = 1"
+              @change="resetSearchPageSilent()"
               class="bg-white border p-1.5 rounded text-[11px] font-black outline-none"
             >
               <option value="*">全部</option>
@@ -813,6 +813,7 @@ const pageCursors = ref({ 1: null })
 const pageHasMore = ref(false)
 const lastQueryKey = ref('')
 const totalMonsters = ref(null)
+const queryCountCache = ref({})
 
 const pageFilters = computed(() => ({
   searchTerm: searchTerm.value,
@@ -826,7 +827,43 @@ const pageFilters = computed(() => ({
   sortField: searchSortField.value
 }))
 
+const useLocalMonsterCache = computed(() => Array.isArray(monstersStore.monsters) && monstersStore.monsters.length > 0)
+
+const localFilteredMonsters = computed(() => {
+  if (!useLocalMonsterCache.value) return []
+  return applyFilter(
+    monstersStore.monsters,
+    searchTerm.value,
+    filterVer.value,
+    filterMap.value,
+    filterRank.value,
+    filterFate.value,
+    filterWanted.value,
+    filterJob.value
+  )
+})
+
+const localSortedMonsters = computed(() => {
+  if (!useLocalMonsterCache.value) return []
+  return sortMonsters(
+    localFilteredMonsters.value,
+    searchSortField.value,
+    searchSortDir.value,
+    searchSortJobs.value
+  )
+})
+
+const localPageMonsters = computed(() => {
+  const start = (searchCurrentPage.value - 1) * searchPageSize.value
+  return localSortedMonsters.value.slice(start, start + searchPageSize.value)
+})
+
+const localFilteredTotal = computed(() => localFilteredMonsters.value.length)
+
 const searchPagedMonsters = computed(() => {
+  if (useLocalMonsterCache.value) {
+    return localPageMonsters.value
+  }
   if (searchSortField.value === 'name') {
     return pageMonsters.value
   }
@@ -837,7 +874,12 @@ const searchPagedMonsters = computed(() => {
     searchSortJobs.value
   )
 })
-const searchHasNextPage = computed(() => pageHasMore.value)
+const searchHasNextPage = computed(() => {
+  if (useLocalMonsterCache.value) {
+    return searchCurrentPage.value * searchPageSize.value < localFilteredTotal.value
+  }
+  return pageHasMore.value
+})
 
 const getQueryKey = () => JSON.stringify({
   searchTerm: searchTerm.value,
@@ -852,6 +894,18 @@ const getQueryKey = () => JSON.stringify({
   pageSize: searchPageSize.value
 })
 
+const getCountKey = () => JSON.stringify({
+  searchTerm: searchTerm.value,
+  version: filterVer.value || '',
+  map: filterMap.value || '',
+  rank: filterRank.value || '',
+  isFate: filterFate.value ? '1' : '0',
+  isWanted: filterWanted.value ? '1' : '0',
+  job: filterJob.value && filterJob.value !== '*' ? filterJob.value : '',
+  sortDir: searchSortDir.value,
+  sortField: searchSortField.value
+})
+
 const resetSearchPagination = () => {
   pageCursors.value = { 1: null }
   pageHasMore.value = false
@@ -859,7 +913,20 @@ const resetSearchPagination = () => {
 
 const loadMonsterCount = async (filters) => {
   try {
-    totalMonsters.value = await getMonsterCount(filters)
+    if (useLocalMonsterCache.value) {
+      totalMonsters.value = localFilteredTotal.value
+      return
+    }
+
+    const countKey = getCountKey()
+    if (queryCountCache.value[countKey] !== undefined) {
+      totalMonsters.value = queryCountCache.value[countKey]
+      return
+    }
+
+    const count = await getMonsterCount(filters)
+    queryCountCache.value[countKey] = count
+    totalMonsters.value = count
   } catch (error) {
     console.error('✗ 讀取怪物總數失敗:', error)
     totalMonsters.value = null
@@ -881,6 +948,12 @@ const loadMonsterPage = async (targetPage = searchCurrentPage.value) => {
     }
 
     const pageNumber = Math.max(1, targetPage)
+
+    if (useLocalMonsterCache.value) {
+      pageMonsters.value = localPageMonsters.value
+      pageHasMore.value = searchCurrentPage.value * searchPageSize.value < localFilteredTotal.value
+      return
+    }
 
     for (let page = 1; page < pageNumber; page++) {
       if (pageCursors.value[page] === undefined) {
@@ -913,7 +986,14 @@ const loadMonsterPage = async (targetPage = searchCurrentPage.value) => {
 }
 
 let searchTermTimeout = null
+let filterChangeTimeout = null
 let suppressPageLoad = false
+
+const resetSearchPageSilent = () => {
+  suppressPageLoad = true
+  searchCurrentPage.value = 1
+  suppressPageLoad = false
+}
 
 watch(searchTerm, () => {
   clearTimeout(searchTermTimeout)
@@ -925,6 +1005,16 @@ watch(searchTerm, () => {
   }, 300)
 })
 
+const scheduleFilterUpdate = async () => {
+  clearTimeout(filterChangeTimeout)
+  filterChangeTimeout = setTimeout(async () => {
+    suppressPageLoad = true
+    searchCurrentPage.value = 1
+    await loadMonsterPage()
+    suppressPageLoad = false
+  }, 300)
+}
+
 watch([
   filterVer,
   filterMap,
@@ -932,12 +1022,7 @@ watch([
   filterFate,
   filterWanted,
   filterJob
-], async () => {
-  suppressPageLoad = true
-  searchCurrentPage.value = 1
-  await loadMonsterPage()
-  suppressPageLoad = false
-})
+], scheduleFilterUpdate)
 
 watch([
   searchSortDir,
@@ -956,8 +1041,6 @@ watch(searchCurrentPage, () => {
     loadMonsterPage()
   }
 })
-
-loadMonsterPage()
 
 // 追蹤看板過濾
 const kbFilteredMonsters = computed(() => {
@@ -1075,7 +1158,7 @@ watch(
 // 職業過濾切換
 const onSearchVersionChange = () => {
   filterMap.value = ''
-  searchCurrentPage.value = 1
+  resetSearchPageSilent()
 }
 
 const toggleJobFilter = () => {
@@ -1095,7 +1178,7 @@ const toggleJobFilter = () => {
       searchSortJobs.value = '*'
     }
   }
-  searchCurrentPage.value = 1
+  resetSearchPageSilent()
 }
 
 const onKbVersionChange = () => {
@@ -1240,10 +1323,13 @@ onMounted(async () => {
   } else {
     await pinsStore.initialize(userStore.virtualId)
     await pinsStore.watchPins(userStore.virtualId)
+  }
 
-    // 為釘選面板載入怪物資料
+  // 預先一次性載入所有怪物資料，後續搜尋、篩選改用本地快取，減少重複查詢
+  if (!monstersStore.monsters.length) {
     await monstersStore.initializeMonsters()
   }
+  await loadMonsterPage()
 
   // 監聽分組
   const { db } = getFirebaseInstance()

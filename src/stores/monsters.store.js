@@ -6,6 +6,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import * as db from "../services/database";
 import { APP_ID } from "../config/firebase.config";
+import { localStorageHelper } from "../services/utils";
 
 const getMonsterImageCache = (monsterId) => {
   if (!monsterId) return null;
@@ -53,6 +54,32 @@ const removeMonsterImageCache = (monsterId) => {
   }
 };
 
+const MONSTERS_CACHE_KEY = 'monsters-cache-v1';
+const MONSTERS_CACHE_VERSION_KEY = 'monsters-cache-version-v1';
+
+const loadMonstersCache = () => {
+  const cached = localStorageHelper.get(MONSTERS_CACHE_KEY);
+  return Array.isArray(cached) ? cached : null;
+};
+
+const loadMonstersCacheVersion = () => {
+  const version = localStorageHelper.get(MONSTERS_CACHE_VERSION_KEY);
+  return typeof version === 'number' || typeof version === 'string' ? version : null;
+};
+
+const saveMonstersCache = (data, version) => {
+  if (!Array.isArray(data)) return;
+  localStorageHelper.set(MONSTERS_CACHE_KEY, data);
+  if (version !== undefined && version !== null) {
+    localStorageHelper.set(MONSTERS_CACHE_VERSION_KEY, version);
+  }
+};
+
+const clearMonstersCache = () => {
+  localStorageHelper.remove(MONSTERS_CACHE_KEY);
+  localStorageHelper.remove(MONSTERS_CACHE_VERSION_KEY);
+};
+
 export const useMonstersStore = defineStore("monsters", () => {
   // 狀態
   const monsters = ref([]);
@@ -76,12 +103,31 @@ export const useMonstersStore = defineStore("monsters", () => {
   const initializeMonsters = async () => {
     isLoading.value = true;
     try {
-      const data = await db.getAllMonsters(APP_ID);
-      // 根據 hasMap/hasMonsterImage 標誌決定是否保留舊欄位的圖片
-      // 優先使用 localStorage 緩存，然後是根文檔數據
+      const metadata = await db.getMonstersMeta(APP_ID);
+      const cacheVersion = loadMonstersCacheVersion();
+      const cachedMonsters = loadMonstersCache();
+      let data;
+
+      if (
+        metadata &&
+        cacheVersion !== null &&
+        metadata.dataVersion !== undefined &&
+        String(cacheVersion) === String(metadata.dataVersion) &&
+        Array.isArray(cachedMonsters) &&
+        cachedMonsters.length > 0
+      ) {
+        data = cachedMonsters;
+        console.log(`✓ 使用本地怪物快取，版本 ${metadata.dataVersion}`);
+      } else {
+        data = await db.getAllMonsters(APP_ID);
+        const savedVersion = metadata?.dataVersion || Date.now();
+        saveMonstersCache(data, savedVersion);
+        console.log(`✓ 已更新本地怪物快取，版本 ${savedVersion}`);
+      }
+
       monsters.value = data.map(m => {
         const cache = getMonsterImageCache(m.id);
-        
+
         return {
           ...m,
           mapImageData: m.hasMap ? (cache?.mapImageData || m.mapImageData || null) : null,
@@ -97,6 +143,7 @@ export const useMonstersStore = defineStore("monsters", () => {
     } catch (err) {
       console.error("✗ 加載怪物失敗:", err);
       error.value = err.message;
+      clearMonstersCache();
     } finally {
       isLoading.value = false;
     }
@@ -189,6 +236,7 @@ export const useMonstersStore = defineStore("monsters", () => {
   const addMonster = async (monsterData) => {
     try {
       const id = await db.addMonster(monsterData, APP_ID);
+      clearMonstersCache();
       console.log(`✓ 成功新增怪物: ${monsterData.name}`);
       return id;
     } catch (err) {
@@ -245,6 +293,7 @@ export const useMonstersStore = defineStore("monsters", () => {
         removeMonsterImageCache(monsterId);
       }
 
+      clearMonstersCache();
       console.log(`✓ 成功更新怪物: ${monsterId}`);
     } catch (err) {
       console.error("✗ 更新怪物失敗:", err);
@@ -260,6 +309,7 @@ export const useMonstersStore = defineStore("monsters", () => {
       
       // 本地刪除
       monsters.value = monsters.value.filter(m => m.id !== monsterId);
+      clearMonstersCache();
       
       console.log(`✓ 成功刪除怪物: ${monsterId}`);
     } catch (err) {

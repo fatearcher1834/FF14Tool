@@ -8,7 +8,6 @@ import {
   doc,
   getDocs,
   getDoc,
-  getCountFromServer,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -195,6 +194,13 @@ function buildMonstersQuery(filters = {}, appId = APP_ID) {
     clauses.push(where('locationMaps', 'array-contains', filters.map));
   }
 
+  if (filters.rank) {
+    clauses.push(where('rank', '==', filters.rank));
+  }
+
+  // isFate / isWanted 這兩個布林過濾，會在 client 端做精準過濾，避免 Firestore 組合索引問題。
+  // 這樣點 FATE / 通緝令 時仍然能正常顯示資料。
+
   clauses.push(orderBy('name', filters.sortDir === 'desc' ? 'desc' : 'asc'));
   return query(monstersRef, ...clauses);
 }
@@ -344,6 +350,33 @@ export async function getAllMonsters(appId = APP_ID) {
   } catch (error) {
     console.error('✗ 加載怪物數據失敗:', error);
     throw error;
+  }
+}
+
+export async function getMonstersMeta(appId = APP_ID) {
+  try {
+    const db = getDb();
+    const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'monstersMeta', 'current');
+    const metaSnap = await getDoc(metaRef);
+    return metaSnap.exists() ? metaSnap.data() : null;
+  } catch (error) {
+    console.error('✗ 讀取怪物版本元數據失敗:', error);
+    return null;
+  }
+}
+
+export async function touchMonstersMeta(appId = APP_ID) {
+  try {
+    const db = getDb();
+    const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'monstersMeta', 'current');
+    const now = Timestamp.now();
+    await setDoc(metaRef, {
+      updatedAt: now,
+      dataVersion: now.toMillis()
+    }, { merge: true });
+    console.log('✓ monstersMeta 版本已更新');
+  } catch (error) {
+    console.error('✗ 更新 monstersMeta 版本失敗:', error);
   }
 }
 
@@ -533,6 +566,7 @@ export async function addMonster(monsterData, appId = APP_ID) {
     }
 
     console.log(`✓ 成功新增怪物: ${monsterData.name}`);
+    await touchMonstersMeta(appId);
     return id;
   } catch (error) {
     console.error("✗ 新增怪物失敗:", error);
@@ -653,6 +687,7 @@ export async function updateMonster(monsterId, updates, appId = APP_ID) {
     }
 
     console.log(`✓ 成功更新怪物: ${monsterId}`);
+    await touchMonstersMeta(appId);
   } catch (error) {
     console.error("✗ 更新怪物失敗:", error);
     throw error;
@@ -667,6 +702,7 @@ export async function deleteMonster(monsterId, appId = APP_ID) {
     const db = getDb();
     
     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'monsters', monsterId));
+    await touchMonstersMeta(appId);
     console.log(`✓ 成功刪除怪物: ${monsterId}`);
   } catch (error) {
     console.error("✗ 刪除怪物失敗:", error);
