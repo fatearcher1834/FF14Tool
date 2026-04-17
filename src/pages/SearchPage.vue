@@ -290,13 +290,13 @@
         </div>
       </div>
 
-      <MapModal
-        :open="mapModal.open"
-        :monster="mapModal.monster"
-        :location="mapModal.location"
-        :loading="mapModal.loading"
+      <MonsterDetailModal
+        :open="monsterDetailModal.open"
+        :monster="monsterDetailModal.monster"
+        :location="monsterDetailModal.location"
+        :loading="monsterDetailModal.loading"
         :onOpenMap="openMapInNewTab"
-        @close="handleCloseMapModal"
+        @close="handleCloseMonsterDetailModal"
       />
 
       <KanbanPanel
@@ -607,30 +607,30 @@ const handleCopyGroupLocations = async (groupId) => {
 const handleOpenLocationMap = async (monster, loc) => {
   if (!monster || !loc) return
 
-  mapModal.value.open = true
-  mapModal.value.monster = monster
-  mapModal.value.location = loc
-  mapModal.value.loading = monster.isFate ? !monster.monsterImageData : (!monster.mapImageData || !monster.monsterImageData)
+  monsterDetailModal.value.open = true
+  monsterDetailModal.value.monster = monster
+  monsterDetailModal.value.location = loc
+  monsterDetailModal.value.loading = monster.isFate ? !monster.monsterImageData : (!monster.mapImageData || !monster.monsterImageData)
 
   // 動態加載圖片數據：避免一開始載入大量 Base64
   const shouldLoadImages = monster.isFate ? !monster.monsterImageData : (!monster.mapImageData || !monster.monsterImageData)
   if (shouldLoadImages) {
     try {
       const updated = await monstersStore.loadMonsterImageData(monster.id)
-      if (updated && mapModal.value.monster?.id === monster.id) {
-        mapModal.value.monster = {
-          ...mapModal.value.monster,
+      if (updated && monsterDetailModal.value.monster?.id === monster.id) {
+        monsterDetailModal.value.monster = {
+          ...monsterDetailModal.value.monster,
           ...updated
         }
       }
     } finally {
-      mapModal.value.loading = false
+      monsterDetailModal.value.loading = false
     }
   } else {
-    mapModal.value.loading = false
+    monsterDetailModal.value.loading = false
   }
 
-  console.log('Opening map modal for', monster)
+  console.log('Opening monster detail modal for', monster)
 }
 
 const openMapInNewTab = (src) => {
@@ -638,7 +638,7 @@ const openMapInNewTab = (src) => {
   const w = window.open('', '_blank')
   if (!w) return
 
-  const title = mapModal.value.monster?.name || '地圖'
+  const title = monsterDetailModal.value.monster?.name || '地圖'
   w.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>body{margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;}img{max-width:100vw;max-height:100vh;object-fit:contain;}</style></head><body><img id="mapImage" alt="${title}"/></body></html>`)
   w.document.close()
 
@@ -647,10 +647,10 @@ const openMapInNewTab = (src) => {
   if (img) img.src = src
 }
 
-const handleCloseMapModal = () => {
-  mapModal.value.open = false
-  mapModal.value.monster = null
-  mapModal.value.location = null
+const handleCloseMonsterDetailModal = () => {
+  monsterDetailModal.value.open = false
+  monsterDetailModal.value.monster = null
+  monsterDetailModal.value.location = null
 }
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
@@ -684,7 +684,7 @@ import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
-import MapModal from '@/components/MapModal.vue'
+import MonsterDetailModal from '@/components/MonsterDetailModal.vue'
 import KanbanPanel from '@/components/KanbanPanel.vue'
 
 const userStore = useUserStore()
@@ -739,7 +739,7 @@ const copyFeedback = ref(null)
 const copyMessage = ref('')
 
 // 地圖預覽彈窗
-const mapModal = ref({
+const monsterDetailModal = ref({
   open: false,
   monster: null,
   location: null,
@@ -1254,8 +1254,8 @@ onMounted(async () => {
   // ESC 關閉地圖彈窗
   const escListener = (e) => {
     if (e.key === 'Escape' || e.key === 'Esc') {
-      if (mapModal.value.open) {
-        handleCloseMapModal()
+      if (monsterDetailModal.value.open) {
+        handleCloseMonsterDetailModal()
       }
     }
   }
