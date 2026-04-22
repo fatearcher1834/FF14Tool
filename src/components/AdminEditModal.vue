@@ -8,7 +8,7 @@
     @mousedown="handleOverlayMouseDown"
     @click.self="handleOverlayClick"
   >
-    <div class="bg-white rounded-[2.5rem] w-full max-w-lg p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div class="bg-white rounded-[2.5rem] w-full max-w-lg sm:max-w-xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-black text-slate-900">新增怪物</h3>
         <button @click="$emit('close')" class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all">
