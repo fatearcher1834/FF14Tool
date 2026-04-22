@@ -125,7 +125,7 @@
               </div>
               <div v-if="typeof entry !== 'string' && entry.locations && entry.locations.length > 0" class="text-xs text-slate-500 mt-1">
                 位置：<span v-for="(l, li) in entry.locations" :key="li" class="mr-2">
-                  <span v-if="l.type === 'map'">{{ l.map }} (X: {{ l.x }}, Y: {{ l.y }})</span>
+                  <span v-if="l.type === 'map'">{{ l.map }} (X: {{ l.x }}, Y: {{ l.y }}<span v-if="l.z != null && l.z !== ''">, Z: {{ l.z }}</span>)</span>
                   <span v-else-if="l.type === 'dungeon'">副本：{{ l.map }}</span>
                 </span>
               </div>
@@ -365,12 +365,13 @@ const findMapInAnyText = (text) => {
 
 const parseLocationsFromLine = (line) => {
   const locations = []
-  const pattern = /(.+?)\s*\(?\s*[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*\)?/g
+  const pattern = /(.+?)\s*\(?\s*[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)(?:\s*[,，]?\s*[Zz][:：]\s*([0-9]+(?:\.[0-9]+)?))?\s*\)?/g
   let m
 
   while ((m = pattern.exec(line)) !== null) {
     const x = parseFloat(m[2])
     const y = parseFloat(m[3])
+    const z = m[4] != null ? parseFloat(m[4]) : null
     if (Number.isNaN(x) || Number.isNaN(y)) continue
 
     // 這裡直接用匹配的第一組文字最接近地圖名稱
@@ -400,7 +401,7 @@ const parseLocationsFromLine = (line) => {
       config.value.version = locationVersion
     }
 
-    locations.push({ map, x, y, type: 'map' })
+    locations.push({ map, x, y, z: z == null ? undefined : z, type: 'map' })
   }
 
   // 偵測純副本行：沒座標時 supplementary

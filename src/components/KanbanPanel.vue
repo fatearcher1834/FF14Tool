@@ -192,7 +192,7 @@
                 >
                   <div class="flex items-center gap-2">
                     <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
-                    <div class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                    <div class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}<span v-if="loc.z != null && loc.z !== ''"> Z:{{ loc.z }}</span></div>
                     <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
                     <CopyFeedbackOverlay :visible="copyFeedback === `kb-${m.id}-${i}`" />
                   </div>

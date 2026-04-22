@@ -291,7 +291,9 @@
                   >
                     <div class="flex items-center gap-2">
                       <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
-                      <div v-if="m.isFate || !m.rank || m.rank === 'None'" class="font-mono font-bold text-[10px]">X:{{ loc.x }} Y:{{ loc.y }}</div>
+                      <div v-if="m.isFate || !m.rank || m.rank === 'None'" class="font-mono font-bold text-[10px]">
+                        X:{{ loc.x }} Y:{{ loc.y }}<span v-if="loc.z != null && loc.z !== ''"> Z:{{ loc.z }}</span>
+                      </div>
                       <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
                       <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">
                         <ArrowUpRight size="16" />
@@ -580,7 +582,7 @@ const handleCopyMonsterLocations = async (monster) => {
   const mapGroups = {}
   monster.locations.forEach(loc => {
     if (!mapGroups[loc.map]) mapGroups[loc.map] = []
-    mapGroups[loc.map].push(`(X: ${loc.x}, Y: ${loc.y})`)
+    mapGroups[loc.map].push(formatLocationCoords(loc))
   })
   // 組合
   const mapStr = Object.entries(mapGroups)
@@ -612,7 +614,7 @@ const handleCopyGroupLocations = async (groupId) => {
     const mapGroups = {}
     m.locations.forEach(loc => {
       if (!mapGroups[loc.map]) mapGroups[loc.map] = []
-      mapGroups[loc.map].push(`(X: ${loc.x}, Y: ${loc.y})`)
+      mapGroups[loc.map].push(formatLocationCoords(loc))
     })
     const mapStr = Object.entries(mapGroups)
       .map(([map, coords]) => `${map} ${coords.join(' ')}`)
@@ -798,7 +800,7 @@ const handleCopyAllLocations = async () => {
     const mapGroups = {}
     m.locations.forEach(loc => {
       if (!mapGroups[loc.map]) mapGroups[loc.map] = []
-      mapGroups[loc.map].push(`(X: ${loc.x}, Y: ${loc.y})`)
+      mapGroups[loc.map].push(formatLocationCoords(loc))
     })
     // 組合
     const mapStr = Object.entries(mapGroups)
@@ -1093,8 +1095,16 @@ const handleTogglePin = async mId => {
 }
 
 // 複製位置
+const formatLocationCoords = (loc) => {
+  const coords = [`X: ${loc.x}`, `Y: ${loc.y}`]
+  if (loc.z != null && loc.z !== '') {
+    coords.push(`Z: ${loc.z}`)
+  }
+  return `(${coords.join(', ')})`
+}
+
 const handleCopyLocation = async (name, loc, key) => {
-  const text = `${name} ${loc.map} (X: ${loc.x}, Y: ${loc.y})`
+  const text = `${name} ${loc.map} ${formatLocationCoords(loc)}`.trim()
   await copyToClipboard(text)
   copyFeedback.value = key
   copyMessage.value = `已複製：${name}`

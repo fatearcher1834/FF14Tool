@@ -27,7 +27,9 @@
               </div>
               <div v-if="monster?.isFate" class="flex flex-wrap items-center gap-2">
                 <span class="font-semibold text-slate-800">座標</span>
-                <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">X: {{ location?.x || '--' }}, Y: {{ location?.y || '--' }}</span>
+                <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+                  X: {{ location?.x || '--' }}, Y: {{ location?.y || '--' }}<span v-if="location?.z != null && location?.z !== ''">, Z: {{ location.z }}</span>
+                </span>
                 <button
                   @click.prevent="copyLocation()"
                   :class="['flex items-center justify-center w-10 h-10 rounded-full shadow transition-all', copied ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-white text-blue-400 hover:text-white hover:bg-blue-500']"
@@ -140,7 +142,8 @@ const copyLocation = async () => {
   if (!props.monster || !props.location) return
 
   const prefix = props.monster.isFate ? `FATE: ${props.monster.fateEventName || '未設定事件名稱'} ` : ''
-  const text = `${prefix}${props.monster.name || '未知怪物'} ${props.location.map || '未知'} (X: ${props.location.x || '--'}, Y: ${props.location.y || '--'})`
+  const zPart = props.location.z != null && props.location.z !== '' ? `, Z: ${props.location.z}` : ''
+  const text = `${prefix}${props.monster.name || '未知怪物'} ${props.location.map || '未知'} (X: ${props.location.x || '--'}, Y: ${props.location.y || '--'}${zPart})`
   await copyToClipboard(text)
   copied.value = true
   setTimeout(() => {

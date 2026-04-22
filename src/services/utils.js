@@ -190,7 +190,7 @@ export function parseBatchLocations(text) {
   if (!text.trim()) return [];
 
   const locationPattern =
-    /([\u4E00-\u9FFF]+)\s*\(?\s*[Xx][:：]\s*([0-9.]+)\s*[,，]?\s*[Yy][:：]\s*([0-9.]+)\s*\)?/g;
+    /([\u4E00-\u9FFF]+)\s*\(?\s*[Xx][:：]\s*([0-9.]+)\s*[,，]?\s*[Yy][:：]\s*([0-9.]+)(?:\s*[,，]?\s*[Zz][:：]\s*([0-9.]+))?\s*\)?/g;
   const matches = [...text.matchAll(locationPattern)];
 
   if (matches.length === 0) return [];
@@ -198,7 +198,8 @@ export function parseBatchLocations(text) {
   return matches.map(m => ({
     mapName: m[1].trim(),
     x: m[2],
-    y: m[3]
+    y: m[3],
+    z: m[4] != null ? m[4] : undefined
   }));
 }
 

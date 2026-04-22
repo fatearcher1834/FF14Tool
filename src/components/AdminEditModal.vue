@@ -262,6 +262,15 @@
                   class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
                 />
               </div>
+
+              <div class="flex gap-1 items-center">
+                <span class="text-[10px] font-black text-slate-300">Z</span>
+                <input
+                  v-model="loc.z"
+                  class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
+                  placeholder="可留空"
+                />
+              </div>
             </template>
 
             <button @click="form.locations.splice(i, 1)" class="p-2 text-slate-300 hover:text-red-500">
@@ -326,8 +335,19 @@ const normalizeLocations = (locations = [], version = VERSIONS[0]) => {
     type: loc.type === 'dungeon' ? 'dungeon' : 'map',
     map: loc.map || (loc.type === 'dungeon' ? '' : maps[0] || ''),
     x: loc.x || '',
-    y: loc.y || ''
+    y: loc.y || '',
+    z: loc.z == null ? '' : loc.z
   }))
+}
+
+const cleanLocations = (locations = []) => {
+  return locations.map(loc => {
+    const cleaned = { ...loc }
+    if (cleaned.z == null || cleaned.z === '') {
+      delete cleaned.z
+    }
+    return cleaned
+  })
 }
 
 const normalizeDateTime = (val) => {
@@ -616,8 +636,9 @@ const extractLocationFromLine = (line) => {
   let map = null
   let x = null
   let y = null
+  let z = null
 
-  const coordPattern = /(.+?)\s*\(?\s*[Xx][:：]\s*([0-9.]+)\s*[,，]?\s*[Yy][:：]\s*([0-9.]+)\s*\)?/
+  const coordPattern = /(.+?)\s*\(?\s*[Xx][:：]\s*([0-9.]+)\s*[,，]?\s*[Yy][:：]\s*([0-9.]+)(?:\s*[,，]?\s*[Zz][:：]\s*([0-9.]+))?\s*\)?/
 
   const coordIndex = parts.findIndex(p => coordPattern.test(p))
   if (coordIndex !== -1) {
@@ -627,6 +648,7 @@ const extractLocationFromLine = (line) => {
       map = m[1].trim() || null
       x = parseFloat(m[2])
       y = parseFloat(m[3])
+      z = m[4] != null ? parseFloat(m[4]) : null
 
       // 如果座標內 map 為空，嘗試從上一列取值（可能是地圖名）
       if (!map && coordIndex > 0) {
@@ -650,6 +672,7 @@ const extractLocationFromLine = (line) => {
       map = m[1].trim()
       x = parseFloat(m[2])
       y = parseFloat(m[3])
+      z = m[4] != null ? parseFloat(m[4]) : null
       break
     }
   }
@@ -663,7 +686,7 @@ const extractLocationFromLine = (line) => {
   }
 
   map = fuzzyMapMatch(map)
-  return { map, x, y, type: 'map' }
+  return { map, x, y, z, type: 'map' }
 }
 
 const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
@@ -772,16 +795,22 @@ const handleBatchParse = (text) => {
 
     if (!form.value.locations) form.value.locations = []
 
-    const exists = form.value.locations.some(existing =>
+    const locationZ = loc.z == null ? '' : String(loc.z)
+    const existingLocation = form.value.locations.find(existing =>
       existing.map === loc.map && Number(existing.x) === Number(loc.x) && Number(existing.y) === Number(loc.y)
     )
 
-    if (!exists) {
+    if (existingLocation) {
+      if ((existingLocation.z == null || existingLocation.z === '') && loc.z != null && loc.z !== '') {
+        existingLocation.z = loc.z
+      }
+    } else {
       form.value.locations.push({
         type: loc.type || 'map',
         map: loc.map || (MAP_DATA[form.value.version] ? MAP_DATA[form.value.version][0] : ''),
         x: loc.x || '',
-        y: loc.y || ''
+        y: loc.y || '',
+        z: loc.z == null ? '' : loc.z
       })
     }
 
@@ -874,7 +903,10 @@ const submit = () => {
   if (form.value.monsterImageData) {
     console.log('[表單提交] ✓ 欲提交怪物照片:', (form.value.monsterImageData.length / 1024).toFixed(2), 'KB')
   }
-  emit('save', form.value)
+  emit('save', {
+    ...form.value,
+    locations: cleanLocations(form.value.locations)
+  })
   closeModal()
 }
 
@@ -882,7 +914,7 @@ const addLocation = () => {
   form.value.locations = form.value.locations || []
   // 預設 map 為目前版本第一個地圖
   const maps = MAP_DATA[form.value.version] || [];
-  form.value.locations.push({ map: maps[0] || '', x: '', y: '', type: 'map' })
+  form.value.locations.push({ map: maps[0] || '', x: '', y: '', z: '', type: 'map' })
 }
 </script>
 
