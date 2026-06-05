@@ -135,7 +135,7 @@ export const RANKS = MONSTER_RANKS.map(r => r.id);
 
 // 其他篩選條件 (應存入數據庫)
 export const OTHER_FILTERS = [
-  "火天文學書·第一卷",
+  "火天文書·第一卷",
   "火天文書·第二卷",
   "火獄文書·第一卷",
   "風天文書·第一卷",
