@@ -130,3 +130,17 @@ export const PAGINATION_OPTIONS = [
 // 向後兼容別名
 export const VERSIONS = GAME_VERSIONS.map(v => v.id);
 export const RANKS = MONSTER_RANKS.map(r => r.id);
+
+
+
+// 其他篩選條件 (應存入數據庫)
+export const OTHER_FILTERS = [
+  "火天文學書·第一卷",
+  "火天文書·第二卷",
+  "火獄文書·第一卷",
+  "風天文書·第一卷",
+  "風天文書·第二卷",
+  "水天文書·第一卷",
+  "水天文書·第二卷",
+  "水獄文書·第一卷"
+];

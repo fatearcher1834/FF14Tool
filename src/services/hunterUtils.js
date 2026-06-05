@@ -7,9 +7,9 @@ import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
 /**
  * 怪物篩選
  */
-export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs) => {
+export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs, filterOther) => {
   return list.filter(m => {
-    const matchName = (m.name || '').toLowerCase().includes(search.toLowerCase())
+    const matchName = (m.name || '').toLowerCase().includes((search || '').toLowerCase())
     const matchVer = !ver || m.version === ver
     // 若使用者已選地圖，保留沒有座標的新怪物，避免新增後被濾掉
     const hasNoLocation = !m.locations || !(m.locations.length > 0)
@@ -17,6 +17,7 @@ export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs) =>
     const matchRank = !rank || m.rank === rank
     const matchFate = !fate || m.isFate === true
     const matchWanted = !wanted || m.isWanted === true
+    
     let matchJobs
     // 保證 arr 一定是陣列且無空值
     const arr = Array.isArray(m.jobs) ? m.jobs.filter(Boolean) : (typeof m.jobs === 'string' && m.jobs ? [m.jobs] : [])
@@ -27,7 +28,12 @@ export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs) =>
     } else {
       matchJobs = arr.some(j => typeof j === 'string' && j.startsWith(jobs))
     }
-    return matchName && matchVer && matchMap && matchRank && matchFate && matchWanted && matchJobs
+
+    // 新增：其他標籤的篩選邏輯
+    const matchOther = !filterOther || filterOther === '*' || m.filterOther === filterOther
+
+    // 最後回傳必須同時符合所有條件
+    return matchName && matchVer && matchMap && matchRank && matchFate && matchWanted && matchJobs && matchOther
   })
 }
 

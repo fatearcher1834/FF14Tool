@@ -1,6 +1,8 @@
+沒問題，這裡為你提供加入修正後完整的 `AdminPage.vue` 程式碼。你可以直接將這整段複製並覆蓋你原本的檔案。
+
+```vue
 <template>
   <div class="fixed inset-0 bg-white z-[60] flex flex-col p-6 animate-in overflow-hidden">
-    <!-- Header -->
     <div class="flex justify-between items-center mb-6">
       <div class="flex items-center gap-4">
         <div class="p-3 bg-slate-900 text-white rounded-2xl">
@@ -35,7 +37,6 @@
       </div>
     </div>
 
-    <!-- Filters -->
     <div class="bg-slate-50 p-4 rounded-2xl mb-4 flex gap-4 items-center border border-slate-200 flex-wrap">
       <select
         v-model="adminFilterVer"
@@ -101,7 +102,6 @@
       </div>
     </div>
 
-    <!-- Pagination Top -->
     <div class="flex items-center justify-between p-4 bg-slate-50 border rounded-t-2xl">
       <div class="flex items-center gap-3">
         <span class="text-[12px] font-bold text-slate-600">
@@ -141,7 +141,6 @@
       </div>
     </div>
 
-    <!-- Table -->
     <div class="flex-1 overflow-y-auto border border-t-0 rounded-b-2xl bg-white shadow-inner flex flex-col">
       <table class="w-full text-left flex-shrink-0">
         <thead class="bg-slate-50 sticky top-0 z-10 border-b">
@@ -153,10 +152,10 @@
           </tr>
         </thead>
         <tbody class="divide-y">
-          <tr v-for="m in (adminMonstersList || [])" :key="m.id" class="hover:bg-slate-50 transition-colors dark:hover:bg-slate-700">
+          <tr v-for="m in (adminMonstersList || [])" :key="m.id" class="hover:bg-slate-200 transition-colors dark:hover:bg-slate-650">
             <td class="p-4 text-center" style="width: 48px"></td>
             <td class="p-4 flex items-center gap-3">
-              <span class="font-bold text-sm text-slate-800 dark:text-slate-100 mr-1">{{ m.name }}</span>
+              <span class="font-bold text-sm text-slate-700  mr-1">{{ m.name }}</span>
               <div class="flex items-center gap-1.5">
                 <VersionTag :version="m.version" />
                 <RankTag :rank="m.rank" />
@@ -191,7 +190,6 @@
       </table>
     </div>
 
-    <!-- 編輯模態框 -->
     <AdminEditModal 
       v-if="editingMonster" 
       :monster="editingMonster" 
@@ -199,7 +197,6 @@
       @save="handleSaveMonster"
     />
 
-    <!-- 批量新增怪物模態框 -->
     <AdminBatchAddModal 
       v-if="showBulkMonsterModal" 
       :monster-mode="true"
@@ -211,11 +208,6 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
-// ...所有變數宣告之後...
-
-
-
-// --- 變數宣告區塊結束後，這裡插入 watch 監聽 ---
 import { useRouter } from 'vue-router';
 import { useMonstersStore } from '../stores/monsters.store';
 import { useUserStore } from '../stores/user.store';
@@ -366,6 +358,8 @@ const editMonster = (monster) => {
     hasMap,
     mapImageUpdatedAt
   };
+  // 將 log 修正為印出 filterOther，避免看見 undefined
+  console.log('[編輯怪物] 999999:', editingMonster.value.filterOther);
 };
 
 const deleteMonster = async (monster) => {
@@ -406,7 +400,8 @@ const handleSaveMonster = async (monster) => {
         triggerCondition: monster.triggerCondition || '',
         fateEventName: monster.fateEventName || '',
         jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
-        locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
+        locations: monster.locations && monster.locations.length > 0 ? monster.locations : [],
+        filterOther: monster.filterOther || '' // 修正1：加入 filterOther
       };
 
       if ((monster.rank && monster.rank !== 'None') || monster.isFate) {
@@ -484,7 +479,8 @@ const handleSaveMonster = async (monster) => {
           triggerCondition: monster.triggerCondition || existingByName.triggerCondition || '',
           fateEventName: monster.fateEventName || existingByName.fateEventName || '',
           jobs: existingJobs.length > 0 ? existingJobs : null,
-          locations: existingLocations.length > 0 ? existingLocations : []
+          locations: existingLocations.length > 0 ? existingLocations : [],
+          filterOther: monster.filterOther || existingByName.filterOther || '' // 修正2：加入 filterOther
         };
 
         if ((monster.rank && monster.rank !== 'None') || monster.isFate) {
@@ -536,7 +532,8 @@ const handleSaveMonster = async (monster) => {
           monsterImageUpdatedAt: monster.monsterImageUpdatedAt || (monster.monsterImageData ? new Date() : null),
           monsterImageData: ((monster.rank && monster.rank !== 'None') || monster.isFate) ? (monster.monsterImageData || null) : null,
           jobs: monster.jobs && monster.jobs.length > 0 ? monster.jobs : null,
-          locations: monster.locations && monster.locations.length > 0 ? monster.locations : []
+          locations: monster.locations && monster.locations.length > 0 ? monster.locations : [],
+          filterOther: monster.filterOther || '' // 修正3：加入 filterOther
         };
         console.log('[\u5132\u5b58\u602a\u7269] payload \u4e2d monsterImageData \u5927\u5c0f:', payload.monsterImageData?.length || 0, 'bytes, hasMonsterImage:', payload.hasMonsterImage);
         await monstersStore.addMonster(payload);
@@ -580,3 +577,5 @@ onMounted(async () => {
   }
 }
 </style>
+
+```

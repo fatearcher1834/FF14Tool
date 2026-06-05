@@ -50,6 +50,18 @@
             通緝令
           </button>
         </div>
+
+        <div>
+          <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">其他標籤</label>
+          <select
+            v-model="form.filterOther"
+            class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none"
+          > 
+            <option value="">無</option>
+            <option v-for="o in OTHER_FILTERS" :key="o" :value="o">{{ o }}</option>
+          </select>
+        </div>
+
         <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
           <div
             class="w-full h-44 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
@@ -195,20 +207,6 @@
         <div class="space-y-3">
           <div class="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-3">
             <label class="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
-            <!--
-            <div class="flex items-center gap-2 text-[12px] text-slate-500">
-              <span class="whitespace-nowrap">匹配精確度：</span>
-              <input
-                type="range"
-                min="50"
-                max="100"
-                step="1"
-                v-model="matchAccuracy"
-                class="w-full"
-              />
-              <span class="w-10 text-right">{{ matchAccuracy }}%</span>
-            </div>
-            -->
             <textarea
               ref="batchInput"
               class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
@@ -305,16 +303,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { X } from 'lucide-vue-next'
-import { MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS } from '@/config/constants'
+import { MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS, OTHER_FILTERS } from '@/config/constants'
 import { DUNGEON_MAPS_SIMPLE_MAP, simplifiedToTraditional, simplifiedJobBaseMap } from '@/config/locale-translation'
-// 取得非當前版本地圖
-const otherRegions = (version) => {
-  const current = MAP_DATA[version] || [];
-  return ALL_REGIONS.filter(r => !current.includes(r));
-}
 
 const props = defineProps({
   monster: {
@@ -324,10 +317,22 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save'])
-
 const modalRef = ref(null)
+const matchAccuracy = ref(90)
+const overlayMouseDownOnSelf = ref(false)
 
-const jobSuffixes = Array.from({ length: 50 }, (_, i) => String(i + 1).padStart(2, '0'))
+const isManualLoadMap = ref(false)
+const isLoadingMap = ref(false)
+const isLoadingMonster = ref(false)
+const isLoadingImages = ref(false)
+const showImageLoadingWarning = ref(false)
+let imageLoadingWarningTimer = null
+const formMessage = ref('')
+
+const otherRegions = (version) => {
+  const current = MAP_DATA[version] || [];
+  return ALL_REGIONS.filter(r => !current.includes(r));
+}
 
 const normalizeLocations = (locations = [], version = VERSIONS[0]) => {
   const maps = MAP_DATA[version] || []
@@ -365,6 +370,7 @@ const normalizeDateTime = (val) => {
   return null
 }
 
+// 核心初始化
 const form = ref({
   id: props.monster.id || null,
   name: props.monster.name || '',
@@ -381,15 +387,33 @@ const form = ref({
   hasMonsterImage: props.monster.hasMonsterImage || false,
   triggerCondition: props.monster.triggerCondition || '',
   fateEventName: props.monster.fateEventName || '',
-  locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0])
+  locations: normalizeLocations(Array.isArray(props.monster.locations) ? [...props.monster.locations] : [], props.monster.version || VERSIONS[0]),
+  filterOther: props.monster.filterOther || ''
 })
-const matchAccuracy = ref(90)
 
-const overlayMouseDownOnSelf = ref(false)
+// 核心修正：當點選不同怪物切換編輯時，同步刷新 form 資料
+watch(() => props.monster, (newMonster) => {
+  if (!newMonster) return
+  form.value.id = newMonster.id || null
+  form.value.name = newMonster.name || ''
+  form.value.rank = newMonster.rank || 'None'
+  form.value.isFate = newMonster.isFate || false
+  form.value.isWanted = newMonster.isWanted || false
+  form.value.jobs = Array.isArray(newMonster.jobs) ? [...newMonster.jobs] : []
+  form.value.version = newMonster.version || VERSIONS[0]
+  form.value.mapImageData = newMonster.mapImageData || ''
+  form.value.mapImageUpdatedAt = normalizeDateTime(newMonster.mapImageUpdatedAt)
+  form.value.monsterImageData = newMonster.monsterImageData || ''
+  form.value.monsterImageUpdatedAt = normalizeDateTime(newMonster.monsterImageUpdatedAt)
+  form.value.hasMap = newMonster.hasMap || false
+  form.value.hasMonsterImage = newMonster.hasMonsterImage || false
+  form.value.triggerCondition = newMonster.triggerCondition || ''
+  form.value.fateEventName = newMonster.fateEventName || ''
+  form.value.locations = normalizeLocations(Array.isArray(newMonster.locations) ? [...newMonster.locations] : [], newMonster.version || VERSIONS[0])
+  form.value.filterOther = newMonster.filterOther || ''
+}, { deep: true })
 
-const closeModal = () => {
-  emit('close')
-}
+const closeModal = () => { emit('close') }
 
 const handleOverlayMouseDown = (event) => {
   overlayMouseDownOnSelf.value = event.target === event.currentTarget
@@ -400,7 +424,6 @@ const handleOverlayClick = (event) => {
     overlayMouseDownOnSelf.value = false
     return
   }
-
   if (typeof window !== 'undefined') {
     const selection = window.getSelection?.()
     if (selection && selection.type === 'Range') {
@@ -408,31 +431,16 @@ const handleOverlayClick = (event) => {
       return
     }
   }
-
   overlayMouseDownOnSelf.value = false
   closeModal()
 }
 
-const isManualLoadMap = ref(false)
-const isLoadingMap = ref(false)
-const isLoadingMonster = ref(false)
-const isLoadingImages = ref(false)
-const showImageLoadingWarning = ref(false)
-let imageLoadingWarningTimer = null
-
 const imageLoadExpected = computed(() => {
-  return !!(
-    props.monster.hasMap ||
-    props.monster.hasMonsterImage ||
-    props.monster.mapImageData ||
-    props.monster.monsterImageData
-  )
+  return !!(props.monster.hasMap || props.monster.hasMonsterImage || props.monster.mapImageData || props.monster.monsterImageData)
 })
 
 const startImageLoadingWarning = () => {
-  if (imageLoadingWarningTimer) {
-    clearTimeout(imageLoadingWarningTimer)
-  }
+  if (imageLoadingWarningTimer) clearTimeout(imageLoadingWarningTimer)
   showImageLoadingWarning.value = false
   imageLoadingWarningTimer = setTimeout(() => {
     if (isLoadingImages.value || isLoadingMap.value || isLoadingMonster.value) {
@@ -449,73 +457,22 @@ const stopImageLoadingWarning = () => {
   showImageLoadingWarning.value = false
 }
 
-const loadMapImageDataNow = async () => {
-  if (!form.value.id) return
-  isLoadingMap.value = true
-  try {
-    const monstersStore = useMonstersStore()
-    const updated = await monstersStore.loadMonsterImageData(form.value.id)
-    if (updated) {
-      if (updated.mapImageData) {
-        form.value.mapImageData = updated.mapImageData
-      }
-      form.value.mapImageUpdatedAt = normalizeDateTime(updated.mapImageUpdatedAt || form.value.mapImageUpdatedAt)
-      form.value.hasMap = true
-      isManualLoadMap.value = true
-    }
-  } finally {
-    isLoadingMap.value = false
-  }
-}
-
-const loadMonsterImageDataNow = async () => {
-  if (!form.value.id) return
-  isLoadingMonster.value = true
-  try {
-    const monstersStore = useMonstersStore()
-    const updated = await monstersStore.loadMonsterImageData(form.value.id)
-    if (updated) {
-      if (updated.monsterImageData) {
-        form.value.monsterImageData = updated.monsterImageData
-      }
-      form.value.monsterImageUpdatedAt = normalizeDateTime(updated.monsterImageUpdatedAt || form.value.monsterImageUpdatedAt)
-      form.value.hasMonsterImage = true
-    }
-  } finally {
-    isLoadingMonster.value = false
-  }
-}
-
 onMounted(async () => {
-  if (modalRef.value) {
-    modalRef.value.focus()
-  }
-
-  if (!form.value.id || !imageLoadExpected.value) {
-    return
-  }
+  if (modalRef.value) modalRef.value.focus()
+  if (!form.value.id || !imageLoadExpected.value) return
 
   const monstersStore = useMonstersStore()
-
   isLoadingImages.value = true
   startImageLoadingWarning()
   try {
-    // 直接讀取最新的圖片數據
-    console.log('[編輯模態] 載入圖片數據...');
     const updated = await monstersStore.loadMonsterImageData(form.value.id)
-
     if (updated) {
-      // 只有當 form 中沒有新數據時（空字符串），才從 DB 加載舊數據
-      // 這樣用戶新貼上的圖片就不會被舊數據覆蓋
       if (!form.value.mapImageData && updated.mapImageData) {
         form.value.mapImageData = updated.mapImageData
-        console.log('[編輯模態] 載入地圖圖片');
       }
       form.value.mapImageUpdatedAt = normalizeDateTime(updated.mapImageUpdatedAt)
-      
       if (!form.value.monsterImageData && updated.monsterImageData) {
         form.value.monsterImageData = updated.monsterImageData
-        console.log('[編輯模態] 載入怪物照片');
       }
       form.value.monsterImageUpdatedAt = normalizeDateTime(updated.monsterImageUpdatedAt)
     }
@@ -524,18 +481,12 @@ onMounted(async () => {
     stopImageLoadingWarning()
   }
 })
+
 const isJobPickerVisible = ref(false)
 const jobPickerBase = ref(null)
 const jobPickerLevel = ref(null)
 
-// 比照批量新增九宮格選擇器
-const removeJob = (idx) => {
-  form.value.jobs.splice(idx, 1)
-}
-
-const selectJobBase = (job) => {
-  jobPickerBase.value = job
-}
+const removeJob = (idx) => { form.value.jobs.splice(idx, 1) }
 
 const confirmJobWithLevel = (jobBase, level) => {
   if (jobBase && level) {
@@ -558,52 +509,28 @@ const readFileAsDataURL = (file) => {
   })
 }
 
-
-
 const clearMapImage = () => {
-  console.log('[地圖清除] 正在清除地圖資料');
   form.value.mapImageData = ''
   form.value.mapImageUpdatedAt = null
   form.value.hasMap = false
-  
-  // 也要清除 sessionStorage 緩存以防止重新編輯時回復舊值
-  if (form.value.id) {
-    try {
-      sessionStorage.removeItem(`monster-map-${form.value.id}`)
-      console.log('[地圖清除] ✓ 已清除 sessionStorage 緩存');
-    } catch (error) {
-      console.warn('[地圖清除] 清除緩存失敗:', error);
-    }
-  }
+  if (form.value.id) sessionStorage.removeItem(`monster-map-${form.value.id}`)
 }
 
 const clearMonsterImage = () => {
-  console.log('[怪物照片清除] 正在清除怪物照片資料');
   form.value.monsterImageData = ''
   form.value.monsterImageUpdatedAt = null
   form.value.hasMonsterImage = false
-  
-  // 也要清除 sessionStorage 緩存以防止重新編輯時回復舊值
-  if (form.value.id) {
-    try {
-      sessionStorage.removeItem(`monster-map-${form.value.id}`)
-      console.log('[怪物照片清除] ✓ 已清除 sessionStorage 緩存');
-    } catch (error) {
-      console.warn('[怪物照片清除] 清除緩存失敗:', error);
-    }
-  }
+  if (form.value.id) sessionStorage.removeItem(`monster-map-${form.value.id}`)
 }
 
 const fuzzyMapMatch = (rawMap) => {
   const norm = rawMap.replace(/[\s]/g, '')
   if (simplifiedToTraditional[norm]) return simplifiedToTraditional[norm]
-    const allMapList = Object.values(MAP_DATA).flat()
+  const allMapList = Object.values(MAP_DATA).flat()
   const exact = allMapList.find(m => m.replace(/[\s]/g, '').toLowerCase() === norm.toLowerCase())
   if (exact) return exact
 
-  // 依 matchAccuracy 決定寬鬆度
   const threshold = matchAccuracy.value / 100
-
   const includes = allMapList.find(m => {
     const has1 = norm.toLowerCase().includes(m.replace(/[\s]/g, '').toLowerCase())
     const has2 = m.replace(/[\s]/g, '').toLowerCase().includes(norm.toLowerCase())
@@ -622,25 +549,17 @@ const getVersionByMap = (mapName) => {
   if (!mapName) return null
   const normalized = mapName.trim()
   for (const [version, maps] of Object.entries(MAP_DATA)) {
-    if (maps.includes(normalized)) {
-      return version
-    }
+    if (maps.includes(normalized)) return version
   }
   return null
 }
 
 const extractLocationFromLine = (line) => {
-  // 優先處理制表符分隔資料（人為輸入可能包含多欄）
   const parts = line.split(/\t+/).map(p => p.trim()).filter(Boolean)
-
-  let map = null
-  let x = null
-  let y = null
-  let z = null
-
+  let map = null, x = null, y = null, z = null
   const coordPattern = /(.+?)\s*\(?\s*[Xx][:：]\s*([0-9.]+)\s*[,，]?\s*[Yy][:：]\s*([0-9.]+)(?:\s*[,，]?\s*[Zz][:：]\s*([0-9.]+))?\s*\)?/
-
   const coordIndex = parts.findIndex(p => coordPattern.test(p))
+
   if (coordIndex !== -1) {
     const coordPart = parts[coordIndex]
     const m = coordPart.match(coordPattern)
@@ -649,13 +568,7 @@ const extractLocationFromLine = (line) => {
       x = parseFloat(m[2])
       y = parseFloat(m[3])
       z = m[4] != null ? parseFloat(m[4]) : null
-
-      // 如果座標內 map 為空，嘗試從上一列取值（可能是地圖名）
-      if (!map && coordIndex > 0) {
-        map = parts[coordIndex - 1]
-      }
-
-      // 如果仍然不是地图集，进一步回溯查找非数值字符串
+      if (!map && coordIndex > 0) map = parts[coordIndex - 1]
       if (!map || /^\d+$/.test(map)) {
         for (let i = coordIndex - 1; i >= 0; i--) {
           if (!/^\d+$/.test(parts[i]) && !/^[\d.]+$/.test(parts[i])) {
@@ -666,7 +579,6 @@ const extractLocationFromLine = (line) => {
       }
     }
   } else {
-    // 沒有制表符、或不符合理想結構，退回整行解析
     let m
     while ((m = coordPattern.exec(line)) !== null) {
       map = m[1].trim()
@@ -679,34 +591,21 @@ const extractLocationFromLine = (line) => {
 
   if (!map || isNaN(x) || isNaN(y)) {
     const dungeon = findDungeonFromText(line)
-    if (dungeon) {
-      return { map: dungeon, type: 'dungeon' }
-    }
-    return null
+    return dungeon ? { map: dungeon, type: 'dungeon' } : null
   }
-
-  map = fuzzyMapMatch(map)
-  return { map, x, y, z, type: 'map' }
+  return { map: fuzzyMapMatch(map), x, y, z, type: 'map' }
 }
 
 const coordTestPattern = /[Xx][:：]\s*([0-9]+(?:\.[0-9]+)?)\s*[,，]?\s*[Yy][:：]\s*([0-9]+(?:\.[0-9]+)?)/
-
-const toTraditional = (text) => {
-  if (!text) return text
-  const mapping = simplifiedToTraditional[text]
-  return mapping || text
-}
+const toTraditional = (text) => text ? (simplifiedToTraditional[text] || text) : text
 
 const findDungeonFromText = (text) => {
   if (!text) return null
   const normalized = toTraditional(text).replace(/\s+/g, '').toLowerCase()
   const matched = DUNGEON_MAPS.find(d => normalized.includes(d.replace(/\s+/g, '').toLowerCase()))
   if (matched) return matched
-
   const matchedSimple = Object.keys(DUNGEON_MAPS_SIMPLE_MAP).find(d => normalized.includes(d.replace(/\s+/g, '').toLowerCase()))
-  if (matchedSimple) return DUNGEON_MAPS_SIMPLE_MAP[matchedSimple]
-
-  return null
+  return matchedSimple ? DUNGEON_MAPS_SIMPLE_MAP[matchedSimple] : null
 }
 
 const parseJobTagFromLine = (line) => {
@@ -714,91 +613,55 @@ const parseJobTagFromLine = (line) => {
   for (const cand of candidates) {
     const m = cand.match(/^([^\d]+?)(\d{1,2})$/)
     if (!m) continue
-
     let base = m[1]
     const level = m[2].padStart(2, '0')
-
-    if (simplifiedJobBaseMap[base]) {
-      base = simplifiedJobBaseMap[base]
-    }
-
-    // 兼容正體職業名
+    if (simplifiedJobBaseMap[base]) base = simplifiedJobBaseMap[base]
     if (!JOB_BASE_NAMES.includes(base)) {
       const normalized = Object.keys(simplifiedJobBaseMap).find(key => simplifiedJobBaseMap[key] === base)
       if (normalized) base = simplifiedJobBaseMap[normalized]
     }
-
-    if (JOB_BASE_NAMES.includes(base)) {
-      return `${base}${level}`
-    }
+    if (JOB_BASE_NAMES.includes(base)) return `${base}${level}`
   }
-
   return null
 }
 
 const parseNameFromLine = (line) => {
-  const clean = line
-    .replace(/\b\d{3,}\.png\d*\b/gi, '')
-    .replace(/\b\d+\.png\b/gi, '')
-    .replace(/\.[jJ][pP][eE]?[gG]\b/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
-
+  const clean = line.replace(/\b\d{3,}\.png\d*\b/gi, '').replace(/\b\d+\.png\b/gi, '').replace(/\.[jJ][pP][eE]?[gG]\b/g, '').replace(/\s{2,}/g, ' ').trim()
   const fields = clean.split(/\t+|\s+/).map(field => field.trim()).filter(Boolean)
   const names = fields.filter(field => {
     const outline = field.replace(/\s+/g, '')
-    if (coordTestPattern.test(field)) return false
-    if (/([\u4e00-\u9fff]+?)(\d{1,2})/.test(outline)) return false
-    if (/^\d+$/.test(field)) return false
-    if (/\.(png|jpg|jpeg)$/i.test(field) || /\d{3,}\.png\d*/i.test(field)) return false
+    if (coordTestPattern.test(field) || /([\u4e00-\u9fff]+?)(\d{1,2})/.test(outline) || /^\d+$/.test(field) || /\.(png|jpg|jpeg)$/i.test(field) || /\d{3,}\.png\d*/i.test(field)) return false
     return true
   })
-
   return names.length > 0 ? toTraditional(names[0]) : null
 }
 
 const handleBatchParse = (text) => {
   if (!text) return
-
   const lines = text.split('\n').map(line => line.trim()).filter(line => line)
-
   let currentJobTag = null
 
   lines.forEach(line => {
-    if (/通緝令/i.test(line)) {
-      form.value.isWanted = true
-    }
-    if (/命運|fate/i.test(line)) {
-      form.value.isFate = true
-    }
+    if (/通緝令/i.test(line)) form.value.isWanted = true
+    if (/命運|fate/i.test(line)) form.value.isFate = true
 
     const nameCandidate = parseNameFromLine(line)
-    if (nameCandidate && !form.value.name) {
-      form.value.name = nameCandidate
-    }
+    if (nameCandidate && !form.value.name) form.value.name = nameCandidate
 
     const jobTag = parseJobTagFromLine(line)
     if (jobTag) {
       currentJobTag = jobTag
-      if (!form.value.jobs.includes(jobTag)) {
-        form.value.jobs.push(jobTag)
-      }
+      if (!form.value.jobs.includes(jobTag)) form.value.jobs.push(jobTag)
     }
 
     const loc = extractLocationFromLine(line)
     if (!loc) return
 
     const locationVersion = loc.map ? getVersionByMap(loc.map) : null
-    if (locationVersion && form.value.version !== locationVersion) {
-      form.value.version = locationVersion
-    }
+    if (locationVersion && form.value.version !== locationVersion) form.value.version = locationVersion
 
     if (!form.value.locations) form.value.locations = []
-
-    const locationZ = loc.z == null ? '' : String(loc.z)
-    const existingLocation = form.value.locations.find(existing =>
-      existing.map === loc.map && Number(existing.x) === Number(loc.x) && Number(existing.y) === Number(loc.y)
-    )
+    const existingLocation = form.value.locations.find(existing => existing.map === loc.map && Number(existing.x) === Number(loc.x) && Number(existing.y) === Number(loc.y))
 
     if (existingLocation) {
       if ((existingLocation.z == null || existingLocation.z === '') && loc.z != null && loc.z !== '') {
@@ -813,10 +676,7 @@ const handleBatchParse = (text) => {
         z: loc.z == null ? '' : loc.z
       })
     }
-
-    if (currentJobTag && !form.value.jobs.includes(currentJobTag)) {
-      form.value.jobs.push(currentJobTag)
-    }
+    if (currentJobTag && !form.value.jobs.includes(currentJobTag)) form.value.jobs.push(currentJobTag)
   })
 }
 
@@ -827,15 +687,12 @@ const handleBatchImagePaste = async (event) => {
       const file = item.getAsFile()
       if (!file) continue
       try {
-        let dataUrl = await readFileAsDataURL(file)
-        form.value.mapImageData = dataUrl
+        form.value.mapImageData = await readFileAsDataURL(file)
         form.value.hasMap = true
         form.value.mapImageUpdatedAt = new Date()
       } catch (error) {
-        console.error('貼上圖片失敗', error)
         formMessage.value = '貼上圖片失敗，請稍後再試。'
       }
-      // 只處理第一張圖片
       return
     }
   }
@@ -843,48 +700,28 @@ const handleBatchImagePaste = async (event) => {
 
 const handleMonsterImagePaste = async (event) => {
   const items = event.clipboardData?.items || []
-  console.log('[怪物照片粘貼] 開始處理...', items.length, '項目')
   for (const item of items) {
     if (item.kind === 'file' && item.type.startsWith('image/')) {
       const file = item.getAsFile()
-      if (!file) {
-        console.warn('[怪物照片粘貼] 無法取得文件')
-        continue
-      }
+      if (!file) continue
       try {
-        console.log('[怪物照片粘貼] 文件:', file.name, '大小:', (file.size / 1024).toFixed(2), 'KB')
-        let dataUrl = await readFileAsDataURL(file)
-        console.log('[怪物照片粘貼] 轉換為 DataURL 完成, 大小:', (dataUrl.length / 1024).toFixed(2), 'KB')
-        
-        form.value.monsterImageData = dataUrl
+        form.value.monsterImageData = await readFileAsDataURL(file)
         form.value.hasMonsterImage = true
         form.value.monsterImageUpdatedAt = new Date()
-        console.log('[怪物照片粘貼] ✓ 已設定到表單', {
-          hasData: !!form.value.monsterImageData,
-          dataSize: form.value.monsterImageData.length,
-          hasMonsterImage: form.value.hasMonsterImage,
-          timestamp: form.value.monsterImageUpdatedAt
-        })
       } catch (error) {
-        console.error('[怪物照片粘貼] ✗ 失敗:', error)
         formMessage.value = '貼上怪物照片失敗，請稍後再試。'
       }
-      // 只處理第一張圖片
       return
     }
   }
-  console.warn('[怪物照片粘貼] 未找到圖片文件')
 }
 
 const handleBatchParseFromPaste = (event) => {
   const text = event.clipboardData?.getData('text') || ''
   handleBatchParse(text)
-  if (event.target) {
-    event.target.value = ''
-  }
+  if (event.target) event.target.value = ''
 }
 
-const formMessage = ref('')
 const saveBlockedMessage = computed(() => {
   if ((isLoadingImages.value || isLoadingMap.value || isLoadingMonster.value) && imageLoadExpected.value && showImageLoadingWarning.value) {
     return '圖片載入中，請等載入完成再按儲存。'
@@ -899,10 +736,6 @@ const submit = () => {
     return
   }
   formMessage.value = ''
-  console.log('[表單提交] monsterImageData 大小:', form.value.monsterImageData?.length || 0, 'bytes, hasMonsterImage:', form.value.hasMonsterImage)
-  if (form.value.monsterImageData) {
-    console.log('[表單提交] ✓ 欲提交怪物照片:', (form.value.monsterImageData.length / 1024).toFixed(2), 'KB')
-  }
   emit('save', {
     ...form.value,
     locations: cleanLocations(form.value.locations)
@@ -912,10 +745,7 @@ const submit = () => {
 
 const addLocation = () => {
   form.value.locations = form.value.locations || []
-  // 預設 map 為目前版本第一個地圖
   const maps = MAP_DATA[form.value.version] || [];
   form.value.locations.push({ map: maps[0] || '', x: '', y: '', z: '', type: 'map' })
 }
 </script>
-
-// VERSIONS 已由 constants.js 導出

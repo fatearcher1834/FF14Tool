@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col h-full bg-slate-50 overflow-hidden">
-    <!-- Navbar -->
     <nav class="bg-slate-900 text-white p-3 flex justify-between items-center shrink-0 z-50">
       <div class="flex items-center gap-3">
         <div class="bg-blue-600 p-1.5 rounded-lg">
@@ -61,11 +60,8 @@
       </div>
     </nav>
 
-    <!-- 主容器 -->
     <div class="flex-1 flex overflow-hidden relative">
-      <!-- 左邊 - 搜尋看板 -->
       <div :class="['flex-1 flex flex-col transition-all duration-300', showKanban ? 'sm:mr-[380px] mr-0' : 'mr-0']">
-        <!-- 搜尋工具欄 -->
         <div class="p-4 bg-white border-b space-y-3 z-30 shadow-sm">
           <div class="flex items-center gap-3">
             <div class="relative flex-1">
@@ -95,7 +91,6 @@
             </button>
           </div>
 
-          <!-- 篩選條件 -->
           <div class="flex gap-2 items-center flex-wrap">
             <select
               v-model="filterVer"
@@ -166,14 +161,21 @@
               @change="resetSearchPageSilent()"
               class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none border"
             >
-              <option value="*">全部</option>
+              <option value="*">全部職業</option>
               <option v-for="j in JOB_BASE_NAMES" :key="j" :value="j">{{ j }}</option>
+            </select>
+
+            <select
+              v-model="filterOther"
+              @change="resetSearchPageSilent()"
+              class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none border"
+            >
+              <option value="*">其他標籤</option>
+              <option v-for="o in OTHER_FILTERS" :key="o" :value="o">{{ o }}</option>
             </select>
           </div>
         </div>
-        <!-- 沐窗區域 -->
         <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <!-- 分頁導航 -->
           <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-2 border">
           <div class="flex items-center gap-3">
             <span class="text-[12px] font-bold text-slate-600">
@@ -238,26 +240,25 @@
           </div>
         </div>
 
-        <!-- 怪物卡片網格 -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 p-4">
             <div
               v-for="m in searchPagedMonsters"
               :key="m.id"
-              class="bg-white rounded-3xl border border-slate-200 hover:border-blue-400 transition-all overflow-hidden shadow-sm"
+              class="bg-white rounded-3xl border border-slate-200 hover:border-blue-400 hover:bg-slate-50 transition-colors transition-all overflow-hidden shadow-sm"
             >
               <div class="p-4">
-                <!-- 怪物名稱和標籤 -->
                 <div class="flex justify-between items-start mb-2">
                   <div class="flex flex-col flex-1 cursor-pointer" @click="toggleMainExpanded(m.id)">
                     <div class="flex flex-wrap items-center gap-1.5 mb-1">
                       <ChevronDown v-if="mainExpandedIds[m.id]" size="12" class="text-slate-400" />
                       <ChevronRight v-else size="12" class="text-slate-400" />
-                      <h4 class="font-black text-slate-800 text-sm mr-0.5">{{ m.name }}</h4>
+                      <h4 class="font-black text-slate-900 text-sm mr-0.5">{{ m.name }}</h4>
                       <VersionTag :version="m.version" />
                       <RankTag :rank="m.rank" />
                       <FateTag :isFate="m.isFate" />
                       <WantedTag :isWanted="m.isWanted" />
                       <JobTag :jobs="m.jobs || []" />
+                      <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200">{{ m.filterOther }}</span>
                     </div>
                   </div>
                   <button
@@ -280,7 +281,6 @@
                   </button>
                 </div>
 
-                <!-- 展開的位置列表 -->
                 <div v-if="mainExpandedIds[m.id] && m.locations && m.locations.length > 0" class="space-y-1.5">
                   <button
                     v-for="(loc, i) in m.locations"
@@ -320,6 +320,7 @@
       <div v-if="copyMessage" class="fixed top-4 left-1/2 z-50 -translate-x-1/2 px-4 py-2 rounded-2xl bg-slate-950/90 text-white text-xs font-bold shadow-xl backdrop-blur-sm max-w-[280px] text-center">
         {{ copyMessage }}
       </div>
+      
       <KanbanPanel
         :show="showKanban"
         :copyMessage="copyMessage"
@@ -331,6 +332,7 @@
         :kbFilterFate="kbFilterFate"
         :kbFilterWanted="kbFilterWanted"
         :kbFilterJob="kbFilterJob"
+        :kbFilterOther="kbFilterOther"
         :showKbJobFilter="showKbJobFilter"
         :customGroups="customGroups"
         :userPins="userPins"
@@ -364,9 +366,10 @@
         @update:kbFilterFate="val => kbFilterFate = val"
         @update:kbFilterWanted="val => kbFilterWanted = val"
         @update:kbFilterJob="val => kbFilterJob = val"
+        @update:kbFilterOther="val => kbFilterOther = val"
       />
+
       <div :class="['absolute right-0 top-0 bottom-0 sm:w-[380px] w-full bg-slate-100 border-l sm:border-l shadow-2xl transition-transform duration-300 flex flex-col z-40 overflow-hidden', showKanban ? 'translate-x-0' : 'translate-x-full']">
-        <!-- 追蹤看板頭部 -->
         <div class="p-4 bg-white border-b flex justify-between items-center">
           <div class="flex items-center gap-3">
             <h2 class="font-black text-xs text-slate-800 uppercase tracking-widest shrink-0">追蹤看板</h2>
@@ -395,7 +398,6 @@
           </button>
         </div>
 
-        <!-- 追蹤看板篩選 -->
         <div class="p-3 bg-white border-b space-y-2 shadow-sm">
           <div class="relative flex items-center">
             <Filter size="10" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -427,13 +429,15 @@
             >
               <option value="">{{ kbFilterVer ? `${kbFilterVer} 地圖` : '全地圖' }}</option>
               <option v-for="m in getMapsForVersion(kbFilterVer)" :key="m" :value="m">{{ m }}</option>
-            </select>            <select
+            </select>            
+            <select
               v-model="kbFilterRank"
               class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
             >
               <option value="">等級</option>
               <option v-for="r in RANKS" :key="r" :value="r">{{ r === 'None' ? '一般' : `${r}級` }}</option>
-            </select>            <button
+            </select>            
+            <button
               @click="kbFilterFate = !kbFilterFate"
               :class="['px-2 py-1 rounded-lg text-[12px] font-black border transition-all', kbFilterFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-slate-50 text-slate-400 border-slate-200']"
             >
@@ -456,13 +460,19 @@
               v-model="kbFilterJob"
               class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
             >
-              <option value="*">全部</option>
+              <option value="*">全部職業</option>
               <option v-for="j in JOB_BASE_NAMES" :key="j" :value="j">{{ j }}</option>
+            </select>
+            <select
+              v-model="kbFilterOther"
+              class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
+            >
+              <option value="*">其他標籤</option>
+              <option v-for="o in OTHER_FILTERS" :key="o" :value="o">{{ o }}</option>
             </select>
           </div>
         </div>
 
-        <!-- 分組列表 -->
         <div class="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar bg-slate-50">
           <div
             v-for="group in customGroups"
@@ -472,7 +482,6 @@
             @drop="handleGroupDrop($event, group.id)"
             :class="['bg-white rounded-2xl border p-3 space-y-3 shadow-sm transition-all', dragOverMonsterId === 'group-' + group.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200']"
           >
-            <!-- 分組頭部 -->
             <div class="flex justify-between items-center px-1">
               <input
                 :value="group.name"
@@ -499,7 +508,6 @@
               </div>
             </div>
 
-            <!-- 分組內的怪物 -->
             <div class="flex flex-col gap-2">
               <div
                 v-for="m in getGroupMonsters(group.id)"
@@ -523,10 +531,12 @@
                       {{ m.name }}
                       <VersionTag :version="m.version" />
                       <RankTag :rank="m.rank" />
-                      <FateTag :isFate="m.isFate" />                      <WantedTag :isWanted="m.isWanted" />                      <JobTag :jobs="m.jobs || []" />
+                      <FateTag :isFate="m.isFate" />
+                      <WantedTag :isWanted="m.isWanted" />
+                      <JobTag :jobs="m.jobs || []" />
+                      <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200">{{ m.filterOther }}</span>
                     </div>
                   </div>
-                  <!-- 取消釘選按鈕 -->
                   <div class="absolute top-2 right-2 flex gap-1">
                     <button
                       @click.stop="handleCopyMonsterLocations(m)"
@@ -545,7 +555,6 @@
                   </div>
                 </div>
 
-                <!-- 位置列表 -->
                 <div v-if="expandedIds[m.id] && m.locations && m.locations.length > 0" class="p-3 bg-slate-50 space-y-1 text-[10px] border-t">
                   <div v-for="(loc, i) in m.locations" :key="i" class="flex items-center gap-2">
                     <button
@@ -706,7 +715,7 @@ import {
 } from 'lucide-vue-next'
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
 import { getFirebaseInstance } from '@/services/firebase'
-import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
+import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES, OTHER_FILTERS } from '@/config/constants'
 import { APP_CONFIG } from '@/config/app.config'
 import { getMonstersPage, getMonsterCount } from '@/services/database'
 import { applyFilter, sortMonsters, getMapsForVersion, copyToClipboard } from '@/services/hunterUtils'
@@ -741,6 +750,7 @@ const filterRank = ref('')
 const filterFate = ref(false)
 const filterWanted = ref(false)
 const filterJob = ref('')
+const filterOther = ref('') // 新增
 const showJobFilter = ref(false)
 
 // 追蹤看板狀態
@@ -756,6 +766,7 @@ const kbFilterRank = ref('')
 const kbFilterFate = ref(false)
 const kbFilterWanted = ref(false)
 const kbFilterJob = ref('')
+const kbFilterOther = ref('') // 新增
 const showKbJobFilter = ref(false)
 
 // 分頁狀態
@@ -838,6 +849,7 @@ const pageFilters = computed(() => ({
   isFate: filterFate.value ? true : undefined,
   isWanted: filterWanted.value ? true : undefined,
   job: filterJob.value && filterJob.value !== '*' ? filterJob.value : undefined,
+  other: filterOther.value && filterOther.value !== '*' ? filterOther.value : undefined,
   sortDir: searchSortDir.value,
   sortField: searchSortField.value
 }))
@@ -854,7 +866,8 @@ const localFilteredMonsters = computed(() => {
     filterRank.value,
     filterFate.value,
     filterWanted.value,
-    filterJob.value
+    filterJob.value,
+    filterOther.value
   )
 })
 
@@ -904,6 +917,7 @@ const getQueryKey = () => JSON.stringify({
   isFate: filterFate.value ? '1' : '0',
   isWanted: filterWanted.value ? '1' : '0',
   job: filterJob.value && filterJob.value !== '*' ? filterJob.value : '',
+  other: filterOther.value && filterOther.value !== '*' ? filterOther.value : '',
   sortDir: searchSortDir.value,
   sortField: searchSortField.value,
   pageSize: searchPageSize.value
@@ -917,6 +931,7 @@ const getCountKey = () => JSON.stringify({
   isFate: filterFate.value ? '1' : '0',
   isWanted: filterWanted.value ? '1' : '0',
   job: filterJob.value && filterJob.value !== '*' ? filterJob.value : '',
+  other: filterOther.value && filterOther.value !== '*' ? filterOther.value : '',
   sortDir: searchSortDir.value,
   sortField: searchSortField.value
 })
@@ -1036,7 +1051,8 @@ watch([
   filterRank,
   filterFate,
   filterWanted,
-  filterJob
+  filterJob,
+  filterOther
 ], scheduleFilterUpdate)
 
 watch([
@@ -1070,7 +1086,8 @@ const kbFilteredMonsters = computed(() => {
     kbFilterRank.value,
     kbFilterFate.value,
     kbFilterWanted.value,
-    kbFilterJob.value
+    kbFilterJob.value,
+    kbFilterOther.value // 新增傳遞給過濾器
   )
 })
 
@@ -1166,8 +1183,6 @@ const onSearchSortFieldChange = () => {
   } else if (!searchSortJobs.value) {
     searchSortJobs.value = '*'
   }
-  // 不切換頁數，保持目前展開/頁面狀態
-  // searchCurrentPage.value = 1
 }
 
 // 監聽 filterJob 變動，當排序欄位為 job 且 searchSortJobs 未選擇時自動預設
@@ -1306,12 +1321,8 @@ const handleMonsterDrop = async (e, targetMonsterId, groupId) => {
   const sourceMonsterId = e.dataTransfer.getData('monsterId') || draggedMonsterId.value
   
   if (sourceMonsterId && sourceMonsterId !== targetMonsterId) {
-    // 同分組內排序 - 互換位置
     draggedMonsterId.value = null
     dragOverMonsterId.value = null
-    
-    // 這裡可以實現排序邏輯，暫時只支持分組間拖曳
-    // 後續可添加排序 order 字段的更新邏輯
   }
 }
 
@@ -1343,10 +1354,6 @@ onMounted(async () => {
   console.log('AppID:', userStore.appId)
   console.log('VirtualID:', userStore.virtualId)
   
-  // 目前只載入頁面分頁怪物資料，避免全量讀取和實時監聽
-  console.log('📡 單次載入分頁怪物資料，不啟用整批讀取或實時監聽')
-
-  // 初始化用戶追蹤清單 + 實時監聽
   if (!userStore.virtualId || !userStore.virtualId.trim()) {
     console.warn('⚠ 無效用戶 ID，無法初始化追蹤板。')
   } else {
@@ -1354,13 +1361,11 @@ onMounted(async () => {
     await pinsStore.watchPins(userStore.virtualId)
   }
 
-  // 預先一次性載入所有怪物資料，後續搜尋、篩選改用本地快取，減少重複查詢
   if (!monstersStore.monsters.length) {
     await monstersStore.initializeMonsters()
   }
   await loadMonsterPage()
 
-  // 監聽分組
   const { db } = getFirebaseInstance()
   onSnapshot(
     collection(db, 'artifacts', userStore.appId, 'users', userStore.virtualId, 'groups'),
@@ -1385,12 +1390,10 @@ onMounted(async () => {
     }
   )
 
-  // 動態調整：手機窄屏自動隱藏追蹤看板，桌面寬屏預設顯示
   window.addEventListener('resize', handleResize)
   handleResize()
   handleResize()
 
-  // ESC 關閉地圖彈窗
   const escListener = (e) => {
     if (e.key === 'Escape' || e.key === 'Esc') {
       if (monsterDetailModal.value.open) {

@@ -51,9 +51,6 @@ body.theme-dark {
   background-color: #0f172a;
 }
 
-..copy-feedback-enter-active {
-  transition: none;
-}
 .copy-feedback-leave-active {
   transition: opacity 0.55s ease;
 }
@@ -131,12 +128,6 @@ body.theme-dark .hover\:bg-black\/5:hover {
 
 body.theme-dark .bg-slate-900 {
   background-color: #0f172a !important;
-}
-
-body.theme-dark .text-slate-900,
-body.theme-dark .text-slate-800,
-body.theme-dark .text-slate-700 {
-  color: #e2e8f0 !important;
 }
 
 body.theme-dark .text-slate-600,
