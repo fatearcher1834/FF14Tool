@@ -163,10 +163,12 @@ const savedExplorerState = loadExplorerState()
 const persistExplorerState = () => {
   savedExplorerState.version = selectedVersion.value
   savedExplorerState.map = selectedMap.value
+  savedExplorerState.selectedMonsterId = selectedMonsterId.value
   try {
     window.localStorage.setItem(MAP_EXPLORER_STATE_KEY, JSON.stringify({
       version: selectedVersion.value,
-      map: selectedMap.value
+      map: selectedMap.value,
+      selectedMonsterId: selectedMonsterId.value
     }))
   } catch {
     // 瀏覽器停用儲存時仍可正常使用地圖
@@ -255,20 +257,33 @@ const syncSelectedMap = () => {
   }
 }
 
+const restoreSelectedMonster = (id) => {
+  if (id == null) return
+  nextTick(() => {
+    if (mapMonsters.value.some(monster => monster.id === id)) {
+      selectedMonsterId.value = id
+    }
+  })
+}
+
 const initialized = ref(false)
 
 const selectInitialMap = () => {
   const options = mapOptions.value
   if (!options.length) return
+  const savedMap = savedExplorerState.map
+  const savedMonsterId = savedExplorerState.selectedMonsterId
 
   if (props.initialMap && options.includes(props.initialMap)) {
     selectedVersion.value = getMapVersion(props.initialMap)
     selectedMap.value = props.initialMap
     persistExplorerState()
+    if (props.initialMap === savedMap) {
+      restoreSelectedMonster(savedMonsterId)
+    }
     return
   }
 
-  const savedMap = savedExplorerState.map
   if (savedMap && options.includes(savedMap)) {
     const savedVersion = typeof savedExplorerState.version === 'string' ? savedExplorerState.version : ''
     const mapVersion = getMapVersion(savedMap)
@@ -277,6 +292,7 @@ const selectInitialMap = () => {
       : (savedVersion === '' ? '' : mapVersion)
     selectedMap.value = savedMap
     persistExplorerState()
+    restoreSelectedMonster(savedMonsterId)
     return
   }
 
@@ -307,6 +323,7 @@ watch(selectedMap, () => {
 })
 
 watch(selectedMonsterId, async (id) => {
+  persistExplorerState()
   if (!id) return
   await nextTick()
   monsterItemRefs.get(id)?.scrollIntoView({ block: 'nearest' })
