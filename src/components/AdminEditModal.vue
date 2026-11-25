@@ -4,14 +4,15 @@
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
   >
-    <div class="admin-modal-surface bg-white rounded-[2.5rem] w-full max-w-lg sm:max-w-xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div class="admin-modal-surface bg-white rounded-[2.5rem] w-full max-w-5xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-black text-slate-900">新增怪物</h3>
         <button @click="$emit('close')" class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all">
           <X :size="16" />
         </button>
       </div>
-      <div class="space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-5">
+        <div class="space-y-5">
         <!-- 九宮格等級按鈕與FATE -->
         <div class="flex gap-3 items-center">
           <div class="flex-1 flex bg-white p-1 border rounded-2xl shadow-sm">
@@ -91,55 +92,29 @@
           </p>
         </div>
 
-        <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
-          <div
-            class="w-full h-44 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
-            tabindex="0"
-            @paste.prevent="handleBatchImagePaste($event)"
-          >
-            <div v-if="!form.mapImageData" class="text-slate-500 text-xs">
-              尚未設定地圖 請直接貼上圖片
-            </div>
-            <img
-              v-if="form.mapImageData"
-              :src="form.mapImageData"
-              alt="預覽"
-              class="absolute inset-0 m-auto max-h-full max-w-full"
+        <!-- 怪物名稱與版本 -->
+        <div class="grid grid-cols-3 gap-4">
+          <div class="col-span-2">
+            <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">怪物名稱</label>
+            <input
+              ref="nameInput"
+              v-model="form.name"
+              class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
+              @input="requiredError = ''"
             />
-            <button
-              v-if="form.mapImageData"
-              @click.prevent="clearMapImage"
-              class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">版本</label>
+            <select
+              v-model="form.version"
+              class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
+              @change="requiredError = ''"
             >
-              移除圖片
-            </button>
+              <option v-for="v in VERSIONS" :key="v" :value="v">{{ v }}</option>
+            </select>
           </div>
         </div>
-
-        <div v-if="(form.rank && form.rank !== 'None') || form.isFate" class="space-y-2">
-          <div
-            class="w-full h-44 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
-            tabindex="0"
-            @paste.prevent="handleMonsterImagePaste($event)"
-          >
-            <div v-if="!form.monsterImageData" class="text-slate-500 text-xs">
-              尚未設定怪物照片 請直接貼上圖片
-            </div>
-            <img
-              v-if="form.monsterImageData"
-              :src="form.monsterImageData"
-              alt="怪物預覽"
-              class="absolute inset-0 m-auto max-h-full max-w-full"
-            />
-            <button
-              v-if="form.monsterImageData"
-              @click.prevent="clearMonsterImage"
-              class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
-            >
-              移除圖片
-            </button>
-          </div>
-        </div>
+        <p v-if="requiredError" class="text-red-500 text-xs font-bold ml-1 -mt-2">{{ requiredError }}</p>
 
         <div v-if="form.isFate" class="space-y-2">
           <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">命運事件名稱</label>
@@ -213,29 +188,59 @@
           </div>
         </div>
 
-        <!-- 怪物名稱與版本 -->
-        <div class="grid grid-cols-3 gap-4">
-          <div class="col-span-2">
-            <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">怪物名稱</label>
-            <input
-              ref="nameInput"
-              v-model="form.name"
-              class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
-              @input="requiredError = ''"
+        <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
+          <div
+            class="w-full h-40 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
+            tabindex="0"
+            @paste.prevent="handleBatchImagePaste($event)"
+          >
+            <div v-if="!form.mapImageData" class="text-slate-500 text-xs">
+              尚未設定地圖 請直接貼上圖片
+            </div>
+            <img
+              v-if="form.mapImageData"
+              :src="form.mapImageData"
+              alt="預覽"
+              class="absolute inset-0 m-auto max-h-full max-w-full"
             />
-          </div>
-          <div>
-            <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">版本</label>
-            <select
-              v-model="form.version"
-              class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
-              @change="requiredError = ''"
+            <button
+              v-if="form.mapImageData"
+              @click.prevent="clearMapImage"
+              class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
             >
-              <option v-for="v in VERSIONS" :key="v" :value="v">{{ v }}</option>
-            </select>
+              移除圖片
+            </button>
           </div>
         </div>
-        <p v-if="requiredError" class="text-red-500 text-xs font-bold ml-1 -mt-2">{{ requiredError }}</p>
+
+        <div v-if="(form.rank && form.rank !== 'None') || form.isFate" class="space-y-2">
+          <div
+            class="w-full h-40 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
+            tabindex="0"
+            @paste.prevent="handleMonsterImagePaste($event)"
+          >
+            <div v-if="!form.monsterImageData" class="text-slate-500 text-xs">
+              尚未設定怪物照片 請直接貼上圖片
+            </div>
+            <img
+              v-if="form.monsterImageData"
+              :src="form.monsterImageData"
+              alt="怪物預覽"
+              class="absolute inset-0 m-auto max-h-full max-w-full"
+            />
+            <button
+              v-if="form.monsterImageData"
+              @click.prevent="clearMonsterImage"
+              class="absolute top-1 right-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded"
+            >
+              移除圖片
+            </button>
+          </div>
+        </div>
+
+        </div>
+
+        <div class="space-y-5">
         <!-- 批次座標解析與座標列表 -->
         <div class="space-y-3">
           <div class="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-3">
@@ -253,17 +258,17 @@
           <div
             v-for="(loc, i) in form.locations"
             :key="i"
-            class="flex gap-2 p-3 bg-slate-50 rounded-2xl border items-center"
+            class="p-3 bg-slate-50 rounded-2xl border space-y-2"
           >
-            <div class="flex-1 flex gap-2">
-              <select v-model="loc.type" class="bg-white border p-2 rounded-xl text-xs font-bold outline-none w-20">
+            <div class="flex gap-2 items-center">
+              <select v-model="loc.type" class="bg-white border p-2 rounded-xl text-xs font-bold outline-none w-20 shrink-0">
                 <option value="map">地圖</option>
                 <option value="dungeon">副本</option>
               </select>
 
               <select
                 v-model="loc.map"
-                class="flex-1 bg-white border p-2 rounded-xl text-xs font-bold outline-none"
+                class="flex-1 min-w-0 bg-white border p-2 rounded-xl text-xs font-bold outline-none"
               >
                 <template v-if="loc.type === 'map'">
                   <option v-for="r in MAP_DATA[form.version]" :key="r" :value="r">{{ r }}</option>
@@ -275,14 +280,18 @@
                   <option v-for="r in DUNGEON_MAPS" :key="r" :value="r">{{ r }}</option>
                 </template>
               </select>
+
+              <button @click="form.locations.splice(i, 1)" class="p-2 text-slate-300 hover:text-red-500 shrink-0">
+                <X :size="14" />
+              </button>
             </div>
 
-            <template v-if="loc.type === 'map'">
+            <div v-if="loc.type === 'map'" class="flex flex-wrap gap-2 items-center">
               <div class="flex gap-1 items-center">
                 <span class="text-[10px] font-black text-slate-300">X</span>
                 <input
                   v-model="loc.x"
-                  class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
+                  class="w-16 bg-white border p-2 rounded-xl text-center text-xs font-mono"
                 />
               </div>
 
@@ -290,7 +299,7 @@
                 <span class="text-[10px] font-black text-slate-300">Y</span>
                 <input
                   v-model="loc.y"
-                  class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
+                  class="w-16 bg-white border p-2 rounded-xl text-center text-xs font-mono"
                 />
               </div>
 
@@ -298,24 +307,21 @@
                 <span class="text-[10px] font-black text-slate-300">Z</span>
                 <input
                   v-model="loc.z"
-                  class="w-14 bg-white border p-2 rounded-xl text-center text-xs font-mono"
+                  class="w-16 bg-white border p-2 rounded-xl text-center text-xs font-mono"
                   placeholder="可留空"
                 />
               </div>
-            </template>
-
-            <button @click="form.locations.splice(i, 1)" class="p-2 text-slate-300 hover:text-red-500">
-              <X :size="14" />
-            </button>
+            </div>
           </div>
           <button @click="addLocation" class="w-full p-4 border-2 border-dashed rounded-2xl text-slate-400 text-xs font-black">+ 新增座標</button>
         </div>
+        </div>
         <!-- 儲存狀態提示 -->
-        <div v-if="modalMessage" class="rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 p-3 text-xs font-bold">
+        <div v-if="modalMessage" class="lg:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 p-3 text-xs font-bold">
           {{ modalMessage }}
         </div>
         <!-- 按鈕 -->
-        <div class="flex gap-3 pt-4">
+        <div class="lg:col-span-2 flex gap-3 pt-4">
           <button @click="$emit('close')" class="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-xs">取消</button>
           <button
             @click="submit"
