@@ -76,13 +76,19 @@ let imageLayer = null
 let gridLayer = null
 let markerLayer = null
 let aetheryteLayer = null
+let markerRenderer = null
 let renderToken = 0
 let isDestroyed = false
 let resizeObserver = null
+let renderedMapId = ''
+let currentActiveMapId = ''
 
 const mapImageCache = new Map()
 const mapImagePending = new Map()
-const MAX_CACHED_MAPS = 8
+const activeMapRefs = new Map()
+let mapImageCacheBytes = 0
+const MAX_CACHED_MAPS = 12
+const MAX_CACHE_BYTES = 10 * 1024 * 1024
 
 let aetheryteIconUrl = null
 let aetheryteIconPending = null
@@ -120,18 +126,63 @@ const loadAetheryteIcon = async () => {
   }
 }
 
-const cacheMapImage = (key, objectUrl) => {
-  if (mapImageCache.size >= MAX_CACHED_MAPS) {
-    const [oldestKey, oldestUrl] = mapImageCache.entries().next().value || []
-    if (oldestUrl) URL.revokeObjectURL(oldestUrl)
-    if (oldestKey) mapImageCache.delete(oldestKey)
+const acquireActiveMap = (key) => {
+  if (!key) return
+  activeMapRefs.set(key, (activeMapRefs.get(key) || 0) + 1)
+}
+
+const releaseActiveMap = (key) => {
+  if (!key) return
+  const count = activeMapRefs.get(key) || 0
+  if (count <= 1) {
+    activeMapRefs.delete(key)
+  } else {
+    activeMapRefs.set(key, count - 1)
   }
-  mapImageCache.set(key, objectUrl)
+}
+
+const getCachedMapImage = (key) => {
+  const entry = mapImageCache.get(key)
+  if (!entry) return null
+  // LRU：命中後移到最後，常用地圖不會優先被釋放
+  mapImageCache.delete(key)
+  mapImageCache.set(key, entry)
+  return entry.url
+}
+
+const evictMapCache = () => {
+  while (mapImageCache.size > MAX_CACHED_MAPS || mapImageCacheBytes > MAX_CACHE_BYTES) {
+    let candidateKey = null
+    let candidateEntry = null
+    for (const [key, entry] of mapImageCache) {
+      if ((activeMapRefs.get(key) || 0) > 0) continue
+      candidateKey = key
+      candidateEntry = entry
+      break
+    }
+    if (!candidateKey) break
+    URL.revokeObjectURL(candidateEntry.url)
+    mapImageCache.delete(candidateKey)
+    mapImageCacheBytes -= candidateEntry.size
+  }
+}
+
+const cacheMapImage = (key, objectUrl, size = 0) => {
+  const existing = mapImageCache.get(key)
+  if (existing) {
+    mapImageCache.delete(key)
+    mapImageCacheBytes -= existing.size
+    if (existing.url !== objectUrl) URL.revokeObjectURL(existing.url)
+  }
+  mapImageCache.set(key, { url: objectUrl, size })
+  mapImageCacheBytes += size
+  evictMapCache()
 }
 
 const loadMapImage = async (mapInfo) => {
   const key = mapInfo.mapId
-  if (mapImageCache.has(key)) return mapImageCache.get(key)
+  const cached = getCachedMapImage(key)
+  if (cached) return cached
   if (mapImagePending.has(key)) return mapImagePending.get(key)
 
   const promise = (async () => {
@@ -141,7 +192,7 @@ const loadMapImage = async (mapInfo) => {
         if (!response.ok) continue
         const blob = await response.blob()
         const objectUrl = URL.createObjectURL(blob)
-        cacheMapImage(key, objectUrl)
+        cacheMapImage(key, objectUrl, blob.size)
         return objectUrl
       } catch (error) {
         // 換下一個來源
@@ -343,6 +394,10 @@ const buildMarkerLayer = () => {
 
   markerLayer = leaflet.layerGroup()
 
+  if (props.coloredMarkers && !markerRenderer) {
+    markerRenderer = leaflet.canvas({ padding: 0.5 })
+  }
+
   const mapInfo = getGameMap(selectedMap.value)
   const units = mapInfo ? 4100 / mapInfo.sizeFactor : 41
   const pxPerUnit = MAP_IMAGE_SIZE / units
@@ -383,9 +438,10 @@ const buildMarkerLayer = () => {
     const emphasized = initial || (Array.isArray(props.monsters) && props.selectedMonsterId != null)
     const name = monster?.name || '未知怪物'
     const marker = leaflet.circleMarker(latlng, {
+      renderer: props.coloredMarkers ? markerRenderer : undefined,
       radius: emphasized ? 6 : (props.coloredMarkers ? 5 : 4.5),
       color: '#e2e8f0',
-      weight: emphasized ? 1.5 : 1,
+      weight: emphasized ? 1.5 : 1.2,
       opacity: 0.95,
       fillColor: props.coloredMarkers ? getMonsterExplorerColor(monster) : '#1e3a8a',
       fillOpacity: 1
@@ -418,15 +474,39 @@ const buildMarkerLayer = () => {
 
 const renderMap = async () => {
   if (!leaflet || !map) return
+  const mapInfo = getGameMap(selectedMap.value)
+
+  if (!mapInfo) {
+    mapError.value = true
+    renderedMapId = ''
+    if (currentActiveMapId) {
+      releaseActiveMap(currentActiveMapId)
+      currentActiveMapId = ''
+    }
+    return
+  }
+
+  // 同一張地圖只重建標記，避免重複建立圖片圖層與解碼
+  if (renderedMapId === mapInfo.mapId && imageLayer) {
+    mapError.value = false
+    buildMarkerLayer()
+    updateRulers()
+    return
+  }
+
+  if (currentActiveMapId && currentActiveMapId !== mapInfo.mapId) {
+    releaseActiveMap(currentActiveMapId)
+    currentActiveMapId = ''
+  }
+  if (!currentActiveMapId) {
+    currentActiveMapId = mapInfo.mapId
+    acquireActiveMap(mapInfo.mapId)
+  }
+
   const token = ++renderToken
   clearLayers()
   mapError.value = false
-
-  const mapInfo = getGameMap(selectedMap.value)
-  if (!mapInfo) {
-    mapError.value = true
-    return
-  }
+  renderedMapId = ''
 
   mapLoading.value = !mapImageCache.has(mapInfo.mapId)
   const imageUrl = await loadMapImage(mapInfo)
@@ -435,6 +515,10 @@ const renderMap = async () => {
   if (!imageUrl) {
     mapLoading.value = false
     mapError.value = true
+    if (currentActiveMapId) {
+      releaseActiveMap(currentActiveMapId)
+      currentActiveMapId = ''
+    }
     return
   }
 
@@ -481,6 +565,7 @@ const renderMap = async () => {
   map.fitBounds(bounds, { padding: [0, 0], animate: false })
   updateRulers()
 
+  renderedMapId = mapInfo.mapId
   mapLoading.value = false
 }
 
@@ -540,6 +625,11 @@ watch(availableMaps, () => {
   if (!availableMaps.value.length) {
     clearLayers()
     mapError.value = true
+    renderedMapId = ''
+    if (currentActiveMapId) {
+      releaseActiveMap(currentActiveMapId)
+      currentActiveMapId = ''
+    }
   } else {
     renderMap()
   }
@@ -567,6 +657,12 @@ onBeforeUnmount(() => {
   renderToken++
   resizeObserver?.disconnect()
   resizeObserver = null
+  renderedMapId = ''
+  markerRenderer = null
+  if (currentActiveMapId) {
+    releaseActiveMap(currentActiveMapId)
+    currentActiveMapId = ''
+  }
   if (map) {
     map.remove()
     map = null
