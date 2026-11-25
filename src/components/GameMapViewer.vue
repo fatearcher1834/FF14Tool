@@ -82,6 +82,8 @@ let isDestroyed = false
 let resizeObserver = null
 let renderedMapId = ''
 let currentActiveMapId = ''
+let cursorUpdateAt = 0
+let rulerFrame = null
 
 const mapImageCache = new Map()
 const mapImagePending = new Map()
@@ -368,6 +370,10 @@ const applyMapView = () => {
 }
 
 const handleMapMouseMove = (event) => {
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+  if (now - cursorUpdateAt < 80) return
+  cursorUpdateAt = now
+
   const { lat, lng } = event.latlng
   if (lat < 0 || lat > MAP_IMAGE_SIZE || lng < 0 || lng > MAP_IMAGE_SIZE) {
     cursorCoords.value = { x: null, y: null }
@@ -382,7 +388,16 @@ const handleMapMouseMove = (event) => {
 }
 
 const handleMapMouseOut = () => {
+  cursorUpdateAt = 0
   cursorCoords.value = { x: null, y: null }
+}
+
+const scheduleRulers = () => {
+  if (rulerFrame) return
+  rulerFrame = requestAnimationFrame(() => {
+    rulerFrame = null
+    updateRulers()
+  })
 }
 
 const buildMarkerLayer = () => {
@@ -604,7 +619,7 @@ onMounted(async () => {
   map.attributionControl?.addAttribution('© SQUARE ENIX')
   map.on('mousemove', handleMapMouseMove)
   map.on('mouseout', handleMapMouseOut)
-  map.on('move zoom resize', updateRulers)
+  map.on('move zoom resize', scheduleRulers)
   renderMap()
   resizeObserver = new ResizeObserver(() => {
     if (!map) return
@@ -655,6 +670,10 @@ watch(() => props.monsters, () => {
 onBeforeUnmount(() => {
   isDestroyed = true
   renderToken++
+  if (rulerFrame) {
+    cancelAnimationFrame(rulerFrame)
+    rulerFrame = null
+  }
   resizeObserver?.disconnect()
   resizeObserver = null
   renderedMapId = ''

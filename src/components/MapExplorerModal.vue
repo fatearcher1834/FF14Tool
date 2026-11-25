@@ -52,26 +52,33 @@
             @click="selectedMonsterId = null"
             :class="[
               'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-xs font-black transition-all',
-              selectedMonsterId == null ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+              selectedMonsterId == null
+                ? 'bg-blue-600 text-white border-blue-300 ring-2 ring-blue-400/70 shadow-lg'
+                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
             ]"
           >
             <span class="inline-flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
               全部顯示
             </span>
-            <span class="text-[10px] opacity-70">{{ filteredMonsters.length }}</span>
+            <span class="inline-flex items-center gap-2">
+              <Check v-if="selectedMonsterId == null" :size="14" />
+              <span class="text-[10px] opacity-70">{{ filteredMonsters.length }}</span>
+            </span>
           </button>
 
           <div class="space-y-2">
             <button
               v-for="m in filteredMonsters"
               :key="m.id"
+              :ref="el => setMonsterItemRef(m.id, el)"
               type="button"
               @click="toggleMonster(m)"
+              :aria-pressed="selectedMonsterId === m.id"
               :class="[
                 'w-full flex items-start gap-2 p-2.5 rounded-xl border text-left transition-all',
                 selectedMonsterId === m.id
-                  ? 'bg-slate-900 text-white border-slate-900'
+                  ? 'bg-blue-600 text-white border-blue-300 ring-2 ring-blue-400/70 shadow-lg'
                   : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-100'
               ]"
             >
@@ -84,10 +91,11 @@
                   <FateTag :is-fate="m.isFate" />
                   <WantedTag :is-wanted="m.isWanted" />
                 </span>
-                <span class="block text-[10px] font-bold text-slate-400 mt-1">
+                <span :class="['block text-[10px] font-bold mt-1', selectedMonsterId === m.id ? 'text-blue-100' : 'text-slate-400']">
                   {{ countPoints(m) }} 個位置<span v-if="m.filterOther"> · {{ m.filterOther }}</span>
                 </span>
               </span>
+              <Check v-if="selectedMonsterId === m.id" :size="15" class="shrink-0 mt-0.5" />
             </button>
           </div>
 
@@ -116,8 +124,8 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { X } from 'lucide-vue-next'
+import { computed, ref, watch, nextTick } from 'vue'
+import { X, Check } from 'lucide-vue-next'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { GAME_MAPS, getGameMap } from '@/config/gameMaps'
 import { VERSIONS, MAP_DATA } from '@/config/constants'
@@ -140,6 +148,35 @@ const selectedVersion = ref('')
 const selectedMonsterId = ref(null)
 const searchTerm = ref('')
 const mapHeight = Math.max(360, Math.min(620, window.innerHeight - 260))
+const monsterItemRefs = new Map()
+
+const MAP_EXPLORER_STATE_KEY = 'monster-map-explorer-state-v1'
+const loadExplorerState = () => {
+  try {
+    const raw = window.localStorage.getItem(MAP_EXPLORER_STATE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+const savedExplorerState = loadExplorerState()
+const persistExplorerState = () => {
+  savedExplorerState.version = selectedVersion.value
+  savedExplorerState.map = selectedMap.value
+  try {
+    window.localStorage.setItem(MAP_EXPLORER_STATE_KEY, JSON.stringify({
+      version: selectedVersion.value,
+      map: selectedMap.value
+    }))
+  } catch {
+    // 瀏覽器停用儲存時仍可正常使用地圖
+  }
+}
+
+const setMonsterItemRef = (id, el) => {
+  if (el) monsterItemRefs.set(id, el)
+  else monsterItemRefs.delete(id)
+}
 
 const hasCoords = (loc) => !!(loc &&
   loc.x != null && loc.x !== '' && loc.y != null && loc.y !== '' &&
@@ -227,12 +264,26 @@ const selectInitialMap = () => {
   if (props.initialMap && options.includes(props.initialMap)) {
     selectedVersion.value = getMapVersion(props.initialMap)
     selectedMap.value = props.initialMap
+    persistExplorerState()
+    return
+  }
+
+  const savedMap = savedExplorerState.map
+  if (savedMap && options.includes(savedMap)) {
+    const savedVersion = typeof savedExplorerState.version === 'string' ? savedExplorerState.version : ''
+    const mapVersion = getMapVersion(savedMap)
+    selectedVersion.value = savedVersion && versionOptions.value.includes(savedVersion) && mapVersion === savedVersion
+      ? savedVersion
+      : (savedVersion === '' ? '' : mapVersion)
+    selectedMap.value = savedMap
+    persistExplorerState()
     return
   }
 
   const latestVersion = versionOptions.value[versionOptions.value.length - 1] || ''
   selectedVersion.value = latestVersion
   selectedMap.value = filteredMapOptions.value[0] || options[0]
+  persistExplorerState()
 }
 
 watch(mapOptions, (options) => {
@@ -247,10 +298,18 @@ watch(mapOptions, (options) => {
 
 watch(selectedVersion, () => {
   syncSelectedMap()
+  persistExplorerState()
 })
 
 watch(selectedMap, () => {
   selectedMonsterId.value = null
+  persistExplorerState()
+})
+
+watch(selectedMonsterId, async (id) => {
+  if (!id) return
+  await nextTick()
+  monsterItemRefs.get(id)?.scrollIntoView({ block: 'nearest' })
 })
 
 watch(searchTerm, () => {

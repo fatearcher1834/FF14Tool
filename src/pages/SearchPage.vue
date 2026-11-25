@@ -697,6 +697,11 @@ const openMonsterMap = (monster) => {
 const handleOpenLocationMap = async (monster, loc) => {
   if (!monster || !loc) return
 
+  const previousMonster = monsterDetailModal.value.open ? monsterDetailModal.value.monster : null
+  if (previousMonster && previousMonster.id !== monster.id) {
+    monstersStore.releaseMonsterImageData(previousMonster.id)
+  }
+
   monsterDetailModal.value.open = true
   monsterDetailModal.value.monster = monster
   monsterDetailModal.value.location = loc
@@ -712,6 +717,9 @@ const handleOpenLocationMap = async (monster, loc) => {
           ...monsterDetailModal.value.monster,
           ...updated
         }
+      } else if (updated) {
+        // 載入完成前已關閉或切換怪物，釋放剛載入的圖片
+        monstersStore.releaseMonsterImageData(monster.id)
       }
     } finally {
       monsterDetailModal.value.loading = false
@@ -738,6 +746,10 @@ const openMapInNewTab = (src) => {
 }
 
 const handleCloseMonsterDetailModal = () => {
+  const monsterId = monsterDetailModal.value.monster?.id
+  if (monsterId) {
+    monstersStore.releaseMonsterImageData(monsterId)
+  }
   monsterDetailModal.value.open = false
   monsterDetailModal.value.monster = null
   monsterDetailModal.value.location = null
@@ -1471,6 +1483,9 @@ onMounted(async () => {
 
   onUnmounted(() => {
     pinsStore.stopWatching()
+    if (monsterDetailModal.value.monster?.id) {
+      monstersStore.releaseMonsterImageData(monsterDetailModal.value.monster.id)
+    }
     window.removeEventListener('resize', handleResize)
     window.removeEventListener('keydown', escListener)
   })

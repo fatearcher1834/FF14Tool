@@ -146,19 +146,15 @@ export const useMonstersStore = defineStore("monsters", () => {
         console.log(`✓ 已更新本地怪物快取，版本 ${savedVersion}`);
       }
 
-      monsters.value = data.map(m => {
-        const cache = getMonsterImageCache(m.id);
-
-        return {
-          ...m,
-          mapImageData: m.hasMap ? (cache?.mapImageData || m.mapImageData || null) : null,
-          mapImageUpdatedAt: m.hasMap ? (cache?.mapImageUpdatedAt || m.mapImageUpdatedAt || null) : null,
-          monsterImageData: m.hasMonsterImage ? (cache?.monsterImageData || m.monsterImageData || null) : null,
-          monsterImageUpdatedAt: m.hasMonsterImage ? (cache?.monsterImageUpdatedAt || m.monsterImageUpdatedAt || null) : null,
-          hasMap: !!m.hasMap,
-          hasMonsterImage: !!m.hasMonsterImage
-        };
-      });
+      monsters.value = data.map(m => ({
+        ...m,
+        mapImageData: null,
+        mapImageUpdatedAt: null,
+        monsterImageData: null,
+        monsterImageUpdatedAt: null,
+        hasMap: !!m.hasMap,
+        hasMonsterImage: !!m.hasMonsterImage
+      }));
       error.value = null;
       console.log(`✓ 加載 ${data.length} 隻怪物`);
     } catch (err) {
@@ -342,6 +338,34 @@ export const useMonstersStore = defineStore("monsters", () => {
 
   const loadMonsterImageData = async (monsterId) => {
     try {
+      const cached = getMonsterImageCache(monsterId);
+      const target = monsters.value.find(m => m.id === monsterId);
+      const needMap = target ? !!target.hasMap : true;
+      const needMonster = target ? !!target.hasMonsterImage : true;
+      const cacheComplete = (!needMap || !!cached?.mapImageData) &&
+        (!needMonster || !!cached?.monsterImageData);
+      if (cached && (cached.mapImageData || cached.monsterImageData) && cacheComplete) {
+        const result = {
+          ...(target || { id: monsterId }),
+          mapImageData: cached.mapImageData || null,
+          mapImageUpdatedAt: normalizeDateTime(cached.mapImageUpdatedAt),
+          monsterImageData: cached.monsterImageData || null,
+          monsterImageUpdatedAt: normalizeDateTime(cached.monsterImageUpdatedAt),
+          hasMap: cached.hasMap !== undefined ? !!cached.hasMap : !!cached.mapImageData,
+          hasMonsterImage: cached.hasMonsterImage !== undefined ? !!cached.hasMonsterImage : !!cached.monsterImageData
+        };
+        if (target) {
+          target.mapImageData = result.mapImageData;
+          target.mapImageUpdatedAt = result.mapImageUpdatedAt;
+          target.monsterImageData = result.monsterImageData;
+          target.monsterImageUpdatedAt = result.monsterImageUpdatedAt;
+          target.hasMap = result.hasMap;
+          target.hasMonsterImage = result.hasMonsterImage;
+          return { ...target };
+        }
+        return result;
+      }
+
       console.log(`[Store] 加載怪物 ${monsterId} 的圖片數據...`);
       const imageData = await db.getMonsterImageDataById(monsterId, APP_ID);
       
@@ -376,6 +400,18 @@ export const useMonstersStore = defineStore("monsters", () => {
     }
   };
 
+  // 釋放已載入的 base64 圖片，避免瀏覽大量怪物時記憶體持續累積。
+  // localStorage 快取仍保留，下次開啟可快速重新載入。
+  const releaseMonsterImageData = (monsterId) => {
+    if (!monsterId) return;
+    const target = monsters.value.find(m => m.id === monsterId);
+    if (!target) return;
+    target.mapImageData = null;
+    target.monsterImageData = null;
+    target.mapImageUpdatedAt = null;
+    target.monsterImageUpdatedAt = null;
+  };
+
   return {
     monsters,
     isLoading,
@@ -391,6 +427,7 @@ export const useMonstersStore = defineStore("monsters", () => {
     addMonster,
     updateMonster,
     deleteMonster,
-    loadMonsterImageData
+    loadMonsterImageData,
+    releaseMonsterImageData
   };
 });

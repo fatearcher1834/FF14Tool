@@ -360,7 +360,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { X } from 'lucide-vue-next'
 import { MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS } from '@/config/constants'
@@ -384,6 +384,7 @@ const isLoadingMonster = ref(false)
 const isLoadingImages = ref(false)
 const showImageLoadingWarning = ref(false)
 let imageLoadingWarningTimer = null
+let isUnmounted = false
 const formMessage = ref('')
 const requiredError = ref('')
 const nameInput = ref(null)
@@ -531,6 +532,14 @@ const stopImageLoadingWarning = () => {
   showImageLoadingWarning.value = false
 }
 
+onBeforeUnmount(() => {
+  isUnmounted = true
+  if (form.value.id) {
+    monstersStore.releaseMonsterImageData(form.value.id)
+  }
+  stopImageLoadingWarning()
+})
+
 onMounted(async () => {
   if (modalRef.value) modalRef.value.focus()
   if (!form.value.id || !imageLoadExpected.value) return
@@ -539,6 +548,10 @@ onMounted(async () => {
   startImageLoadingWarning()
   try {
     const updated = await monstersStore.loadMonsterImageData(form.value.id)
+    if (isUnmounted) {
+      monstersStore.releaseMonsterImageData(form.value.id)
+      return
+    }
     if (updated) {
       if (!form.value.mapImageData && updated.mapImageData) {
         form.value.mapImageData = updated.mapImageData
