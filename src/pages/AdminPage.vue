@@ -385,7 +385,6 @@ const handleSaveMonster = async (monster) => {
     console.log('[\u5132\u5b58\u602a\u7269] \u958b\u59cb, \u602a\u7269:', monster.name, 'monsterImageData \u5927\u5c0f:', monster.monsterImageData?.length || 0, 'bytes');
     
     if (!monster.name || !monster.version) {
-      alert('怪物名稱與版本為必填');
       return;
     }
 

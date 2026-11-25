@@ -3,10 +3,6 @@
     ref="modalRef"
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
-    @keydown.esc="closeModal"
-    @keydown.enter.prevent="submit"
-    @mousedown="handleOverlayMouseDown"
-    @click.self="handleOverlayClick"
   >
     <div class="bg-white rounded-[2.5rem] w-full max-w-lg sm:max-w-xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div class="flex justify-between items-center">
@@ -222,8 +218,10 @@
           <div class="col-span-2">
             <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">怪物名稱</label>
             <input
+              ref="nameInput"
               v-model="form.name"
               class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
+              @input="requiredError = ''"
             />
           </div>
           <div>
@@ -231,11 +229,13 @@
             <select
               v-model="form.version"
               class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
+              @change="requiredError = ''"
             >
               <option v-for="v in VERSIONS" :key="v" :value="v">{{ v }}</option>
             </select>
           </div>
         </div>
+        <p v-if="requiredError" class="text-red-500 text-xs font-bold ml-1 -mt-2">{{ requiredError }}</p>
         <!-- 批次座標解析與座標列表 -->
         <div class="space-y-3">
           <div class="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-3">
@@ -353,7 +353,6 @@ const emit = defineEmits(['close', 'save'])
 const monstersStore = useMonstersStore()
 const modalRef = ref(null)
 const matchAccuracy = ref(90)
-const overlayMouseDownOnSelf = ref(false)
 
 const isManualLoadMap = ref(false)
 const isLoadingMap = ref(false)
@@ -362,6 +361,8 @@ const isLoadingImages = ref(false)
 const showImageLoadingWarning = ref(false)
 let imageLoadingWarningTimer = null
 const formMessage = ref('')
+const requiredError = ref('')
+const nameInput = ref(null)
 
 const otherRegions = (version) => {
   const current = MAP_DATA[version] || [];
@@ -478,30 +479,11 @@ watch(() => props.monster, (newMonster) => {
   form.value.fateEventName = newMonster.fateEventName || ''
   form.value.locations = normalizeLocations(Array.isArray(newMonster.locations) ? [...newMonster.locations] : [], newMonster.version || VERSIONS[0])
   form.value.filterOther = newMonster.filterOther || ''
+  requiredError.value = ''
   cancelNewTag()
 }, { deep: true })
 
 const closeModal = () => { emit('close') }
-
-const handleOverlayMouseDown = (event) => {
-  overlayMouseDownOnSelf.value = event.target === event.currentTarget
-}
-
-const handleOverlayClick = (event) => {
-  if (!overlayMouseDownOnSelf.value) {
-    overlayMouseDownOnSelf.value = false
-    return
-  }
-  if (typeof window !== 'undefined') {
-    const selection = window.getSelection?.()
-    if (selection && selection.type === 'Range') {
-      overlayMouseDownOnSelf.value = false
-      return
-    }
-  }
-  overlayMouseDownOnSelf.value = false
-  closeModal()
-}
 
 const imageLoadExpected = computed(() => {
   return !!(props.monster.hasMap || props.monster.hasMonsterImage || props.monster.mapImageData || props.monster.monsterImageData)
@@ -802,9 +784,17 @@ const submit = () => {
     formMessage.value = saveBlockedMessage.value
     return
   }
+  const name = (form.value.name || '').trim()
+  if (!name || !form.value.version) {
+    requiredError.value = '怪物名稱與版本為必填'
+    nameInput.value?.focus()
+    return
+  }
+  requiredError.value = ''
   formMessage.value = ''
   emit('save', {
     ...form.value,
+    name,
     locations: cleanLocations(form.value.locations)
   })
   closeModal()
