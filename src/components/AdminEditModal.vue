@@ -195,11 +195,11 @@
 
         <section v-if="(form.rank && form.rank !== 'None') || form.isFate" class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
         <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">圖片</h4>
-        <div class="space-y-3">
-        <div v-if="form.rank && form.rank !== 'None'" class="space-y-1">
+        <div class="flex flex-wrap gap-3">
+        <div v-if="form.rank && form.rank !== 'None'" class="flex-1 min-w-[160px] space-y-1">
           <div class="text-[10px] font-black text-slate-400 ml-1">地圖圖片</div>
           <div
-            class="w-full h-40 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
+            class="w-full h-36 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
             tabindex="0"
             @paste.prevent="handleBatchImagePaste($event)"
           >
@@ -222,10 +222,10 @@
           </div>
         </div>
 
-        <div v-if="(form.rank && form.rank !== 'None') || form.isFate" class="space-y-1">
+        <div v-if="(form.rank && form.rank !== 'None') || form.isFate" class="flex-1 min-w-[160px] space-y-1">
           <div class="text-[10px] font-black text-slate-400 ml-1">怪物照片</div>
           <div
-            class="w-full h-40 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
+            class="w-full h-36 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
             tabindex="0"
             @paste.prevent="handleMonsterImagePaste($event)"
           >
