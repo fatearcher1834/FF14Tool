@@ -4,7 +4,7 @@
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
     @click.self="$emit('close')"
   >
-    <div class="bg-white rounded-2xl w-full max-w-2xl p-4 shadow-xl border">
+    <div class="admin-modal-surface bg-white rounded-2xl w-full max-w-5xl p-4 shadow-xl border">
       <div class="space-y-4 mb-4">
         <div class="flex justify-between gap-4 items-start">
           <div class="min-w-0">
@@ -56,50 +56,52 @@
           <span class="font-semibold">觸發條件：</span>{{ monster.triggerCondition }}
         </div>
       </div>
-      <div class="bg-slate-100 rounded-3xl border border-slate-200 p-4 overflow-auto max-h-[calc(100vh-9rem)] space-y-4">
+      <div class="bg-slate-100 rounded-3xl border border-slate-200 p-4 overflow-auto max-h-[calc(100vh-13rem)]">
         <template v-if="props.loading">
           <div class="w-full h-56 flex items-center justify-center text-blue-500">載入中...</div>
         </template>
 
-        <!-- 地圖部分 -->
-        <div v-if="!monster?.isFate" class="space-y-2">
-          <h4 class="text-xs font-bold text-slate-600">地圖位置</h4>
-          <template v-if="monster?.mapImageData">
-            <div
-              class="block w-full mx-auto rounded cursor-pointer flex justify-center"
-              @click.prevent="handleOpenMap"
-            >
-              <img
-                :src="monster?.mapImageData"
-                alt="地圖圖片"
-                class="max-h-[calc(100vh-12rem)] max-w-full rounded"
-                style="height: auto; width: auto;"
-              />
-            </div>
-          </template>
-          <template v-else>
-            <div class="w-full h-40 flex items-center justify-center text-slate-400 text-sm bg-slate-50 rounded">未設定地圖圖片。</div>
-          </template>
-        </div>
+        <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- 地圖部分 -->
+          <div v-if="!monster?.isFate" class="space-y-2 min-w-0">
+            <h4 class="text-xs font-bold text-slate-600">地圖位置</h4>
+            <template v-if="monster?.mapImageData">
+              <div
+                class="block w-full mx-auto rounded cursor-pointer flex justify-center"
+                @click.prevent="handleOpenMap"
+              >
+                <img
+                  :src="monster?.mapImageData"
+                  alt="地圖圖片"
+                  class="max-h-[calc(100vh-18rem)] max-w-full rounded"
+                  style="height: auto; width: auto;"
+                />
+              </div>
+            </template>
+            <template v-else>
+              <div class="w-full h-40 flex items-center justify-center text-slate-400 text-sm bg-slate-50 rounded">未設定地圖圖片。</div>
+            </template>
+          </div>
 
-        <!-- 怪物照片部分 -->
-        <div class="space-y-2">
-          <h4 class="text-xs font-bold text-slate-600">怪物照片</h4>
-          <template v-if="monster?.monsterImageData">
-            <div
-              class="block w-full mx-auto rounded flex justify-center"
-            >
-              <img
-                :src="monster?.monsterImageData"
-                alt="怪物照片"
-                class="max-h-[calc(50vh-6rem)] max-w-full rounded"
-                style="height: auto; width: auto;"
-              />
-            </div>
-          </template>
-          <template v-else>
-            <div class="w-full h-32 flex items-center justify-center text-slate-400 text-sm bg-slate-50 rounded">未設定怪物照片。</div>
-          </template>
+          <!-- 怪物照片部分 -->
+          <div :class="['space-y-2 min-w-0', monster?.isFate ? 'lg:col-span-2' : '']">
+            <h4 class="text-xs font-bold text-slate-600">怪物照片</h4>
+            <template v-if="monster?.monsterImageData">
+              <div
+                class="block w-full mx-auto rounded flex justify-center"
+              >
+                <img
+                  :src="monster?.monsterImageData"
+                  alt="怪物照片"
+                  class="max-h-[calc(100vh-18rem)] max-w-full rounded"
+                  style="height: auto; width: auto;"
+                />
+              </div>
+            </template>
+            <template v-else>
+              <div class="w-full h-32 flex items-center justify-center text-slate-400 text-sm bg-slate-50 rounded">未設定怪物照片。</div>
+            </template>
+          </div>
         </div>
       </div>
     </div>

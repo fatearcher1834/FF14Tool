@@ -4,57 +4,59 @@
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
   >
-    <div class="admin-modal-surface bg-white rounded-[2.5rem] w-full max-w-5xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div class="admin-modal-surface admin-modal-scroll bg-white rounded-[2.5rem] w-full max-w-5xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[92vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-black text-slate-900">新增怪物</h3>
         <button @click="$emit('close')" class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all">
           <X :size="16" />
         </button>
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-5">
-        <div class="space-y-5">
-        <!-- 九宮格等級按鈕與FATE -->
-        <div class="flex gap-3 items-center">
-          <div class="flex-1 flex bg-white p-1 border rounded-2xl shadow-sm">
-            <button
-              v-for="r in ['None','B','A','S','SS']"
-              :key="r"
-              @click="form.rank = r"
-              :class="[
-                'flex-1 py-2 rounded-xl text-xs font-black transition-all',
-                form.rank === r ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'
-              ]"
-            >
-              {{ r === 'None' ? '一般' : r }}
-            </button>
-          </div>
+      <!-- 等級 / FATE / 通緝令 -->
+      <div class="flex flex-wrap gap-3 items-center rounded-2xl border border-slate-200 bg-slate-50 p-2">
+        <div class="flex-1 min-w-[280px] flex bg-white p-1 border rounded-2xl shadow-sm">
           <button
-            @click="form.isFate = !form.isFate"
+            v-for="r in ['None','B','A','S','SS']"
+            :key="r"
+            @click="form.rank = r"
             :class="[
-              'px-4 py-2 rounded-2xl text-xs font-black border',
-              form.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400'
+              'flex-1 py-2 rounded-xl text-xs font-black transition-all',
+              form.rank === r ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'
             ]"
           >
-            FATE
-          </button>
-          <button
-            @click="form.isWanted = !form.isWanted"
-            :class="[
-              'px-4 py-2 rounded-2xl text-xs font-black border',
-              form.isWanted ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400'
-            ]"
-          >
-            通緝令
+            {{ r === 'None' ? '一般' : r }}
           </button>
         </div>
+        <button
+          @click="form.isFate = !form.isFate"
+          :class="[
+            'px-4 py-2 rounded-xl text-xs font-black border',
+            form.isFate ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-400'
+          ]"
+        >
+          FATE
+        </button>
+        <button
+          @click="form.isWanted = !form.isWanted"
+          :class="[
+            'px-4 py-2 rounded-xl text-xs font-black border',
+            form.isWanted ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400'
+          ]"
+        >
+          通緝令
+        </button>
+      </div>
 
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-5 items-start">
+        <div class="space-y-5">
+        <section class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+        <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">基本資料</h4>
         <div>
-          <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">其他標籤</label>
+          <label class="text-[11px] font-black text-slate-400 ml-1 uppercase">其他標籤</label>
           <div class="flex gap-2 mt-1">
             <select
               v-model="form.filterOther"
               @change="isTagInputVisible = false"
-              class="flex-1 p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none"
+              class="flex-1 p-3 bg-white border rounded-2xl font-bold text-sm outline-none"
             >
               <option value="">無</option>
               <option v-for="o in tagOptions" :key="o" :value="o">{{ o }}</option>
@@ -95,19 +97,19 @@
         <!-- 怪物名稱與版本 -->
         <div class="grid grid-cols-3 gap-4">
           <div class="col-span-2">
-            <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">怪物名稱</label>
+            <label class="text-[11px] font-black text-slate-400 ml-1 uppercase">怪物名稱</label>
             <input
               ref="nameInput"
               v-model="form.name"
-              class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
+              class="w-full p-3 bg-white border rounded-2xl font-bold text-sm outline-none mt-1"
               @input="requiredError = ''"
             />
           </div>
           <div>
-            <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">版本</label>
+            <label class="text-[11px] font-black text-slate-400 ml-1 uppercase">版本</label>
             <select
               v-model="form.version"
-              class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none mt-1"
+              class="w-full p-3 bg-white border rounded-2xl font-bold text-sm outline-none mt-1"
               @change="requiredError = ''"
             >
               <option v-for="v in VERSIONS" :key="v" :value="v">{{ v }}</option>
@@ -117,25 +119,27 @@
         <p v-if="requiredError" class="text-red-500 text-xs font-bold ml-1 -mt-2">{{ requiredError }}</p>
 
         <div v-if="form.isFate" class="space-y-2">
-          <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">命運事件名稱</label>
+          <label class="text-[11px] font-black text-slate-400 ml-1 uppercase">命運事件名稱</label>
           <input
             v-model="form.fateEventName"
-            class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none"
+            class="w-full p-3 bg-white border rounded-2xl font-bold text-sm outline-none"
             placeholder="事件名稱"
           />
         </div>
 
         <div v-if="form.isFate || form.rank === 'S' || form.rank === 'SS'" class="space-y-2">
+          <label class="text-[11px] font-black text-slate-400 ml-1 uppercase">觸發條件</label>
           <textarea
             v-model="form.triggerCondition"
             class="w-full p-3 bg-white border rounded-2xl font-bold text-xs outline-none "
             placeholder="觸發條件"
-            rows="4"
+            rows="3"
           />
         </div>
 
         <!-- 討伐筆記 -->
         <div class="flex flex-wrap gap-2 items-center">
+          <span class="text-[11px] font-black text-slate-400 uppercase mr-1">討伐筆記</span>
           <div
             v-for="(job, idx) in form.jobs"
             :key="idx"
@@ -187,8 +191,13 @@
             </div>
           </div>
         </div>
+        </section>
 
-        <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
+        <section v-if="(form.rank && form.rank !== 'None') || form.isFate" class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+        <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">圖片</h4>
+        <div class="space-y-3">
+        <div v-if="form.rank && form.rank !== 'None'" class="space-y-1">
+          <div class="text-[10px] font-black text-slate-400 ml-1">地圖圖片</div>
           <div
             class="w-full h-40 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
             tabindex="0"
@@ -213,7 +222,8 @@
           </div>
         </div>
 
-        <div v-if="(form.rank && form.rank !== 'None') || form.isFate" class="space-y-2">
+        <div v-if="(form.rank && form.rank !== 'None') || form.isFate" class="space-y-1">
+          <div class="text-[10px] font-black text-slate-400 ml-1">怪物照片</div>
           <div
             class="w-full h-40 border-2 border-dashed rounded-xl p-2 text-slate-400 text-center text-xs flex items-center justify-center relative"
             tabindex="0"
@@ -237,14 +247,17 @@
             </button>
           </div>
         </div>
+        </div>
+        </section>
 
         </div>
 
         <div class="space-y-5">
         <!-- 批次座標解析與座標列表 -->
-        <div class="space-y-3">
-          <div class="bg-blue-50/50 p-4 rounded-3xl border border-blue-100/50 space-y-3">
-            <label class="text-[10px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
+        <section class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+        <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">座標</h4>
+        <div class="space-y-2">
+            <label class="text-[11px] font-black text-blue-600 uppercase tracking-wider">批次座標解析 (貼上即自動匯入)</label>
             <textarea
               ref="batchInput"
               class="w-full p-3 bg-white/80 border border-blue-200 rounded-xl text-xs font-mono outline-none focus:border-blue-400 transition-all placeholder:text-slate-300"
@@ -254,12 +267,14 @@
               @change="handleBatchParse($event.target.value); $event.target.value=''"
             />
           </div>
-          <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">座標點位</label>
-          <div
-            v-for="(loc, i) in form.locations"
-            :key="i"
-            class="p-3 bg-slate-50 rounded-2xl border space-y-2"
-          >
+          <div class="space-y-2">
+            <label class="text-[11px] font-black text-slate-400 ml-1 uppercase">座標點位</label>
+            <div class="space-y-2">
+            <div
+              v-for="(loc, i) in form.locations"
+              :key="i"
+              class="p-3 bg-white rounded-2xl border space-y-2"
+            >
             <div class="flex gap-2 items-center">
               <select v-model="loc.type" class="bg-white border p-2 rounded-xl text-xs font-bold outline-none w-20 shrink-0">
                 <option value="map">地圖</option>
@@ -312,10 +327,13 @@
                 />
               </div>
             </div>
+            </div>
+            </div>
+            <button @click="addLocation" class="w-full p-4 border-2 border-dashed rounded-2xl text-slate-400 text-xs font-black">+ 新增座標</button>
           </div>
-          <button @click="addLocation" class="w-full p-4 border-2 border-dashed rounded-2xl text-slate-400 text-xs font-black">+ 新增座標</button>
+        </section>
         </div>
-        </div>
+
         <!-- 儲存狀態提示 -->
         <div v-if="modalMessage" class="lg:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 p-3 text-xs font-bold">
           {{ modalMessage }}

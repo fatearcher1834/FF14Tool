@@ -572,3 +572,31 @@ body.theme-dark .app-copy-btn:hover {
   background-color: var(--dk-accent) !important;
   color: #06111f !important;
 }
+
+/* 細捲軸（彈窗與座標清單共用；需要時才出現） */
+.admin-modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #64748b transparent;
+}
+
+.admin-modal-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.admin-modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-modal-scroll::-webkit-scrollbar-thumb {
+  background: #64748b;
+  border-radius: 9999px;
+}
+
+body.theme-dark .admin-modal-scroll {
+  scrollbar-color: #3c5074 transparent;
+}
+
+body.theme-dark .admin-modal-scroll::-webkit-scrollbar-thumb {
+  background: #3c5074;
+}
