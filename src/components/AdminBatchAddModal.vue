@@ -117,7 +117,7 @@
                   <RankTag :rank="config.rank" />
                   <FateTag v-if="(typeof entry !== 'string' ? entry.isFate : false) || config.isFate" :is-fate="(typeof entry !== 'string' ? entry.isFate : false) || config.isFate" />
                   <WantedTag v-if="(typeof entry !== 'string' ? entry.isWanted : false) || config.isWanted" :is-wanted="(typeof entry !== 'string' ? entry.isWanted : false) || config.isWanted" />
-                  <div v-for="job in (typeof entry === 'string' ? config.jobs : entry.jobs)" :key="job" class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-[10px] font-black">{{ job }}</div>
+                  <div v-for="job in (typeof entry === 'string' ? config.jobs : entry.jobs)" :key="job" class="app-tag"><span class="app-tag-dot bg-[#5b93f5]"></span>{{ job }}</div>
                 </div>
               </div>
               <div v-if="typeof entry !== 'string' && entry.locations && entry.locations.length > 0" class="text-xs text-slate-500 mt-1">

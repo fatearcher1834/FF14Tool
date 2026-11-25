@@ -573,6 +573,37 @@ body.theme-dark .app-copy-btn:hover {
   color: #06111f !important;
 }
 
+/* 標籤：中性底 + 分類色點（Linear / Notion 類做法） */
+.app-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background-color: #eef2f7;
+  color: #334155;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.app-tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+body.theme-dark .app-tag {
+  background-color: #2f3f57;
+  color: #dbe4f3;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
 /* 細捲軸（彈窗與座標清單共用；需要時才出現） */
 .admin-modal-scroll {
   scrollbar-width: thin;

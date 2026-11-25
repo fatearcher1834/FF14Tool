@@ -1,22 +1,22 @@
 <template>
-  <span v-if="version" :class="['text-[10px] font-black px-1.5 py-0.5 rounded text-white shrink-0 leading-none shadow-sm dark:bg-slate-700/80 dark:text-slate-200 dark:shadow-none', versionColors[version]]">
-    {{ version }}
+  <span v-if="version" class="app-tag">
+    <span class="app-tag-dot" :class="versionDots[version]"></span>{{ version }}
   </span>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 
-const props = defineProps({
+defineProps({
   version: String
 })
 
-const versionColors = computed(() => ({
-  '2.0': 'bg-zinc-500',
-  '3.0': 'bg-sky-700',
-  '4.0': 'bg-red-700',
-  '5.0': 'bg-indigo-800',
-  '6.0': 'bg-emerald-700',
-  '7.0': 'bg-amber-600'
+const versionDots = computed(() => ({
+  '2.0': 'bg-zinc-400',
+  '3.0': 'bg-sky-400',
+  '4.0': 'bg-red-400',
+  '5.0': 'bg-indigo-400',
+  '6.0': 'bg-emerald-400',
+  '7.0': 'bg-amber-400'
 }))
 </script>

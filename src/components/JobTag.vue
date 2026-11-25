@@ -1,13 +1,13 @@
 <template>
   <template v-if="jobs && jobs.length > 0">
-    <span v-for="(job, idx) in jobs" :key="idx" :class="['text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 leading-none', getJobColor(job)]">
-      {{ job }}
+    <span v-for="(job, idx) in jobs" :key="idx" class="app-tag">
+      <span class="app-tag-dot" :class="getJobDot(job)"></span>{{ job }}
     </span>
   </template>
 </template>
 
 <script setup>
-import { JOB_COLORS, JOB_BASE_NAMES } from '@/config/constants'
+import { JOB_DOT_COLORS, JOB_BASE_NAMES } from '@/config/constants'
 
 defineProps({
   jobs: {
@@ -16,9 +16,9 @@ defineProps({
   }
 })
 
-function getJobColor(job) {
-  if (!job || job.trim() === '') return 'bg-slate-300 text-slate-700 dark:bg-slate-700/80 dark:text-slate-300'
+function getJobDot(job) {
+  if (!job || job.trim() === '') return 'bg-slate-400'
   const jobBase = JOB_BASE_NAMES.find(j => job.startsWith(j)) || ''
-  return JOB_COLORS[jobBase] || 'bg-slate-400 text-white dark:bg-slate-700/80 dark:text-slate-200'
+  return JOB_DOT_COLORS[jobBase] || 'bg-slate-400'
 }
 </script>

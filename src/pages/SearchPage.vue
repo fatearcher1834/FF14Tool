@@ -258,7 +258,7 @@
                       <FateTag :isFate="m.isFate" />
                       <WantedTag :isWanted="m.isWanted" />
                       <JobTag :jobs="m.jobs || []" />
-                      <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-slate-700/80 dark:text-indigo-300 dark:border-indigo-400/30">{{ m.filterOther }}</span>
+                      <span v-if="m.filterOther" class="app-tag"><span class="app-tag-dot bg-indigo-400"></span>{{ m.filterOther }}</span>
                     </div>
                     <div v-if="m.isFate && m.fateEventName" class="text-[10px] font-bold text-pink-600/80 truncate" :title="m.fateEventName">
                       {{ m.fateEventName }}
@@ -537,7 +537,7 @@
                       <FateTag :isFate="m.isFate" />
                       <WantedTag :isWanted="m.isWanted" />
                       <JobTag :jobs="m.jobs || []" />
-                      <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-slate-700/80 dark:text-indigo-300 dark:border-indigo-400/30">{{ m.filterOther }}</span>
+                      <span v-if="m.filterOther" class="app-tag"><span class="app-tag-dot bg-indigo-400"></span>{{ m.filterOther }}</span>
                     </div>
                     <div v-if="m.isFate && m.fateEventName" class="w-full text-[10px] font-bold text-pink-600/80 truncate pl-3" :title="m.fateEventName">
                       {{ m.fateEventName }}

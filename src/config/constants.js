@@ -40,26 +40,23 @@ export const JOB_BASE_NAMES = [
 ];
 
 // 職業顏色映射 (應存入數據庫)
-export const JOB_COLORS = {
-  // 防禦職業（鮮明藍）
-  "劍術師": "bg-[#3d7bf0] text-white dark:bg-slate-700/80 dark:text-[#9cc0ff]",
-  "斧術師": "bg-[#3d7bf0] text-white dark:bg-slate-700/80 dark:text-[#9cc0ff]",
+// 職業代表色（標籤色點）
+export const JOB_DOT_COLORS = {
+  "劍術師": "bg-[#5b93f5]",
+  "斧術師": "bg-[#5b93f5]",
 
-  // 進攻職業（鮮明紅）
-  "格鬥家": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
-  "槍術師": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
-  "弓箭手": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
-  "咒術師": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
-  "雙劍師": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
-  "秘術師": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
+  "格鬥家": "bg-[#e05a63]",
+  "槍術師": "bg-[#e05a63]",
+  "弓箭手": "bg-[#e05a63]",
+  "咒術師": "bg-[#e05a63]",
+  "雙劍師": "bg-[#e05a63]",
+  "秘術師": "bg-[#e05a63]",
 
-  // 輔助職業（鮮明綠）
-  "幻術師": "bg-[#3e9b49] text-white dark:bg-slate-700/80 dark:text-[#8fe0a0]",
+  "幻術師": "bg-[#4fbf5f]",
 
-  // 特殊勢力（保留原色）
-  "黑渦團": "bg-red-600 text-white dark:bg-slate-700/80 dark:text-red-300",
-  "雙蛇黨": "bg-emerald-600 text-white dark:bg-slate-700/80 dark:text-emerald-300",
-  "不滅隊": "bg-amber-500 text-white dark:bg-slate-700/80 dark:text-amber-200"
+  "黑渦團": "bg-red-400",
+  "雙蛇黨": "bg-emerald-400",
+  "不滅隊": "bg-amber-400"
 };
 
 // 討伐筆記編號 (01~50)
