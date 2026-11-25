@@ -171,7 +171,7 @@
               class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none border"
             >
               <option value="*">其他標籤</option>
-              <option v-for="o in OTHER_FILTERS" :key="o" :value="o">{{ o }}</option>
+              <option v-for="o in monstersStore.otherTags" :key="o" :value="o">{{ o }}</option>
             </select>
           </div>
         </div>
@@ -468,7 +468,7 @@
               class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
             >
               <option value="*">其他標籤</option>
-              <option v-for="o in OTHER_FILTERS" :key="o" :value="o">{{ o }}</option>
+              <option v-for="o in monstersStore.otherTags" :key="o" :value="o">{{ o }}</option>
             </select>
           </div>
         </div>
@@ -715,7 +715,7 @@ import {
 } from 'lucide-vue-next'
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore'
 import { getFirebaseInstance } from '@/services/firebase'
-import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES, OTHER_FILTERS } from '@/config/constants'
+import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
 import { APP_CONFIG } from '@/config/app.config'
 import { getMonstersPage, getMonsterCount } from '@/services/database'
 import { applyFilter, sortMonsters, getMapsForVersion, copyToClipboard } from '@/services/hunterUtils'

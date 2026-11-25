@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+jspm_packages/
+
+# Lockfiles
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
@@ -20,16 +23,21 @@ build/
 *.swp
 *.swo
 *~
+.history/
+
+# OS specific
 .DS_Store
-*.sublime-project
-*.sublime-workspace
+Thumbs.db
 
 # Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-build.log
+.firebase/
+firebase-debug.log*
+ui-debug.log*
 
 # Testing
 coverage/
@@ -38,10 +46,7 @@ coverage/
 # Temporary files
 *.tmp
 .temp/
-
-# OS specific
-Thumbs.db
-.DS_Store
+.cache/
 
 # Build tool specific
 .eslintcache

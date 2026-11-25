@@ -53,13 +53,46 @@
 
         <div>
           <label class="text-[10px] font-black text-slate-400 ml-1 uppercase">其他標籤</label>
-          <select
-            v-model="form.filterOther"
-            class="w-full p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none"
-          > 
-            <option value="">無</option>
-            <option v-for="o in OTHER_FILTERS" :key="o" :value="o">{{ o }}</option>
-          </select>
+          <div class="flex gap-2 mt-1">
+            <select
+              v-model="form.filterOther"
+              @change="isTagInputVisible = false"
+              class="flex-1 p-3 bg-slate-50 border rounded-2xl font-bold text-sm outline-none"
+            >
+              <option value="">無</option>
+              <option v-for="o in tagOptions" :key="o" :value="o">{{ o }}</option>
+            </select>
+            <button
+              type="button"
+              @click="toggleTagInput"
+              :class="[
+                'px-4 rounded-2xl text-xs font-black border transition-all',
+                isTagInputVisible ? 'bg-slate-100 text-slate-500' : 'border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50'
+              ]"
+            >
+              {{ isTagInputVisible ? '取消' : '＋ 新增標籤' }}
+            </button>
+          </div>
+          <div v-if="isTagInputVisible" class="flex gap-2 mt-2">
+            <input
+              ref="newTagInput"
+              v-model="newTagValue"
+              class="flex-1 p-3 bg-white border border-indigo-200 rounded-2xl font-bold text-sm outline-none focus:border-indigo-400"
+              placeholder="輸入新標籤名稱，例如：土天文書·第一卷"
+              @keydown.enter.stop.prevent="confirmNewTag"
+              @keydown.esc.stop.prevent="cancelNewTag"
+            />
+            <button
+              type="button"
+              @click="confirmNewTag"
+              class="px-4 rounded-2xl text-xs font-black bg-indigo-600 text-white shadow-md"
+            >
+              新增
+            </button>
+          </div>
+          <p v-if="isTagInputVisible" class="text-[10px] text-slate-400 ml-1 mt-1">
+            新標籤儲存後，會自動出現在其他使用者的標籤選單中。
+          </p>
         </div>
 
         <div v-if="form.rank && form.rank !== 'None'" class="space-y-2">
@@ -303,10 +336,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { X } from 'lucide-vue-next'
-import { MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS, OTHER_FILTERS } from '@/config/constants'
+import { MAP_DATA, VERSIONS, ALL_REGIONS, JOB_BASE_NAMES, DUNGEON_MAPS } from '@/config/constants'
 import { DUNGEON_MAPS_SIMPLE_MAP, simplifiedToTraditional, simplifiedJobBaseMap } from '@/config/locale-translation'
 
 const props = defineProps({
@@ -317,6 +350,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save'])
+const monstersStore = useMonstersStore()
 const modalRef = ref(null)
 const matchAccuracy = ref(90)
 const overlayMouseDownOnSelf = ref(false)
@@ -391,6 +425,39 @@ const form = ref({
   filterOther: props.monster.filterOther || ''
 })
 
+// 其他標籤選項：預設清單 + 現有怪物已使用的自訂標籤
+const tagOptions = computed(() => {
+  const tags = [...monstersStore.otherTags]
+  const current = (form.value.filterOther || '').trim()
+  if (current && !tags.includes(current)) tags.push(current)
+  return tags
+})
+
+const isTagInputVisible = ref(false)
+const newTagValue = ref('')
+const newTagInput = ref(null)
+
+const toggleTagInput = async () => {
+  isTagInputVisible.value = !isTagInputVisible.value
+  if (isTagInputVisible.value) {
+    newTagValue.value = ''
+    await nextTick()
+    newTagInput.value?.focus()
+  }
+}
+
+const cancelNewTag = () => {
+  isTagInputVisible.value = false
+  newTagValue.value = ''
+}
+
+const confirmNewTag = () => {
+  const tag = newTagValue.value.trim()
+  if (!tag) return
+  form.value.filterOther = tag
+  cancelNewTag()
+}
+
 // 核心修正：當點選不同怪物切換編輯時，同步刷新 form 資料
 watch(() => props.monster, (newMonster) => {
   if (!newMonster) return
@@ -411,6 +478,7 @@ watch(() => props.monster, (newMonster) => {
   form.value.fateEventName = newMonster.fateEventName || ''
   form.value.locations = normalizeLocations(Array.isArray(newMonster.locations) ? [...newMonster.locations] : [], newMonster.version || VERSIONS[0])
   form.value.filterOther = newMonster.filterOther || ''
+  cancelNewTag()
 }, { deep: true })
 
 const closeModal = () => { emit('close') }
@@ -461,7 +529,6 @@ onMounted(async () => {
   if (modalRef.value) modalRef.value.focus()
   if (!form.value.id || !imageLoadExpected.value) return
 
-  const monstersStore = useMonstersStore()
   isLoadingImages.value = true
   startImageLoadingWarning()
   try {

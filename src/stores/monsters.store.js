@@ -6,6 +6,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import * as db from "../services/database";
 import { APP_ID } from "../config/firebase.config";
+import { OTHER_FILTERS } from "../config/constants";
 import { localStorageHelper } from "../services/utils";
 
 const getMonsterImageCache = (monsterId) => {
@@ -97,6 +98,26 @@ export const useMonstersStore = defineStore("monsters", () => {
       grouped[m.version].push(m);
     });
     return grouped;
+  });
+
+  // 其他標籤選項：預設清單 + 現有怪物已使用的自訂標籤
+  const otherTags = computed(() => {
+    const tags = [];
+    const seen = new Set();
+    const addTag = (raw, bucket) => {
+      const tag = typeof raw === "string" ? raw.trim() : "";
+      if (!tag || seen.has(tag)) return;
+      seen.add(tag);
+      bucket.push(tag);
+    };
+
+    OTHER_FILTERS.forEach(tag => addTag(tag, tags));
+
+    const extraTags = [];
+    monsters.value.forEach(m => addTag(m.filterOther, extraTags));
+    extraTags.sort((a, b) => a.localeCompare(b, "zh-Hant"));
+
+    return [...tags, ...extraTags];
   });
 
   // 初始化怪物數據
@@ -361,6 +382,7 @@ export const useMonstersStore = defineStore("monsters", () => {
     error,
     monsterCount,
     monstersByVersion,
+    otherTags,
     initializeMonsters,
     watchMonsters,
     stopWatching,
