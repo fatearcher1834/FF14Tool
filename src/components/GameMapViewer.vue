@@ -112,7 +112,12 @@ const loadAetheryteIcon = async () => {
         })
         if (!response.ok) continue
         const blob = await response.blob()
-        aetheryteIconUrl = URL.createObjectURL(blob)
+        const objectUrl = URL.createObjectURL(blob)
+        if (isDestroyed) {
+          URL.revokeObjectURL(objectUrl)
+          return null
+        }
+        aetheryteIconUrl = objectUrl
         return aetheryteIconUrl
       } catch (error) {
         // 換下一個來源
@@ -194,6 +199,10 @@ const loadMapImage = async (mapInfo) => {
         if (!response.ok) continue
         const blob = await response.blob()
         const objectUrl = URL.createObjectURL(blob)
+        if (isDestroyed) {
+          URL.revokeObjectURL(objectUrl)
+          return null
+        }
         cacheMapImage(key, objectUrl, blob.size)
         return objectUrl
       } catch (error) {
@@ -677,7 +686,6 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
   renderedMapId = ''
-  markerRenderer = null
   if (currentActiveMapId) {
     releaseActiveMap(currentActiveMapId)
     currentActiveMapId = ''
@@ -686,6 +694,22 @@ onBeforeUnmount(() => {
     map.remove()
     map = null
   }
+  markerRenderer = null
+  imageLayer = null
+  gridLayer = null
+  markerLayer = null
+  aetheryteLayer = null
+  for (const entry of mapImageCache.values()) {
+    URL.revokeObjectURL(entry.url)
+  }
+  mapImageCache.clear()
+  mapImageCacheBytes = 0
+  mapImagePending.clear()
+  if (aetheryteIconUrl) {
+    URL.revokeObjectURL(aetheryteIconUrl)
+    aetheryteIconUrl = null
+  }
+  aetheryteIconPending = null
 })
 </script>
 

@@ -204,7 +204,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMonstersStore } from '../stores/monsters.store';
 import { useUserStore } from '../stores/user.store';
@@ -553,6 +553,10 @@ onMounted(async () => {
   await monstersStore.initializeMonsters();
   monstersStore.watchMonsters();
   refreshMonsters(1);
+});
+
+onUnmounted(() => {
+  monstersStore.stopWatching();
 });
 
 </script>

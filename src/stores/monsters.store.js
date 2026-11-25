@@ -169,6 +169,7 @@ export const useMonstersStore = defineStore("monsters", () => {
   // 監聽怪物數據變化
   let unsubscribe = null;
   const watchMonsters = () => {
+    stopWatching()
     try {
       unsubscribe = db.watchMonsters(APP_ID, (data) => {
         // 合併已存在的圖片數據，避免每次更新時清除 mapImageData 和 monsterImageData
@@ -232,6 +233,7 @@ export const useMonstersStore = defineStore("monsters", () => {
   const stopWatching = () => {
     if (unsubscribe) {
       unsubscribe();
+      unsubscribe = null;
       console.log("✓ 已停止監聽怪物數據");
     }
   };

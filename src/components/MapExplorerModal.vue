@@ -124,7 +124,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { X, Check } from 'lucide-vue-next'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { GAME_MAPS, getGameMap } from '@/config/gameMaps'
@@ -320,5 +320,9 @@ watch(searchTerm, () => {
 
 watch(() => props.initialMap, () => {
   if (initialized.value) selectInitialMap()
+})
+
+onBeforeUnmount(() => {
+  monsterItemRefs.clear()
 })
 </script>
