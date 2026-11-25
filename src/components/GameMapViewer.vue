@@ -49,14 +49,18 @@ import 'leaflet/dist/leaflet.css'
 import { MAP_IMAGE_SIZE, getGameMap, getGameMapImageUrls } from '@/config/gameMaps'
 import { AETHERYTES_BY_MAP } from '@/config/aetherytes'
 import { MAP_REGIONS_BY_ID } from '@/config/mapRegions'
+import { getMonsterExplorerColor } from '@/config/mapColors'
 
 const props = defineProps({
   monster: { type: Object, default: null },
+  monsters: { type: Array, default: null },
+  selectedMonsterId: { type: [String, Number], default: null },
+  coloredMarkers: { type: Boolean, default: false },
   initialLocation: { type: Object, default: null },
   height: { type: Number, default: 420 }
 })
 
-const emit = defineEmits(['select-location'])
+const emit = defineEmits(['select-location', 'select-monster'])
 
 const mapEl = ref(null)
 const selectedMap = ref('')
@@ -158,18 +162,33 @@ const AETHERYTE_FALLBACK_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
   '<path d="M6 3h12l4 6-10 12L2 9Z"/><path d="M11 3 8 9l4 12 4-12-3-6"/><path d="M2 9h20"/></svg>'
 
-const gameLocations = computed(() =>
-  (props.monster?.locations || []).filter(loc => {
-    if (!loc || !getGameMap(loc.map)) return false
-    if (loc.x == null || loc.x === '' || loc.y == null || loc.y === '') return false
-    return Number.isFinite(Number(loc.x)) && Number.isFinite(Number(loc.y))
-  })
-)
+const sourceMonsters = computed(() => {
+  if (Array.isArray(props.monsters) && props.monsters.length > 0) return props.monsters
+  return props.monster ? [props.monster] : []
+})
 
-const availableMaps = computed(() => [...new Set(gameLocations.value.map(loc => loc.map))])
+const allGameLocations = computed(() => {
+  const entries = []
+  for (const monster of sourceMonsters.value) {
+    for (const loc of (monster.locations || [])) {
+      if (!loc || !getGameMap(loc.map)) continue
+      if (loc.x == null || loc.x === '' || loc.y == null || loc.y === '') continue
+      if (!Number.isFinite(Number(loc.x)) || !Number.isFinite(Number(loc.y))) continue
+      entries.push({ monster, loc })
+    }
+  }
+  return entries
+})
+
+const gameLocations = computed(() => {
+  if (props.selectedMonsterId == null) return allGameLocations.value
+  return allGameLocations.value.filter(entry => entry.monster.id === props.selectedMonsterId)
+})
+
+const availableMaps = computed(() => [...new Set(allGameLocations.value.map(entry => entry.loc.map))])
 
 const markerLocations = computed(() =>
-  gameLocations.value.filter(loc => loc.map === selectedMap.value)
+  gameLocations.value.filter(entry => entry.loc.map === selectedMap.value)
 )
 
 const regionName = computed(() => {
@@ -324,24 +343,59 @@ const buildMarkerLayer = () => {
 
   markerLayer = leaflet.layerGroup()
 
-  markerLocations.value.forEach(loc => {
-    const latlng = toLatLng(loc)
-    if (!latlng) return
+  const mapInfo = getGameMap(selectedMap.value)
+  const units = mapInfo ? 4100 / mapInfo.sizeFactor : 41
+  const pxPerUnit = MAP_IMAGE_SIZE / units
+  const groupedMarkers = new Map()
+
+  markerLocations.value.forEach(entry => {
+    const loc = entry.loc
+    const key = `${loc.map}:${Math.round(Number(loc.x) * 2)}:${Math.round(Number(loc.y) * 2)}`
+    if (!groupedMarkers.has(key)) groupedMarkers.set(key, [])
+    groupedMarkers.get(key).push(entry)
+  })
+
+  const offsetByEntry = new Map()
+  if (props.coloredMarkers) {
+    groupedMarkers.forEach(group => {
+      if (group.length < 2) return
+      const count = group.length
+      const radiusPx = pxPerUnit * (0.28 + 0.06 * Math.min(count - 1, 5))
+      group.forEach((entry, index) => {
+        const angle = (Math.PI * 2 * index) / count - Math.PI / 2
+        offsetByEntry.set(entry, {
+          dx: Math.cos(angle) * radiusPx,
+          dy: Math.sin(angle) * radiusPx
+        })
+      })
+    })
+  }
+
+  markerLocations.value.forEach(entry => {
+    const { monster, loc } = entry
+    const baseLatLng = toLatLng(loc)
+    if (!baseLatLng) return
+    const offset = offsetByEntry.get(entry)
+    const latlng = offset
+      ? [baseLatLng[0] - offset.dy, baseLatLng[1] + offset.dx]
+      : baseLatLng
     const initial = isInitialLocation(loc)
+    const emphasized = initial || (Array.isArray(props.monsters) && props.selectedMonsterId != null)
+    const name = monster?.name || '未知怪物'
     const marker = leaflet.circleMarker(latlng, {
-      radius: initial ? 6 : 4.5,
+      radius: emphasized ? 6 : (props.coloredMarkers ? 5 : 4.5),
       color: '#e2e8f0',
-      weight: initial ? 1.5 : 1,
+      weight: emphasized ? 1.5 : 1,
       opacity: 0.95,
-      fillColor: '#1e3a8a',
+      fillColor: props.coloredMarkers ? getMonsterExplorerColor(monster) : '#1e3a8a',
       fillOpacity: 1
     })
     marker.bindPopup(
-      `<div style="font-size:12px;font-weight:900;line-height:1.4;">${escapeHtml(props.monster?.name || '未知怪物')}</div>` +
+      `<div style="font-size:12px;font-weight:900;line-height:1.4;">${escapeHtml(name)}</div>` +
       `<div style="font-size:11px;opacity:.8;">${escapeHtml(loc.map)} · X:${escapeHtml(loc.x)} Y:${escapeHtml(loc.y)}</div>`
     )
     marker.bindTooltip(
-      `${escapeHtml(props.monster?.name || '未知怪物')} X:${escapeHtml(loc.x)} Y:${escapeHtml(loc.y)}`,
+      `${escapeHtml(name)} X:${escapeHtml(loc.x)} Y:${escapeHtml(loc.y)}`,
       {
         direction: 'top',
         offset: [0, -6],
@@ -349,7 +403,13 @@ const buildMarkerLayer = () => {
         className: 'game-map-tooltip'
       }
     )
-    marker.on('click', () => emit('select-location', loc))
+    marker.on('click', () => {
+      if (Array.isArray(props.monsters)) {
+        emit('select-monster', monster)
+      } else {
+        emit('select-location', loc)
+      }
+    })
     marker.addTo(markerLayer)
   })
 
@@ -490,6 +550,16 @@ watch(() => props.initialLocation, () => {
   if (map && selectedMap.value === props.initialLocation?.map) {
     buildMarkerLayer()
   }
+}, { deep: true })
+
+watch(() => props.selectedMonsterId, () => {
+  if (map) buildMarkerLayer()
+})
+
+watch(() => props.monsters, () => {
+  if (!map) return
+  syncSelectedMap()
+  buildMarkerLayer()
 }, { deep: true })
 
 onBeforeUnmount(() => {

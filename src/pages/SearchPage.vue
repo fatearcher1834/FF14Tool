@@ -16,6 +16,15 @@
         </div>
       </div>
       <div class="flex gap-2 items-center">
+        <button
+          @click="showMapExplorer = true"
+          class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-900 shadow-md inline-flex items-center gap-1.5"
+          title="開啟怪物分布地圖"
+        >
+          <MapIcon :size="14" />
+          地圖
+        </button>
+
         <RouterLink
           v-if="userStore.isAdmin"
           to="/admin"
@@ -323,6 +332,12 @@
         :loading="monsterDetailModal.loading"
         :onOpenMap="openMapInNewTab"
         @close="handleCloseMonsterDetailModal"
+      />
+
+      <MapExplorerModal
+        v-if="showMapExplorer"
+        :initial-map="filterMap"
+        @close="showMapExplorer = false"
       />
 
       <div v-if="copyMessage" class="fixed top-4 left-1/2 z-50 -translate-x-1/2 px-4 py-2 rounded-2xl bg-slate-950/90 text-white text-xs font-bold shadow-xl backdrop-blur-sm max-w-[280px] text-center">
@@ -766,6 +781,7 @@ import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
 import CopyFeedbackOverlay from '@/components/CopyFeedbackOverlay.vue'
 import MonsterDetailModal from '@/components/MonsterDetailModal.vue'
+import MapExplorerModal from '@/components/MapExplorerModal.vue'
 import KanbanPanel from '@/components/KanbanPanel.vue'
 
 const userStore = useUserStore()
@@ -777,6 +793,7 @@ const appVersion = APP_CONFIG.version
 
 const pageMonsters = ref([])
 const isLoadingMonsters = ref(false)
+const showMapExplorer = ref(false)
 
 // 搜尋狀態
 const searchTerm = ref('')
