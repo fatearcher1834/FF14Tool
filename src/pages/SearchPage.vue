@@ -170,8 +170,8 @@
               @change="resetSearchPageSilent()"
               class="bg-slate-100 px-3 py-1.5 rounded-xl text-[14px] font-black outline-none border"
             >
-              <option value="*">其他標籤</option>
-              <option v-for="o in monstersStore.otherTags" :key="o" :value="o">{{ o }}</option>
+              <option value="">全部</option>
+              <option v-for="o in filterableOtherTags" :key="o" :value="o">{{ o }}</option>
             </select>
           </div>
         </div>
@@ -470,8 +470,8 @@
               v-model="kbFilterOther"
               class="bg-slate-50 px-2 py-1 rounded-lg text-[12px] font-black outline-none border"
             >
-              <option value="*">其他標籤</option>
-              <option v-for="o in monstersStore.otherTags" :key="o" :value="o">{{ o }}</option>
+              <option value="">全部</option>
+              <option v-for="o in filterableOtherTags" :key="o" :value="o">{{ o }}</option>
             </select>
           </div>
         </div>
@@ -527,18 +527,18 @@
                   @click="toggleKbExpanded(m.id)"
                   class="p-3 flex justify-between items-start cursor-pointer hover:bg-black/5 rounded-t-xl transition-colors"
                 >
-                  <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 overflow-hidden">
-                    <div class="text-[12px] font-black text-slate-800 truncate flex items-center gap-1 shrink-0">
+                  <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 pr-16 min-w-0">
+                    <div class="text-[12px] font-black text-slate-800 flex items-center gap-1 min-w-0 max-w-full">
                       <ChevronDown v-if="expandedIds[m.id]" size="10" class="text-slate-400" />
                       <ChevronRight v-else size="10" class="text-slate-400" />
-                      {{ m.name }}
-                      <VersionTag :version="m.version" />
-                      <RankTag :rank="m.rank" />
-                      <FateTag :isFate="m.isFate" />
-                      <WantedTag :isWanted="m.isWanted" />
-                      <JobTag :jobs="m.jobs || []" />
-                      <span v-if="m.filterOther" class="app-tag"><span class="app-tag-dot bg-indigo-400"></span>{{ m.filterOther }}</span>
+                      <span class="truncate">{{ m.name }}</span>
                     </div>
+                    <VersionTag :version="m.version" />
+                    <RankTag :rank="m.rank" />
+                    <FateTag :isFate="m.isFate" />
+                    <WantedTag :isWanted="m.isWanted" />
+                    <JobTag :jobs="m.jobs || []" />
+                    <span v-if="m.filterOther" class="app-tag"><span class="app-tag-dot bg-indigo-400"></span>{{ m.filterOther }}</span>
                     <div v-if="m.isFate && m.fateEventName" class="w-full text-[10px] font-bold text-pink-600/80 truncate pl-3" :title="m.fateEventName">
                       {{ m.fateEventName }}
                     </div>
@@ -861,6 +861,19 @@ const pageFilters = computed(() => ({
 }))
 
 const useLocalMonsterCache = computed(() => Array.isArray(monstersStore.monsters) && monstersStore.monsters.length > 0)
+
+const otherTagCounts = computed(() => {
+  const counts = {}
+  monstersStore.monsters.forEach(m => {
+    const tag = (m.filterOther || '').trim()
+    if (tag) counts[tag] = (counts[tag] || 0) + 1
+  })
+  return counts
+})
+
+const filterableOtherTags = computed(() =>
+  Object.keys(otherTagCounts.value).sort((a, b) => a.localeCompare(b, 'zh-Hant'))
+)
 
 const localFilteredMonsters = computed(() => {
   if (!useLocalMonsterCache.value) return []

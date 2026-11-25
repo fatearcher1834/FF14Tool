@@ -11,7 +11,8 @@ export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs, fi
   const keyword = (search || '').toLowerCase()
   return list.filter(m => {
     const matchName = (m.name || '').toLowerCase().includes(keyword) ||
-      (m.fateEventName || '').toLowerCase().includes(keyword)
+      (m.fateEventName || '').toLowerCase().includes(keyword) ||
+      (m.filterOther || '').toLowerCase().includes(keyword)
     const matchVer = !ver || m.version === ver
     // 若使用者已選地圖，保留沒有座標的新怪物，避免新增後被濾掉
     const hasNoLocation = !m.locations || !(m.locations.length > 0)
@@ -32,7 +33,7 @@ export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs, fi
     }
 
     // 新增：其他標籤的篩選邏輯
-    const matchOther = !filterOther || filterOther === '*' || m.filterOther === filterOther
+    const matchOther = !filterOther || filterOther === '*' || (m.filterOther || '').trim() === filterOther.trim()
 
     // 最後回傳必須同時符合所有條件
     return matchName && matchVer && matchMap && matchRank && matchFate && matchWanted && matchJobs && matchOther

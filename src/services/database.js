@@ -250,6 +250,13 @@ function matchesMonsterFilters(monster, filters = {}) {
     }
   }
 
+  if (filters.other) {
+    const tag = (monster.filterOther || '').trim();
+    if (tag !== filters.other.trim()) {
+      return false;
+    }
+  }
+
   return true;
 }
 

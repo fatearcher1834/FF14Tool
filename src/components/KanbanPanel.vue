@@ -154,17 +154,18 @@
               @click="$emit('toggle-kb-expanded', m.id)"
               class="p-3 flex justify-between items-start cursor-pointer hover:bg-black/5 rounded-t-xl transition-colors"
             >
-              <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 overflow-hidden">
-                <div class="text-[12px] font-black text-slate-800 truncate flex items-center gap-1 shrink-0">
+              <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 pr-16 min-w-0">
+                <div class="text-[12px] font-black text-slate-800 flex items-center gap-1 min-w-0 max-w-full">
                   <ChevronDown v-if="expandedIds[m.id]" size="10" class="text-slate-400" />
                   <ChevronRight v-else size="10" class="text-slate-400" />
-                  {{ m.name }}
-                  <VersionTag :version="m.version" />
-                  <RankTag :rank="m.rank" />
-                  <FateTag :isFate="m.isFate" />
-                  <WantedTag :is-wanted="m.isWanted" />
-                  <JobTag :jobs="m.jobs || []" />
+                  <span class="truncate">{{ m.name }}</span>
                 </div>
+                <VersionTag :version="m.version" />
+                <RankTag :rank="m.rank" />
+                <FateTag :isFate="m.isFate" />
+                <WantedTag :is-wanted="m.isWanted" />
+                <JobTag :jobs="m.jobs || []" />
+                <span v-if="m.filterOther" class="app-tag"><span class="app-tag-dot bg-indigo-400"></span>{{ m.filterOther }}</span>
                 <div v-if="m.isFate && m.fateEventName" class="w-full text-[10px] font-bold text-pink-600/80 truncate pl-3" :title="m.fateEventName">
                   {{ m.fateEventName }}
                 </div>
