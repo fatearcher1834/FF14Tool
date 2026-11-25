@@ -33,9 +33,12 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400">
-      <span class="truncate">{{ regionName ? regionName + ' · ' : '' }}{{ selectedMap }} · {{ markerLocations.length }} 個位置</span>
-      <span class="shrink-0">游標 X: {{ cursorCoords.x ?? '--' }} Y: {{ cursorCoords.y ?? '--' }} · © SQUARE ENIX</span>
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-500">
+      <span><b class="font-black text-slate-400">區域</b> {{ regionName || '—' }}</span>
+      <span><b class="font-black text-slate-400">地圖</b> {{ selectedMap || '—' }}</span>
+      <span><b class="font-black text-slate-400">位置</b> {{ markerLocations.length }}</span>
+      <span><b class="font-black text-slate-400">游標</b> X: {{ cursorCoords.x ?? '--' }} Y: {{ cursorCoords.y ?? '--' }}</span>
+      <span class="ml-auto shrink-0 text-slate-400">© SQUARE ENIX</span>
     </div>
   </div>
 </template>
