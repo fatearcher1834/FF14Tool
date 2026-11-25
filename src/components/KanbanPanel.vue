@@ -37,7 +37,7 @@
           :value="kbSearchTerm"
           @input="$emit('update:kbSearchTerm', $event.target.value)"
           class="w-full pl-7 pr-4 py-1.5 bg-slate-50 rounded-xl text-[12px] outline-none font-bold"
-          placeholder="過濾追蹤內容..."
+          placeholder="搜尋怪物或 FATE..."
         />
         <button
           @click="$emit('copy-all-locations')"
@@ -164,6 +164,9 @@
                   <FateTag :isFate="m.isFate" />
                   <WantedTag :is-wanted="m.isWanted" />
                   <JobTag :jobs="m.jobs || []" />
+                </div>
+                <div v-if="m.isFate && m.fateEventName" class="w-full text-[10px] font-bold text-pink-600/80 truncate pl-3" :title="m.fateEventName">
+                  {{ m.fateEventName }}
                 </div>
               </div>
               <div class="absolute top-2 right-2 flex gap-1">

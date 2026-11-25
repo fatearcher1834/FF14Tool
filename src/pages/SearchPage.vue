@@ -70,7 +70,7 @@
                 v-model="searchTerm"
                 @input="resetSearchPageSilent()"
                 class="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-2xl text-xs outline-none font-bold"
-                placeholder="搜尋怪物..."
+                placeholder="搜尋怪物或 FATE..."
               />
             </div>
             <button
@@ -260,6 +260,9 @@
                       <JobTag :jobs="m.jobs || []" />
                       <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200">{{ m.filterOther }}</span>
                     </div>
+                    <div v-if="m.isFate && m.fateEventName" class="text-[10px] font-bold text-pink-600/80 truncate" :title="m.fateEventName">
+                      {{ m.fateEventName }}
+                    </div>
                   </div>
                   <button
                     @click="handleCopyMonsterLocations(m)"
@@ -404,7 +407,7 @@
             <input
               v-model="kbSearchTerm"
               class="w-full pl-7 pr-4 py-1.5 bg-slate-50 rounded-xl text-[12px] outline-none font-bold"
-              placeholder="過濾追蹤內容..."
+              placeholder="搜尋怪物或 FATE..."
             />
             <button
               @click="handleCopyAllLocations"
@@ -535,6 +538,9 @@
                       <WantedTag :isWanted="m.isWanted" />
                       <JobTag :jobs="m.jobs || []" />
                       <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200">{{ m.filterOther }}</span>
+                    </div>
+                    <div v-if="m.isFate && m.fateEventName" class="w-full text-[10px] font-bold text-pink-600/80 truncate pl-3" :title="m.fateEventName">
+                      {{ m.fateEventName }}
                     </div>
                   </div>
                   <div class="absolute top-2 right-2 flex gap-1">

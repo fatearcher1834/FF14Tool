@@ -8,8 +8,10 @@ import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
  * 怪物篩選
  */
 export const applyFilter = (list, search, ver, map, rank, fate, wanted, jobs, filterOther) => {
+  const keyword = (search || '').toLowerCase()
   return list.filter(m => {
-    const matchName = (m.name || '').toLowerCase().includes((search || '').toLowerCase())
+    const matchName = (m.name || '').toLowerCase().includes(keyword) ||
+      (m.fateEventName || '').toLowerCase().includes(keyword)
     const matchVer = !ver || m.version === ver
     // 若使用者已選地圖，保留沒有座標的新怪物，避免新增後被濾掉
     const hasNoLocation = !m.locations || !(m.locations.length > 0)
