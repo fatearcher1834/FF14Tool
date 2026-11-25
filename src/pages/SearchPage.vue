@@ -258,7 +258,7 @@
                       <FateTag :isFate="m.isFate" />
                       <WantedTag :isWanted="m.isWanted" />
                       <JobTag :jobs="m.jobs || []" />
-                      <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200">{{ m.filterOther }}</span>
+                      <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-slate-700/80 dark:text-indigo-300 dark:border-indigo-400/30">{{ m.filterOther }}</span>
                     </div>
                     <div v-if="m.isFate && m.fateEventName" class="text-[10px] font-bold text-pink-600/80 truncate" :title="m.fateEventName">
                       {{ m.fateEventName }}
@@ -293,7 +293,7 @@
                     :title="m.isFate || (m.rank && m.rank !== 'None') ? '打開地圖視圖' : '複製座標'"
                   >
                     <div class="flex items-center gap-2">
-                      <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
+                      <div class="text-[10px] font-black opacity-60 group-hover/loc:opacity-100 dark:text-slate-400 dark:opacity-100">{{ loc.map }}</div>
                       <div v-if="m.isFate || !m.rank || m.rank === 'None'" class="font-mono font-bold text-[10px]">
                         X:{{ loc.x }} Y:{{ loc.y }}<span v-if="loc.z != null && loc.z !== ''"> Z:{{ loc.z }}</span>
                       </div>
@@ -537,7 +537,7 @@
                       <FateTag :isFate="m.isFate" />
                       <WantedTag :isWanted="m.isWanted" />
                       <JobTag :jobs="m.jobs || []" />
-                      <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200">{{ m.filterOther }}</span>
+                      <span v-if="m.filterOther" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-slate-700/80 dark:text-indigo-300 dark:border-indigo-400/30">{{ m.filterOther }}</span>
                     </div>
                     <div v-if="m.isFate && m.fateEventName" class="w-full text-[10px] font-bold text-pink-600/80 truncate pl-3" :title="m.fateEventName">
                       {{ m.fateEventName }}
@@ -569,7 +569,7 @@
                       :title="m.isFate || (m.rank && m.rank !== 'None') ? '打開地圖視圖' : '複製座標'"
                     >
                     <div class="flex items-center gap-2">
-                      <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
+                      <div class="text-[10px] font-black opacity-60 group-hover/loc:opacity-100 dark:text-slate-400 dark:opacity-100">{{ loc.map }}</div>
                       <div v-if="m.isFate || !m.rank || m.rank === 'None'" class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
                       <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
                       <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">

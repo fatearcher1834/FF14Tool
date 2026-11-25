@@ -42,24 +42,24 @@ export const JOB_BASE_NAMES = [
 // 職業顏色映射 (應存入數據庫)
 export const JOB_COLORS = {
   // 防禦職業（鮮明藍）
-  "劍術師": "bg-[#3d7bf0] text-white",
-  "斧術師": "bg-[#3d7bf0] text-white",
+  "劍術師": "bg-[#3d7bf0] text-white dark:bg-slate-700/80 dark:text-[#9cc0ff]",
+  "斧術師": "bg-[#3d7bf0] text-white dark:bg-slate-700/80 dark:text-[#9cc0ff]",
 
   // 進攻職業（鮮明紅）
-  "格鬥家": "bg-[#c73c45] text-white",
-  "槍術師": "bg-[#c73c45] text-white",
-  "弓箭手": "bg-[#c73c45] text-white",
-  "咒術師": "bg-[#c73c45] text-white",
-  "雙劍師": "bg-[#c73c45] text-white",
-  "秘術師": "bg-[#c73c45] text-white",
+  "格鬥家": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
+  "槍術師": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
+  "弓箭手": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
+  "咒術師": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
+  "雙劍師": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
+  "秘術師": "bg-[#c73c45] text-white dark:bg-slate-700/80 dark:text-[#f2a0a8]",
 
   // 輔助職業（鮮明綠）
-  "幻術師": "bg-[#3e9b49] text-white",
+  "幻術師": "bg-[#3e9b49] text-white dark:bg-slate-700/80 dark:text-[#8fe0a0]",
 
   // 特殊勢力（保留原色）
-  "黑渦團": "bg-red-600 text-white",
-  "雙蛇黨": "bg-emerald-600 text-white",
-  "不滅隊": "bg-amber-500 text-white"
+  "黑渦團": "bg-red-600 text-white dark:bg-slate-700/80 dark:text-red-300",
+  "雙蛇黨": "bg-emerald-600 text-white dark:bg-slate-700/80 dark:text-emerald-300",
+  "不滅隊": "bg-amber-500 text-white dark:bg-slate-700/80 dark:text-amber-200"
 };
 
 // 討伐筆記編號 (01~50)

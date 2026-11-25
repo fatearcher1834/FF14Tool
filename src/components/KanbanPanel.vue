@@ -143,7 +143,7 @@
           <div
             v-for="m in getGroupMonsters(group.id)"
             :key="`kb-${m.id}`"
-            :class="['border rounded-xl relative group/card cursor-grab active:cursor-grabbing shadow-sm transition-all', m.rank === 'S' || m.rank === 'SS' ? 'bg-amber-50 border-amber-100' : 'bg-[#fdfcf0] border-orange-100']"
+            :class="['border rounded-xl relative group/card cursor-grab active:cursor-grabbing shadow-sm transition-all', m.rank === 'S' || m.rank === 'SS' ? 'bg-amber-50 border-amber-100' : 'bg-orange-50 border-orange-100']"
             draggable="true"
             @dragstart="$emit('monster-drag-start', $event, m.id)"
             @dragover="$emit('monster-drag-over', $event, m.id)"
@@ -194,7 +194,7 @@
                   :title="m.rank && m.rank !== 'None' ? '打開地圖視圖' : '複製座標'"
                 >
                   <div class="flex items-center gap-2">
-                    <div class="text-[9px] font-black opacity-60 group-hover/loc:opacity-100">{{ loc.map }}</div>
+                    <div class="text-[10px] font-black opacity-60 group-hover/loc:opacity-100 dark:text-slate-400 dark:opacity-100">{{ loc.map }}</div>
                     <div class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}<span v-if="loc.z != null && loc.z !== ''"> Z:{{ loc.z }}</span></div>
                     <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
                     <CopyFeedbackOverlay :visible="copyFeedback === `kb-${m.id}-${i}`" />

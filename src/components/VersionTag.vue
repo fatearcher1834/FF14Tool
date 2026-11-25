@@ -1,5 +1,5 @@
 <template>
-  <span v-if="version" :class="['text-[10px] font-black px-1.5 py-0.5 rounded text-white shrink-0 leading-none shadow-sm', versionColors[version]]">
+  <span v-if="version" :class="['text-[10px] font-black px-1.5 py-0.5 rounded text-white shrink-0 leading-none shadow-sm dark:bg-slate-700/80 dark:text-slate-200 dark:shadow-none', versionColors[version]]">
     {{ version }}
   </span>
 </template>

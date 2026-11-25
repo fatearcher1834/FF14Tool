@@ -17,8 +17,8 @@ defineProps({
 })
 
 function getJobColor(job) {
-  if (!job || job.trim() === '') return 'bg-slate-300 text-slate-700'
+  if (!job || job.trim() === '') return 'bg-slate-300 text-slate-700 dark:bg-slate-700/80 dark:text-slate-300'
   const jobBase = JOB_BASE_NAMES.find(j => job.startsWith(j)) || ''
-  return JOB_COLORS[jobBase] || 'bg-slate-400 text-white'
+  return JOB_COLORS[jobBase] || 'bg-slate-400 text-white dark:bg-slate-700/80 dark:text-slate-200'
 }
 </script>
