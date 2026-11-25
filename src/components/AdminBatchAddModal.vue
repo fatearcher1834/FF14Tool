@@ -3,14 +3,11 @@
     ref="modalRef"
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
-    @keydown.esc="closeModal"
-    @mousedown="handleOverlayMouseDown"
-    @click.self="handleOverlayClick"
   >
-    <div class="bg-white rounded-[2.5rem] w-full max-w-4xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh]">
+    <div class="admin-modal-surface bg-white rounded-[2.5rem] w-full max-w-4xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-2xl font-black text-slate-900 tracking-tighter uppercase"> 批量新增怪物 </h3>
-        <button @click="$emit('close')" class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all">
+        <button @click="$emit('close')" class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
           <X :size="16" />
         </button>
       </div>
@@ -27,7 +24,7 @@
         <!-- 等級和 FATE -->
         <div class="flex gap-3 items-center">
           <div class="flex-1 flex bg-white p-1 border rounded-2xl shadow-sm">
-            <button v-for="rank in ['None', 'B', 'A', 'S', 'SS']" :key="rank" @click="config.rank = rank === 'None' ? 'None' : rank" :class="['flex-1 py-2 rounded-xl text-[12px] font-black', config.rank === (rank === 'None' ? 'None' : rank) ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50']">
+            <button v-for="rank in ['None', 'B', 'A', 'S', 'SS']" :key="rank" @click="config.rank = rank === 'None' ? 'None' : rank" :class="['flex-1 py-2 rounded-xl text-[12px] font-black', config.rank === (rank === 'None' ? 'None' : rank) ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700']">
               {{ rank === 'None' ? '一般' : rank }}
             </button>
           </div>
@@ -49,17 +46,17 @@
               </button>
             </div>
           </div>
-          <button @click="showJobPicker = true" class="px-3 py-1 rounded-full text-xs font-black border border-dashed border-blue-300 text-blue-600 hover:bg-blue-50">
+          <button @click="showJobPicker = true" class="px-3 py-1 rounded-full text-xs font-black border border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40">
             + 討伐筆記
           </button>
         </div>
 
         <!-- 討伐筆記九宮格選擇器 -->
         <div v-if="showJobPicker" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div class="bg-white rounded-[2rem] w-full max-w-md p-6 space-y-5 shadow-2xl">
+          <div class="admin-modal-surface bg-white rounded-[2rem] w-full max-w-md p-6 space-y-5 shadow-2xl">
             <div class="flex justify-between items-center">
               <h4 class="text-lg font-black text-slate-900">選擇討伐筆記</h4>
-              <button @click="showJobPicker = false; selectedJobBase = null; selectedJobLevel = null" class="p-1 bg-slate-100 rounded-full hover:bg-slate-200">
+              <button @click="showJobPicker = false; selectedJobBase = null; selectedJobLevel = null" class="p-1 bg-slate-100 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
                 <X :size="18" />
               </button>
             </div>
@@ -74,7 +71,7 @@
             <!-- 編號格子選擇 -->
             <div v-if="selectedJobBase" class="space-y-3">
               <div class="flex items-center gap-2">
-                <button @click="selectedJobBase = null" class="p-1 hover:bg-slate-100 rounded transition-colors">
+                <button @click="selectedJobBase = null" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors">
                   <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                 </button>
                 <h5 class="text-sm font-black text-slate-900">{{ selectedJobBase }} - 選擇層級 (1~50)</h5>
@@ -112,7 +109,7 @@
         <div class="flex flex-col space-y-3">
           <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">預覽 ({{ bulkParsedList.length }})</label>
           <div class="flex-1 p-4 bg-slate-100 rounded-[2rem] overflow-y-auto space-y-2 border">
-            <div v-for="(entry, idx) in bulkParsedList" :key="idx" class="bg-white p-3 rounded-2xl border shadow-sm">
+            <div v-for="(entry, idx) in bulkParsedList" :key="idx" class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-black text-slate-700">{{ typeof entry === 'string' ? entry : entry.name }}</span>
                 <div class="flex gap-1 items-center scale-75 origin-right">
@@ -139,6 +136,9 @@
       </div>
 
       <!-- 按鈕 -->
+      <div v-if="formMessage" class="rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 p-3 text-xs font-bold">
+        {{ formMessage }}
+      </div>
       <div class="flex gap-3 pt-4 border-t border-slate-200">
         <button @click="parseNames" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs">解析名稱 →</button>
         <button @click="submit" :disabled="!canSubmit" :class="['w-full px-4 py-2.5 rounded-2xl font-black text-xs', canSubmit ? 'bg-amber-500 text-white shadow-xl hover:bg-amber-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed']">
@@ -182,6 +182,7 @@ const bulkParsedList = ref([])
 const showPasteCoords = ref(false)
 const pasteCoordText = ref('')
 const similarityThreshold = ref(70)
+const formMessage = ref('')
 
 const config = ref({
   version: '2.0',
@@ -191,8 +192,6 @@ const config = ref({
   mapImageData: '',
   jobs: []
 })
-
-const overlayMouseDownOnSelf = ref(false)
 
 const normalizeJobName = (name) => {
   if (!name) return name
@@ -205,28 +204,6 @@ const normalizeJobName = (name) => {
 
 const closeModal = () => {
   emit('close')
-}
-
-const handleOverlayMouseDown = (event) => {
-  overlayMouseDownOnSelf.value = event.target === event.currentTarget
-}
-
-const handleOverlayClick = (event) => {
-  if (!overlayMouseDownOnSelf.value) {
-    overlayMouseDownOnSelf.value = false
-    return
-  }
-
-  if (typeof window !== 'undefined') {
-    const selection = window.getSelection?.()
-    if (selection && selection.type === 'Range') {
-      overlayMouseDownOnSelf.value = false
-      return
-    }
-  }
-
-  overlayMouseDownOnSelf.value = false
-  closeModal()
 }
 
 onMounted(() => {
@@ -272,7 +249,7 @@ const handleBatchMapImageFileChange = async (e) => {
     config.value.mapImageData = dataUrl
   } catch (error) {
     console.error('載入地圖圖片失敗', error)
-    alert('載入地圖圖片失敗，請重試。')
+    formMessage.value = '載入地圖圖片失敗，請重試。'
   }
 }
 
@@ -292,7 +269,7 @@ const handleBatchImagePaste = async (event) => {
         config.value.mapImageData = dataUrl
       } catch (error) {
         console.error('貼上圖片失敗', error)
-        alert('貼上圖片失敗，請稍後再試。')
+        formMessage.value = '貼上圖片失敗，請稍後再試。'
       }
       return
     }
@@ -617,6 +594,7 @@ const parseNames = () => {
 }
 
 const submit = async () => {
+  formMessage.value = ''
   try {
     const db = getDb()
     const now = Date.now()
@@ -710,7 +688,7 @@ const submit = async () => {
     closeModal()
   } catch (error) {
     console.error('Batch add failed:', error)
-    alert('批量新增失敗: ' + error.message)
+    formMessage.value = '批量新增失敗：' + (error.message || '未知錯誤')
   }
 }
 </script>

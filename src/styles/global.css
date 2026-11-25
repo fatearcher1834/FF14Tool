@@ -130,6 +130,12 @@ body.theme-dark .bg-slate-900 {
   background-color: #0f172a !important;
 }
 
+body.theme-dark .admin-modal-surface {
+  background-color: #1e293b !important;
+  border: 1px solid #334155;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+}
+
 body.theme-dark .text-slate-600,
 body.theme-dark .text-slate-500,
 body.theme-dark .text-slate-400 {

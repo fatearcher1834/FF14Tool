@@ -4,7 +4,7 @@
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
     tabindex="0"
   >
-    <div class="bg-white rounded-[2.5rem] w-full max-w-lg sm:max-w-xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div class="admin-modal-surface bg-white rounded-[2.5rem] w-full max-w-lg sm:max-w-xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-black text-slate-900">新增怪物</h3>
         <button @click="$emit('close')" class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all">
@@ -181,7 +181,7 @@
 
         <!-- 討伐筆記九宮格選擇器 -->
         <div v-if="isJobPickerVisible" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div class="bg-white rounded-[2rem] w-full max-w-md p-6 space-y-5 shadow-2xl">
+          <div class="admin-modal-surface bg-white rounded-[2rem] w-full max-w-md p-6 space-y-5 shadow-2xl">
             <div class="flex justify-between items-center">
               <h4 class="text-lg font-black text-slate-900">選擇討伐筆記</h4>
               <button @click="isJobPickerVisible = false; jobPickerBase = null; jobPickerLevel = null" class="p-1 bg-slate-100 rounded-full hover:bg-slate-200">
