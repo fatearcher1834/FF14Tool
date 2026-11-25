@@ -265,6 +265,14 @@
                     </div>
                   </div>
                   <button
+                    v-if="monsterHasMap(m)"
+                    @click.stop="openMonsterMap(m)"
+                    class="p-2 rounded-full border border-slate-200 bg-white text-emerald-400 shadow transition-all hover:bg-emerald-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/30 focus-visible:ring-offset-0 active:scale-95"
+                    title="查看地圖位置"
+                  >
+                    <MapIcon :size="14" />
+                  </button>
+                  <button
                     @click="handleCopyMonsterLocations(m)"
                     class="p-2 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 app-copy-btn"
                     title="複製怪物所有位置座標"
@@ -298,9 +306,6 @@
                         X:{{ loc.x }} Y:{{ loc.y }}<span v-if="loc.z != null && loc.z !== ''"> Z:{{ loc.z }}</span>
                       </div>
                       <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
-                      <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">
-                        <ArrowUpRight size="16" />
-                      </span>
                       <CopyFeedbackOverlay :visible="copyFeedback === `${m.id}-${i}`" />
                     </div>
                   </button>
@@ -361,6 +366,7 @@
         @copy-monster-locations="handleCopyMonsterLocations"
         @remove-pin="pinsStore.removePin($event, userStore.virtualId)"
         @monster-location-click="(m, loc, key) => m.isFate || (m.rank && m.rank !== 'None') ? handleOpenLocationMap(m, loc) : handleCopyLocation(m.name, loc, key)"
+        @open-map="openMonsterMap"
         @copy-all-locations="handleCopyAllLocations"
         @update:kbSearchTerm="val => kbSearchTerm = val"
         @update:kbFilterVer="val => kbFilterVer = val"
@@ -545,6 +551,14 @@
                   </div>
                   <div class="absolute top-2 right-2 flex gap-1">
                     <button
+                      v-if="monsterHasMap(m)"
+                      @click.stop="openMonsterMap(m)"
+                      class="p-1 rounded-full border border-slate-200 bg-white text-emerald-400 shadow transition-all hover:bg-emerald-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/30 focus-visible:ring-offset-0 active:scale-95"
+                      title="查看地圖位置"
+                    >
+                      <MapIcon :size="14" />
+                    </button>
+                    <button
                       @click.stop="handleCopyMonsterLocations(m)"
                       class="p-1 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 app-copy-btn"
                       title="複製所有位置座標"
@@ -572,9 +586,6 @@
                       <div class="text-[10px] font-black opacity-60 group-hover/loc:opacity-100 dark:text-slate-400 dark:opacity-100">{{ loc.map }}</div>
                       <div v-if="m.isFate || !m.rank || m.rank === 'None'" class="font-mono font-bold">X:{{ loc.x }} Y:{{ loc.y }}</div>
                       <div v-if="m.rank && m.rank !== 'None'" class="text-[9px] text-amber-600 font-black">(菁英怪物地圖位置)</div>
-                      <span v-if="m.isFate || (m.rank && m.rank !== 'None')" class="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 group-hover/loc:bg-blue-600 group-hover/loc:text-white transition-colors">
-                        <ArrowUpRight size="16" />
-                      </span>
                       <CopyFeedbackOverlay :visible="copyFeedback === `kb-${m.id}-${i}`" />
                     </div>
                     </button>
@@ -650,6 +661,24 @@ const handleCopyGroupLocations = async (groupId) => {
   }, 1000)
 }
 
+const monsterHasMap = (monster) => !!(
+  monster && (
+    monster.hasMap ||
+    monster.mapImageData ||
+    (Array.isArray(monster.locations) && monster.locations.some(loc => loc && getGameMap(loc.map)))
+  )
+)
+
+const openMonsterMap = (monster) => {
+  if (!monster) return
+  const locations = Array.isArray(monster.locations) ? monster.locations : []
+  const location = locations.find(loc =>
+    loc && getGameMap(loc.map) &&
+    loc.x != null && loc.x !== '' && loc.y != null && loc.y !== ''
+  ) || locations[0] || { map: '', x: '', y: '' }
+  handleOpenLocationMap(monster, location)
+}
+
 const handleOpenLocationMap = async (monster, loc) => {
   if (!monster || !loc) return
 
@@ -714,7 +743,7 @@ import {
   Copy,
   Check,
   ArrowUpDown,
-  ArrowUpRight,
+  Map as MapIcon,
   Moon,
   Sun,
   X
@@ -725,6 +754,7 @@ import { VERSIONS, RANKS, MAP_DATA, JOB_BASE_NAMES } from '@/config/constants'
 import { APP_CONFIG } from '@/config/app.config'
 import { getMonstersPage, getMonsterCount } from '@/services/database'
 import { applyFilter, sortMonsters, getMapsForVersion, copyToClipboard } from '@/services/hunterUtils'
+import { getGameMap } from '@/config/gameMaps'
 import { useUserStore } from '@/stores/user.store'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { useUserPinsStore } from '@/stores/user-pins.store'

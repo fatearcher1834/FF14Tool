@@ -172,6 +172,14 @@
               </div>
               <div class="absolute top-2 right-2 flex gap-1">
                 <button
+                  v-if="hasMapData(m)"
+                  @click.stop="$emit('open-map', m)"
+                  class="p-1 rounded-full border border-slate-200 bg-white text-emerald-400 shadow transition-all hover:bg-emerald-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/30 focus-visible:ring-offset-0 active:scale-95"
+                  title="查看地圖位置"
+                >
+                  <MapIcon :size="14" />
+                </button>
+                <button
                   @click.stop="$emit('copy-monster-locations', m)"
                   class="p-1 rounded-full border border-slate-200 bg-white text-blue-400 shadow transition-all hover:bg-blue-500 hover:text-white focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/30 focus-visible:ring-offset-0 active:scale-95 app-copy-btn"
                   title="複製所有位置座標"
@@ -214,13 +222,14 @@
 import { defineProps, defineEmits, ref } from 'vue'
 import { VERSIONS, RANKS, JOB_BASE_NAMES } from '@/config/constants'
 import { getMapsForVersion } from '@/services/hunterUtils'
+import { getGameMap } from '@/config/gameMaps'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
 import CopyFeedbackOverlay from '@/components/CopyFeedbackOverlay.vue'
-import { Filter, Plus, ChevronDown, ChevronUp, ChevronRight, Copy, Trash2, Check } from 'lucide-vue-next'
+import { Filter, Plus, ChevronDown, ChevronUp, ChevronRight, Copy, Trash2, Check, Map as MapIcon } from 'lucide-vue-next'
 
 const props = defineProps({
   show: Boolean,
@@ -251,10 +260,18 @@ const emit = defineEmits([
   'update-group-name', 'copy-group-locations', 'delete-group',
   'monster-drag-start', 'monster-drag-over', 'monster-drag-leave', 'monster-drop',
   'toggle-kb-expanded', 'copy-monster-locations', 'remove-pin',
-  'monster-location-click', 'copy-all-locations',
+  'monster-location-click', 'copy-all-locations', 'open-map',
   'update:kbSearchTerm', 'update:kbFilterVer', 'update:kbFilterMap',
   'update:kbFilterRank', 'update:kbFilterFate', 'update:kbFilterWanted', 'update:kbFilterJob'
 ])
 
 const getMapsForVersionLocal = version => getMapsForVersion(version)
+
+const hasMapData = (monster) => !!(
+  monster && (
+    monster.hasMap ||
+    monster.mapImageData ||
+    (Array.isArray(monster.locations) && monster.locations.some(loc => loc && getGameMap(loc.map)))
+  )
+)
 </script>

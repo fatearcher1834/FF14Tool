@@ -19,16 +19,25 @@
             <div class="grid gap-2 text-sm text-slate-600">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-semibold text-slate-800">地圖</span>
-                <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">{{ location?.map || '未知' }}</span>
+                <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">{{ currentLocation?.map || '未知' }}</span>
               </div>
               <div v-if="monster?.isFate" class="flex flex-wrap items-center gap-2">
                 <span class="font-semibold text-slate-800">事件</span>
                 <span class="flex-1 px-3 py-1 rounded-full bg-amber-100 text-amber-800">{{ monster.fateEventName || '未設定事件名稱' }}</span>
               </div>
-              <div v-if="monster?.isFate" class="flex flex-wrap items-center gap-2">
-                <span class="font-semibold text-slate-800">座標</span>
-                <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">
-                  X: {{ location?.x || '--' }}, Y: {{ location?.y || '--' }}<span v-if="location?.z != null && location?.z !== ''">, Z: {{ location.z }}</span>
+              <div v-if="hasCurrentCoords" class="flex flex-wrap items-center gap-2">
+                <span class="font-semibold text-slate-800 shrink-0">座標</span>
+                <select
+                  v-if="locationOptions.length > 1"
+                  v-model.number="selectedIndex"
+                  class="flex-1 min-w-[220px] px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-sm font-bold outline-none"
+                >
+                  <option v-for="(loc, i) in locationOptions" :key="i" :value="i">
+                    {{ loc.map }} · X:{{ loc.x }} Y:{{ loc.y }}<span v-if="loc.z != null && loc.z !== ''"> Z:{{ loc.z }}</span>
+                  </option>
+                </select>
+                <span v-else class="px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+                  X: {{ currentLocation?.x || '--' }}, Y: {{ currentLocation?.y || '--' }}<span v-if="currentLocation?.z != null && currentLocation?.z !== ''">, Z: {{ currentLocation.z }}</span>
                 </span>
                 <button
                   @click.prevent="copyLocation()"
@@ -63,9 +72,16 @@
 
         <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <!-- 地圖部分 -->
-          <div v-if="!monster?.isFate" class="space-y-2 min-w-0">
-            <h4 class="text-xs font-bold text-slate-600">地圖位置</h4>
-            <template v-if="monster?.mapImageData">
+          <div v-if="showMapSection" class="space-y-2 min-w-0">
+            <h4 class="text-xs font-bold text-slate-600">{{ showGameMap ? '遊戲地圖' : '攻略地圖' }}</h4>
+            <GameMapViewer
+              v-if="showGameMap"
+              :monster="monster"
+              :initial-location="currentLocation"
+              :height="420"
+              @select-location="handleSelectLocation"
+            />
+            <template v-else-if="monster?.mapImageData">
               <div
                 class="block w-full mx-auto rounded cursor-pointer flex justify-center"
                 @click.prevent="handleOpenMap"
@@ -84,7 +100,7 @@
           </div>
 
           <!-- 怪物照片部分 -->
-          <div :class="['space-y-2 min-w-0', monster?.isFate ? 'lg:col-span-2' : '']">
+          <div :class="['space-y-2 min-w-0', !showMapSection ? 'lg:col-span-2' : '']">
             <h4 class="text-xs font-bold text-slate-600">怪物照片</h4>
             <template v-if="monster?.monsterImageData">
               <div
@@ -109,14 +125,16 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, ref } from 'vue'
+import { defineProps, defineEmits, ref, computed, watch } from 'vue'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
+import GameMapViewer from '@/components/GameMapViewer.vue'
 import { X, Copy, Check } from 'lucide-vue-next'
 import { copyToClipboard } from '@/services/hunterUtils'
+import { getGameMap } from '@/config/gameMaps'
 
 const props = defineProps({
   open: Boolean,
@@ -128,6 +146,58 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 const copied = ref(false)
+const selectedIndex = ref(0)
+
+const locations = computed(() => Array.isArray(props.monster?.locations) ? props.monster.locations : [])
+
+const hasValidCoords = (loc) => !!(loc &&
+  loc.x != null && loc.x !== '' && loc.y != null && loc.y !== '' &&
+  Number.isFinite(Number(loc.x)) && Number.isFinite(Number(loc.y)))
+
+const locationOptions = computed(() => locations.value.filter(hasValidCoords))
+
+const currentLocation = computed(() => locationOptions.value[selectedIndex.value] || props.location || null)
+
+const sameLocation = (a, b) => !!(
+  a && b &&
+  a.map === b.map &&
+  Number(a.x) === Number(b.x) &&
+  Number(a.y) === Number(b.y)
+)
+
+const syncSelectedLocation = () => {
+  if (!locationOptions.value.length) {
+    selectedIndex.value = 0
+    return
+  }
+  const index = locationOptions.value.findIndex(loc => sameLocation(loc, props.location))
+  selectedIndex.value = index >= 0 ? index : 0
+}
+
+const handleSelectLocation = (loc) => {
+  const index = locationOptions.value.findIndex(option => sameLocation(option, loc))
+  if (index >= 0) selectedIndex.value = index
+}
+
+watch(() => props.location, syncSelectedLocation, { immediate: true, deep: true })
+watch(() => props.monster, syncSelectedLocation, { deep: true })
+
+const hasGameMap = computed(() =>
+  (props.monster?.locations || []).some(loc => {
+    if (!getGameMap(loc?.map)) return false
+    return hasValidCoords(loc)
+  })
+)
+
+const hasCurrentCoords = computed(() => hasValidCoords(currentLocation.value))
+
+const isElite = computed(() => ['B', 'A', 'S', 'SS'].includes(props.monster?.rank))
+
+const showStaticMap = computed(() => isElite.value && !!props.monster?.mapImageData)
+
+const showGameMap = computed(() => hasGameMap.value && !showStaticMap.value)
+
+const showMapSection = computed(() => showGameMap.value || !!props.monster?.mapImageData || !props.monster?.isFate)
 
 const handleOpenMap = () => {
   if (typeof props.onOpenMap === 'function') {
@@ -141,11 +211,12 @@ const handleOpenMap = () => {
 }
 
 const copyLocation = async () => {
-  if (!props.monster || !props.location) return
+  const loc = currentLocation.value
+  if (!props.monster || !loc) return
 
   const prefix = props.monster.isFate ? `FATE: ${props.monster.fateEventName || '未設定事件名稱'} ` : ''
-  const zPart = props.location.z != null && props.location.z !== '' ? `, Z: ${props.location.z}` : ''
-  const text = `${prefix}${props.monster.name || '未知怪物'} ${props.location.map || '未知'} (X: ${props.location.x || '--'}, Y: ${props.location.y || '--'}${zPart})`
+  const zPart = loc.z != null && loc.z !== '' ? `, Z: ${loc.z}` : ''
+  const text = `${prefix}${props.monster.name || '未知怪物'} ${loc.map || '未知'} (X: ${loc.x || '--'}, Y: ${loc.y || '--'}${zPart})`
   await copyToClipboard(text)
   copied.value = true
   setTimeout(() => {

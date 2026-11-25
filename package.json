@@ -1,6 +1,6 @@
 {
   "name": "ff14-hunt-finder",
-  "version": "2.3.4",
+  "version": "2.4.0",
   "description": "FINAL FANTASY XIV 繁體中文怪物座標查詢工具",
   "main": "src/main.js",
   "homepage": "https://<your-user>.github.io/<repo>",
@@ -14,24 +14,25 @@
   },
   "dependencies": {
     "core-js": "^3.36.0",
-    "vue": "^3.4.0",
-    "vue-router": "^4.2.5",
-    "pinia": "^2.1.7",
     "firebase": "^10.7.0",
-    "lucide-vue-next": "^0.408.0"
+    "leaflet": "^1.9.4",
+    "lucide-vue-next": "^0.408.0",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5"
   },
   "devDependencies": {
-    "@vue/cli-service": "~5.0.0",
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
-    "babel-eslint": "^10.1.0",
     "@vue/cli-plugin-router": "~5.0.0",
-    "tailwindcss": "^3.4.0",
-    "postcss": "^8.4.32",
+    "@vue/cli-service": "~5.0.0",
     "autoprefixer": "^10.4.16",
+    "babel-eslint": "^10.1.0",
     "eslint": "^8.56.0",
     "eslint-plugin-vue": "^9.19.0",
-    "gh-pages": "^5.0.0"
+    "gh-pages": "^5.0.0",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0"
   },
   "engines": {
     "node": ">=16.0.0"
