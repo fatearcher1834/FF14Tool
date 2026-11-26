@@ -38,13 +38,31 @@
           </div>
 
           <p class="text-[10px] font-bold text-slate-400 leading-relaxed">
-            不同顏色代表不同怪物；點選怪物可只看牠的位置，再點一次或按「全部顯示」恢復。座標重疊時會稍微散開顯示。
+            點選怪物可只看牠的位置，再點一次或按「全部顯示」恢復。
           </p>
+
+          <div class="grid grid-cols-2 gap-1 p-1 bg-slate-200 rounded-xl">
+            <button
+              v-for="option in scopeOptions"
+              :key="option.value"
+              type="button"
+              @click="searchScope = option.value"
+              :aria-pressed="searchScope === option.value"
+              :class="[
+                'px-2 py-1.5 rounded-lg text-xs font-black transition-all',
+                searchScope === option.value
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              ]"
+            >
+              {{ option.label }}
+            </button>
+          </div>
 
           <input
             v-model="searchTerm"
             class="w-full p-2.5 bg-white border rounded-xl text-xs font-bold outline-none"
-            placeholder="搜尋此區怪物..."
+            :placeholder="searchScope === 'all' ? '搜尋所有地圖怪物...' : '搜尋此地圖怪物...'"
           />
 
           <button
@@ -92,15 +110,27 @@
                   <WantedTag :is-wanted="m.isWanted" />
                 </span>
                 <span :class="['block text-[10px] font-bold mt-1', selectedMonsterId === m.id ? 'text-blue-100' : 'text-slate-400']">
-                  {{ countPoints(m) }} 個位置<span v-if="m.filterOther"> · {{ m.filterOther }}</span>
+                  <template v-if="searchScope === 'all'">{{ monsterMapLabel(m) }} · {{ totalPoints(m) }} 個位置</template>
+                  <template v-else>{{ countPoints(m) }} 個位置</template><template v-if="m.filterOther"> · {{ m.filterOther }}</template>
                 </span>
               </span>
               <Check v-if="selectedMonsterId === m.id" :size="15" class="shrink-0 mt-0.5" />
             </button>
           </div>
 
-          <div v-if="filteredMonsters.length === 0" class="text-xs font-bold text-slate-400 text-center py-6">
-            此區域沒有符合的怪物
+          <div v-if="filteredMonsters.length === 0" class="text-center py-6 space-y-3">
+            <p class="text-xs font-bold text-slate-400">
+              {{ searchScope === 'all' ? '所有地圖都沒有符合的怪物' : '此地圖沒有符合的怪物' }}
+            </p>
+            <button
+              v-if="searchScope !== 'all' && globalMatchCount > 0"
+              type="button"
+              @click="searchScope = 'all'"
+              class="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all"
+            >
+              <Globe :size="13" />
+              改搜尋全部地圖（{{ globalMatchCount }}）
+            </button>
           </div>
         </aside>
 
@@ -115,7 +145,7 @@
             @select-monster="toggleMonster"
           />
           <div v-else class="h-64 flex items-center justify-center text-sm font-bold text-slate-400">
-            {{ selectedMap ? '此區域尚無座標資料' : '尚無地圖資料' }}
+            {{ !selectedMap ? '尚無地圖資料' : (mapMonsters.length === 0 ? '此地圖尚無座標資料' : '沒有符合搜尋的怪物') }}
           </div>
         </main>
       </div>
@@ -125,7 +155,7 @@
 
 <script setup>
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
-import { X, Check } from 'lucide-vue-next'
+import { X, Check, Globe } from 'lucide-vue-next'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { GAME_MAPS, getGameMap } from '@/config/gameMaps'
 import { VERSIONS, MAP_DATA } from '@/config/constants'
@@ -160,15 +190,18 @@ const loadExplorerState = () => {
   }
 }
 const savedExplorerState = loadExplorerState()
+const searchScope = ref(savedExplorerState.scope === 'all' ? 'all' : 'map')
 const persistExplorerState = () => {
   savedExplorerState.version = selectedVersion.value
   savedExplorerState.map = selectedMap.value
   savedExplorerState.selectedMonsterId = selectedMonsterId.value
+  savedExplorerState.scope = searchScope.value
   try {
     window.localStorage.setItem(MAP_EXPLORER_STATE_KEY, JSON.stringify({
       version: selectedVersion.value,
       map: selectedMap.value,
-      selectedMonsterId: selectedMonsterId.value
+      selectedMonsterId: selectedMonsterId.value,
+      scope: searchScope.value
     }))
   } catch {
     // 瀏覽器停用儲存時仍可正常使用地圖
@@ -218,6 +251,48 @@ const filteredMapOptions = computed(() => {
 const mapMonsters = computed(() => mapGroups.value[selectedMap.value] || [])
 const explorerLocation = computed(() => ({ map: selectedMap.value }))
 
+const scopeOptions = [
+  { value: 'all', label: '全地圖' },
+  { value: 'map', label: '此地圖' }
+]
+
+const allMapMonsters = computed(() => {
+  const seen = new Set()
+  const result = []
+  for (const monster of monstersStore.monsters) {
+    if (!(monster.locations || []).some(loc => loc && getGameMap(loc.map) && hasCoords(loc))) continue
+    if (seen.has(monster.id)) continue
+    seen.add(monster.id)
+    result.push(monster)
+  }
+  return result
+})
+
+const scopedMonsters = computed(() =>
+  searchScope.value === 'all' ? allMapMonsters.value : mapMonsters.value
+)
+
+const validLocations = (monster) =>
+  (monster.locations || []).filter(loc => loc && getGameMap(loc.map) && hasCoords(loc))
+
+const monsterMaps = (monster) => [...new Set(validLocations(monster).map(loc => loc.map))]
+
+const totalPoints = (monster) => validLocations(monster).length
+
+const monsterMapLabel = (monster) => {
+  const maps = monsterMaps(monster)
+  if (maps.length <= 2) return maps.join('、')
+  return `${maps.slice(0, 2).join('、')} 等 ${maps.length} 張地圖`
+}
+
+const matchMonster = (monster, term) => {
+  if (!term) return true
+  const jobs = Array.isArray(monster.jobs) ? monster.jobs : []
+  return (monster.name || '').toLowerCase().includes(term) ||
+    (monster.filterOther || '').toLowerCase().includes(term) ||
+    jobs.some(job => String(job).toLowerCase().includes(term))
+}
+
 const priority = (monster) => {
   if (monster.rank === 'SS') return 0
   if (monster.rank === 'S') return 1
@@ -228,27 +303,45 @@ const priority = (monster) => {
   return 6
 }
 
+const sortByPriority = (list) =>
+  [...list].sort((a, b) => priority(a) - priority(b) || (a.name || '').localeCompare(b.name || '', 'zh-Hant'))
+
 const filteredMonsters = computed(() => {
   const term = searchTerm.value.trim().toLowerCase()
-  return [...mapMonsters.value]
-    .filter(monster => {
-      if (!term) return true
-      const jobs = Array.isArray(monster.jobs) ? monster.jobs : []
-      return (monster.name || '').toLowerCase().includes(term) ||
-        (monster.filterOther || '').toLowerCase().includes(term) ||
-        jobs.some(job => String(job).toLowerCase().includes(term))
-    })
-    .sort((a, b) => priority(a) - priority(b) || (a.name || '').localeCompare(b.name || '', 'zh-Hant'))
+  return sortByPriority(scopedMonsters.value.filter(monster => matchMonster(monster, term)))
 })
 
-const displayMonsters = computed(() => filteredMonsters.value)
+const globalMatchCount = computed(() => {
+  const term = searchTerm.value.trim().toLowerCase()
+  if (!term) return 0
+  return allMapMonsters.value.filter(monster => matchMonster(monster, term)).length
+})
+
+const displayMonsters = computed(() =>
+  searchScope.value === 'all' ? mapMonsters.value : filteredMonsters.value
+)
 
 const countPoints = (monster) =>
-  (monster.locations || []).filter(loc => loc && loc.map === selectedMap.value && hasCoords(loc)).length
+  validLocations(monster).filter(loc => loc.map === selectedMap.value).length
+
+let pendingJumpMonsterId = null
 
 const toggleMonster = (monster) => {
   if (!monster) return
-  selectedMonsterId.value = selectedMonsterId.value === monster.id ? null : monster.id
+  if (selectedMonsterId.value === monster.id) {
+    selectedMonsterId.value = null
+    return
+  }
+  const maps = monsterMaps(monster)
+  if (maps.length && !maps.includes(selectedMap.value)) {
+    const targetMap = maps[0]
+    if (!filteredMapOptions.value.includes(targetMap)) {
+      selectedVersion.value = getMapVersion(targetMap)
+    }
+    pendingJumpMonsterId = monster.id
+    selectedMap.value = targetMap
+  }
+  selectedMonsterId.value = monster.id
 }
 
 const syncSelectedMap = () => {
@@ -318,7 +411,11 @@ watch(selectedVersion, () => {
 })
 
 watch(selectedMap, () => {
-  selectedMonsterId.value = null
+  if (pendingJumpMonsterId != null && selectedMonsterId.value === pendingJumpMonsterId) {
+    pendingJumpMonsterId = null
+  } else {
+    selectedMonsterId.value = null
+  }
   persistExplorerState()
 })
 
@@ -333,6 +430,13 @@ watch(searchTerm, () => {
   if (selectedMonsterId.value && !filteredMonsters.value.some(monster => monster.id === selectedMonsterId.value)) {
     selectedMonsterId.value = null
   }
+})
+
+watch(searchScope, () => {
+  if (selectedMonsterId.value && !filteredMonsters.value.some(monster => monster.id === selectedMonsterId.value)) {
+    selectedMonsterId.value = null
+  }
+  persistExplorerState()
 })
 
 watch(() => props.initialMap, () => {
