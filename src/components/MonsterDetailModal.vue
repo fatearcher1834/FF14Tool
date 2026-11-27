@@ -83,26 +83,16 @@
           <div v-if="showMapSection" class="space-y-2 min-w-0">
             <div class="flex items-center justify-between gap-2">
               <h4 class="text-xs font-bold text-slate-600">{{ showGameMap ? '遊戲地圖' : '攻略地圖' }}</h4>
-              <div v-if="showGameMap" class="inline-flex items-center rounded-lg border border-slate-200 overflow-hidden text-[10px] font-black shrink-0">
-                <button
-                  type="button"
-                  @click="setMapViewMode('contain')"
-                  :class="mapViewMode === 'contain' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'"
-                  class="px-2 py-1 transition-colors"
-                  title="顯示整張地圖"
-                >
-                  全圖
-                </button>
-                <button
-                  type="button"
-                  @click="setMapViewMode('cover')"
-                  :class="mapViewMode === 'cover' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'"
-                  class="px-2 py-1 border-l border-slate-200 transition-colors"
-                  title="填滿畫面，選取座標時自動定位"
-                >
-                  滿版
-                </button>
-              </div>
+              <button
+                v-if="showGameMap"
+                type="button"
+                @click="fitMap"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 text-[10px] font-black transition-colors shrink-0"
+                title="顯示整張地圖"
+              >
+                <Maximize2 :size="11" />
+                全圖
+              </button>
             </div>
             <GameMapViewer
               ref="mapViewerRef"
@@ -110,7 +100,6 @@
               :monster="monster"
               :initial-location="currentLocation"
               :height="420"
-              :view-mode="mapViewMode"
               @select-location="handleSelectLocation"
             />
             <p v-if="showGameMap" class="text-[10px] font-bold text-slate-400">
@@ -160,14 +149,14 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, ref, computed, watch, nextTick } from 'vue'
+import { defineProps, defineEmits, ref, computed, watch } from 'vue'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
 import GameMapViewer from '@/components/GameMapViewer.vue'
-import { X, Copy, Check, LocateFixed } from 'lucide-vue-next'
+import { X, Copy, Check, LocateFixed, Maximize2 } from 'lucide-vue-next'
 import { copyToClipboard } from '@/services/hunterUtils'
 import { getGameMap } from '@/config/gameMaps'
 
@@ -184,30 +173,8 @@ const copied = ref(false)
 const selectedIndex = ref(0)
 const mapViewerRef = ref(null)
 
-const MAP_VIEW_MODE_KEY = 'monster-detail-map-view-mode'
-const getMapViewMode = () => {
-  try {
-    return window.localStorage.getItem(MAP_VIEW_MODE_KEY) === 'cover' ? 'cover' : 'contain'
-  } catch {
-    return 'contain'
-  }
-}
-const mapViewMode = ref(getMapViewMode())
-const setMapViewMode = (mode) => {
-  if (mode !== 'contain' && mode !== 'cover') return
-  mapViewMode.value = mode
-  try {
-    window.localStorage.setItem(MAP_VIEW_MODE_KEY, mode)
-  } catch {
-    // 瀏覽器停用儲存時仍可正常使用
-  }
-  nextTick(() => {
-    if (mode === 'contain') {
-      mapViewerRef.value?.fitWholeMap()
-    } else {
-      mapViewerRef.value?.focusLocation(currentLocation.value)
-    }
-  })
+const fitMap = () => {
+  mapViewerRef.value?.fitWholeMap()
 }
 
 const locations = computed(() => Array.isArray(props.monster?.locations) ? props.monster.locations : [])

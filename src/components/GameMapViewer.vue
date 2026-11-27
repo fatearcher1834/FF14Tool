@@ -57,8 +57,7 @@ const props = defineProps({
   selectedMonsterId: { type: [String, Number], default: null },
   coloredMarkers: { type: Boolean, default: false },
   initialLocation: { type: Object, default: null },
-  height: { type: Number, default: 420 },
-  viewMode: { type: String, default: 'cover' }
+  height: { type: Number, default: 420 }
 })
 
 const emit = defineEmits(['select-location', 'select-monster'])
@@ -400,9 +399,7 @@ const applyMapView = () => {
   if (!size.x || !size.y) return
 
   const containZoom = Math.floor((Math.log(Math.min(size.x, size.y) / MAP_IMAGE_SIZE) / Math.LN2) * 4) / 4
-  const coverZoom = Math.ceil((Math.log(Math.max(size.x, size.y) / MAP_IMAGE_SIZE) / Math.LN2) * 4) / 4
-  const targetZoom = props.viewMode === 'contain' ? containZoom : coverZoom
-  const minZoom = Math.min(1, Math.max(-3, targetZoom))
+  const minZoom = Math.min(1, Math.max(-3, containZoom))
   map.setMinZoom(minZoom)
   map.setMaxBounds([[0, 0], [MAP_IMAGE_SIZE, MAP_IMAGE_SIZE]])
   if (map.getZoom() < minZoom) {
@@ -693,7 +690,7 @@ onMounted(async () => {
     map.invalidateSize()
     const wasAtMinZoom = map.getZoom() <= map.getMinZoom() + 0.01
     applyMapView()
-    if (props.viewMode === 'contain' && wasAtMinZoom) {
+    if (wasAtMinZoom) {
       fitWholeMap()
     }
     updateRulers()
@@ -733,15 +730,6 @@ watch(() => props.selectedMonsterId, () => {
   if (!map) return
   buildMarkerLayer()
   focusSelectedLocations()
-})
-
-watch(() => props.viewMode, () => {
-  if (!map) return
-  applyMapView()
-  fitWholeMap()
-  focusSelectedLocations(false)
-  focusLocation(props.initialLocation, false)
-  updateRulers()
 })
 
 watch(() => props.monsters, () => {

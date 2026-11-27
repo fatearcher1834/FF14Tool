@@ -9,26 +9,15 @@
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <div class="inline-flex items-center rounded-xl border border-slate-200 overflow-hidden text-[11px] font-black">
-            <button
-              type="button"
-              @click="setViewMode('contain')"
-              :class="viewMode === 'contain' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'"
-              class="px-2.5 py-1.5 transition-colors"
-              title="顯示整張地圖"
-            >
-              全圖
-            </button>
-            <button
-              type="button"
-              @click="setViewMode('cover')"
-              :class="viewMode === 'cover' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'"
-              class="px-2.5 py-1.5 border-l border-slate-200 transition-colors"
-              title="填滿畫面，選取怪物時自動定位"
-            >
-              滿版
-            </button>
-          </div>
+          <button
+            type="button"
+            @click="fitMap"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 text-[11px] font-black transition-colors"
+            title="顯示整張地圖"
+          >
+            <Maximize2 :size="12" />
+            全圖
+          </button>
           <button
             @click="$emit('close')"
             class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all shrink-0"
@@ -164,7 +153,6 @@
             :selected-monster-id="selectedMonsterId"
             :initial-location="explorerLocation"
             :height="mapHeight"
-            :view-mode="viewMode"
             colored-markers
             @select-monster="toggleMonster"
           />
@@ -179,7 +167,7 @@
 
 <script setup>
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
-import { X, Check, Globe } from 'lucide-vue-next'
+import { X, Check, Globe, Maximize2 } from 'lucide-vue-next'
 import { useMonstersStore } from '@/stores/monsters.store'
 import { GAME_MAPS, getGameMap } from '@/config/gameMaps'
 import { VERSIONS, MAP_DATA } from '@/config/constants'
@@ -215,39 +203,26 @@ const loadExplorerState = () => {
   }
 }
 const savedExplorerState = loadExplorerState()
-const viewMode = ref(savedExplorerState.viewMode === 'cover' ? 'cover' : 'contain')
 const searchScope = ref(savedExplorerState.scope === 'all' ? 'all' : 'map')
 const persistExplorerState = () => {
   savedExplorerState.version = selectedVersion.value
   savedExplorerState.map = selectedMap.value
   savedExplorerState.selectedMonsterId = selectedMonsterId.value
   savedExplorerState.scope = searchScope.value
-  savedExplorerState.viewMode = viewMode.value
   try {
     window.localStorage.setItem(MAP_EXPLORER_STATE_KEY, JSON.stringify({
       version: selectedVersion.value,
       map: selectedMap.value,
       selectedMonsterId: selectedMonsterId.value,
-      scope: searchScope.value,
-      viewMode: viewMode.value
+      scope: searchScope.value
     }))
   } catch {
     // 瀏覽器停用儲存時仍可正常使用地圖
   }
 }
 
-const setViewMode = (mode) => {
-  if (mode !== 'contain' && mode !== 'cover') return
-  const changed = viewMode.value !== mode
-  viewMode.value = mode
-  if (changed) persistExplorerState()
-  nextTick(() => {
-    if (mode === 'contain') {
-      mapViewerRef.value?.fitWholeMap()
-    } else {
-      mapViewerRef.value?.focusSelectedLocations()
-    }
-  })
+const fitMap = () => {
+  mapViewerRef.value?.fitWholeMap()
 }
 
 const setMonsterItemRef = (id, el) => {
