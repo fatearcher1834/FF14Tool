@@ -4,7 +4,7 @@
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
     @click.self="$emit('close')"
   >
-    <div class="admin-modal-surface bg-white rounded-2xl w-full max-w-5xl p-4 shadow-xl border">
+    <div class="admin-modal-surface bg-white rounded-2xl w-full max-w-6xl p-4 shadow-xl border">
       <div class="space-y-4 mb-4">
         <div class="flex justify-between gap-4 items-start">
           <div class="min-w-0">
@@ -51,6 +51,14 @@
                     <Copy size="16" />
                   </template>
                 </button>
+                <button
+                  v-if="showGameMap"
+                  @click.prevent="focusCurrentLocation"
+                  class="flex items-center justify-center w-10 h-10 rounded-full shadow transition-all bg-white text-amber-500 hover:text-white hover:bg-amber-500"
+                  title="在地圖上定位目前座標"
+                >
+                  <LocateFixed size="16" />
+                </button>
               </div>
             </div>
           </div>
@@ -70,17 +78,44 @@
           <div class="w-full h-56 flex items-center justify-center text-blue-500">載入中...</div>
         </template>
 
-        <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div v-else class="grid grid-cols-1 lg:grid-cols-[1.1fr,0.9fr] gap-4">
           <!-- 地圖部分 -->
           <div v-if="showMapSection" class="space-y-2 min-w-0">
-            <h4 class="text-xs font-bold text-slate-600">{{ showGameMap ? '遊戲地圖' : '攻略地圖' }}</h4>
+            <div class="flex items-center justify-between gap-2">
+              <h4 class="text-xs font-bold text-slate-600">{{ showGameMap ? '遊戲地圖' : '攻略地圖' }}</h4>
+              <div v-if="showGameMap" class="inline-flex items-center rounded-lg border border-slate-200 overflow-hidden text-[10px] font-black shrink-0">
+                <button
+                  type="button"
+                  @click="setMapViewMode('contain')"
+                  :class="mapViewMode === 'contain' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'"
+                  class="px-2 py-1 transition-colors"
+                  title="顯示整張地圖"
+                >
+                  全圖
+                </button>
+                <button
+                  type="button"
+                  @click="setMapViewMode('cover')"
+                  :class="mapViewMode === 'cover' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'"
+                  class="px-2 py-1 border-l border-slate-200 transition-colors"
+                  title="填滿畫面，選取座標時自動定位"
+                >
+                  滿版
+                </button>
+              </div>
+            </div>
             <GameMapViewer
+              ref="mapViewerRef"
               v-if="showGameMap"
               :monster="monster"
               :initial-location="currentLocation"
               :height="420"
+              :view-mode="mapViewMode"
               @select-location="handleSelectLocation"
             />
+            <p v-if="showGameMap" class="text-[10px] font-bold text-slate-400">
+              光環代表目前選取的位置；切換座標時會自動定位。
+            </p>
             <template v-else-if="monster?.mapImageData">
               <div
                 class="block w-full mx-auto rounded cursor-pointer flex justify-center"
@@ -125,14 +160,14 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, ref, computed, watch } from 'vue'
+import { defineProps, defineEmits, ref, computed, watch, nextTick } from 'vue'
 import VersionTag from '@/components/VersionTag.vue'
 import RankTag from '@/components/RankTag.vue'
 import FateTag from '@/components/FateTag.vue'
 import WantedTag from '@/components/WantedTag.vue'
 import JobTag from '@/components/JobTag.vue'
 import GameMapViewer from '@/components/GameMapViewer.vue'
-import { X, Copy, Check } from 'lucide-vue-next'
+import { X, Copy, Check, LocateFixed } from 'lucide-vue-next'
 import { copyToClipboard } from '@/services/hunterUtils'
 import { getGameMap } from '@/config/gameMaps'
 
@@ -147,6 +182,33 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 const copied = ref(false)
 const selectedIndex = ref(0)
+const mapViewerRef = ref(null)
+
+const MAP_VIEW_MODE_KEY = 'monster-detail-map-view-mode'
+const getMapViewMode = () => {
+  try {
+    return window.localStorage.getItem(MAP_VIEW_MODE_KEY) === 'cover' ? 'cover' : 'contain'
+  } catch {
+    return 'contain'
+  }
+}
+const mapViewMode = ref(getMapViewMode())
+const setMapViewMode = (mode) => {
+  if (mode !== 'contain' && mode !== 'cover') return
+  mapViewMode.value = mode
+  try {
+    window.localStorage.setItem(MAP_VIEW_MODE_KEY, mode)
+  } catch {
+    // 瀏覽器停用儲存時仍可正常使用
+  }
+  nextTick(() => {
+    if (mode === 'contain') {
+      mapViewerRef.value?.fitWholeMap()
+    } else {
+      mapViewerRef.value?.focusLocation(currentLocation.value)
+    }
+  })
+}
 
 const locations = computed(() => Array.isArray(props.monster?.locations) ? props.monster.locations : [])
 
@@ -177,6 +239,11 @@ const syncSelectedLocation = () => {
 const handleSelectLocation = (loc) => {
   const index = locationOptions.value.findIndex(option => sameLocation(option, loc))
   if (index >= 0) selectedIndex.value = index
+}
+
+const focusCurrentLocation = () => {
+  if (!currentLocation.value) return
+  mapViewerRef.value?.focusLocation(currentLocation.value)
 }
 
 watch(() => props.location, syncSelectedLocation, { immediate: true, deep: true })

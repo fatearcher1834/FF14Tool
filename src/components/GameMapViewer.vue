@@ -269,6 +269,14 @@ const toLatLng = (loc) => {
   return [MAP_IMAGE_SIZE - py, px]
 }
 
+const focusLocation = (loc, animate = true) => {
+  if (!map || !loc) return
+  const point = toLatLng(loc)
+  if (!point) return
+  if (map.getBounds().contains(point)) return
+  map.panTo(point, { animate })
+}
+
 const focusSelectedLocations = (animate = true) => {
   if (!map || !leaflet || props.selectedMonsterId == null) return
   const points = markerLocations.value
@@ -525,7 +533,7 @@ const buildMarkerLayer = () => {
     })
     marker.addTo(markerLayer)
 
-    if (props.coloredMarkers && props.selectedMonsterId != null) {
+    if (initial || (props.coloredMarkers && props.selectedMonsterId != null)) {
       const pulse = leaflet.marker(latlng, {
         icon: leaflet.divIcon({
           className: 'game-selected-pulse-wrap',
@@ -637,6 +645,7 @@ const renderMap = async () => {
   fitWholeMap()
   updateRulers()
   focusSelectedLocations(false)
+  focusLocation(props.initialLocation, false)
 
   renderedMapId = mapInfo.mapId
   mapLoading.value = false
@@ -716,6 +725,7 @@ watch(() => props.initialLocation, () => {
   syncSelectedMap()
   if (map && selectedMap.value === props.initialLocation?.map) {
     buildMarkerLayer()
+    focusLocation(props.initialLocation)
   }
 }, { deep: true })
 
@@ -730,6 +740,7 @@ watch(() => props.viewMode, () => {
   applyMapView()
   fitWholeMap()
   focusSelectedLocations(false)
+  focusLocation(props.initialLocation, false)
   updateRulers()
 })
 
@@ -741,6 +752,7 @@ watch(() => props.monsters, () => {
 
 defineExpose({
   fitWholeMap,
+  focusLocation,
   focusSelectedLocations
 })
 
