@@ -2,10 +2,8 @@
   <div class="flex flex-col h-full bg-slate-50 overflow-hidden">
     <nav class="bg-slate-900 text-white p-3 flex justify-between items-center shrink-0 z-50">
       <div class="flex items-center gap-3">
-        <div class="bg-blue-600 p-1.5 rounded-lg">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-          </svg>
+        <div class="w-9 h-9 rounded-xl overflow-hidden bg-slate-800 border border-slate-700 shadow-sm flex items-center justify-center">
+          <img :src="appLogo" alt="FFXIV 怪物座標查詢工具" class="w-full h-full object-contain" />
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -802,6 +800,7 @@ const pinsStore = useUserPinsStore()
 const appStore = useAppStore()
 const router = useRouter()
 const appVersion = APP_CONFIG.version
+const appLogo = `${process.env.BASE_URL}favicon-192.png`
 
 const pageMonsters = ref([])
 const isLoadingMonsters = ref(false)
