@@ -100,6 +100,7 @@
               :monster="monster"
               :initial-location="currentLocation"
               :height="420"
+              :zoom-offset="1"
               @select-location="handleSelectLocation"
             />
             <p v-if="showGameMap" class="text-[10px] font-bold text-slate-400">

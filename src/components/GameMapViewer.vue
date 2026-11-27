@@ -57,7 +57,8 @@ const props = defineProps({
   selectedMonsterId: { type: [String, Number], default: null },
   coloredMarkers: { type: Boolean, default: false },
   initialLocation: { type: Object, default: null },
-  height: { type: Number, default: 420 }
+  height: { type: Number, default: 420 },
+  zoomOffset: { type: Number, default: 0 }
 })
 
 const emit = defineEmits(['select-location', 'select-monster'])
@@ -416,6 +417,15 @@ const fitWholeMap = () => {
   })
 }
 
+const applyInitialZoom = () => {
+  if (!map || !props.zoomOffset) return
+  const point = toLatLng(props.initialLocation)
+  const center = point || map.getCenter()
+  const targetZoom = Math.min(map.getMaxZoom(), map.getZoom() + props.zoomOffset)
+  map.setView(center, targetZoom, { animate: false })
+  updateRulers()
+}
+
 const handleMapMouseMove = (event) => {
   const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
   if (now - cursorUpdateAt < 80) return
@@ -643,6 +653,7 @@ const renderMap = async () => {
   updateRulers()
   focusSelectedLocations(false)
   focusLocation(props.initialLocation, false)
+  applyInitialZoom()
 
   renderedMapId = mapInfo.mapId
   mapLoading.value = false
