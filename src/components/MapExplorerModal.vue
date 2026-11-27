@@ -8,12 +8,34 @@
             不同顏色代表不同怪物；點左側怪物只顯示牠在目前地圖的位置
           </p>
         </div>
-        <button
-          @click="$emit('close')"
-          class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all shrink-0"
-        >
-          <X :size="16" />
-        </button>
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="inline-flex items-center rounded-xl border border-slate-200 overflow-hidden text-[11px] font-black">
+            <button
+              type="button"
+              @click="setViewMode('contain')"
+              :class="viewMode === 'contain' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'"
+              class="px-2.5 py-1.5 transition-colors"
+              title="顯示整張地圖"
+            >
+              全圖
+            </button>
+            <button
+              type="button"
+              @click="setViewMode('cover')"
+              :class="viewMode === 'cover' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'"
+              class="px-2.5 py-1.5 border-l border-slate-200 transition-colors"
+              title="填滿畫面，選取怪物時自動定位"
+            >
+              滿版
+            </button>
+          </div>
+          <button
+            @click="$emit('close')"
+            class="p-2 bg-white rounded-full border border-slate-200 shadow-sm hover:bg-slate-100 transition-all shrink-0"
+          >
+            <X :size="16" />
+          </button>
+        </div>
       </div>
 
       <div class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[320px,1fr]">
@@ -136,11 +158,13 @@
 
         <main class="min-h-0 overflow-y-auto p-4 bg-slate-100">
           <GameMapViewer
+            ref="mapViewerRef"
             v-if="selectedMap && displayMonsters.length > 0"
             :monsters="displayMonsters"
             :selected-monster-id="selectedMonsterId"
             :initial-location="explorerLocation"
             :height="mapHeight"
+            :view-mode="viewMode"
             colored-markers
             @select-monster="toggleMonster"
           />
@@ -179,6 +203,7 @@ const selectedMonsterId = ref(null)
 const searchTerm = ref('')
 const mapHeight = Math.max(360, Math.min(620, window.innerHeight - 260))
 const monsterItemRefs = new Map()
+const mapViewerRef = ref(null)
 
 const MAP_EXPLORER_STATE_KEY = 'monster-map-explorer-state-v1'
 const loadExplorerState = () => {
@@ -190,22 +215,39 @@ const loadExplorerState = () => {
   }
 }
 const savedExplorerState = loadExplorerState()
+const viewMode = ref(savedExplorerState.viewMode === 'cover' ? 'cover' : 'contain')
 const searchScope = ref(savedExplorerState.scope === 'all' ? 'all' : 'map')
 const persistExplorerState = () => {
   savedExplorerState.version = selectedVersion.value
   savedExplorerState.map = selectedMap.value
   savedExplorerState.selectedMonsterId = selectedMonsterId.value
   savedExplorerState.scope = searchScope.value
+  savedExplorerState.viewMode = viewMode.value
   try {
     window.localStorage.setItem(MAP_EXPLORER_STATE_KEY, JSON.stringify({
       version: selectedVersion.value,
       map: selectedMap.value,
       selectedMonsterId: selectedMonsterId.value,
-      scope: searchScope.value
+      scope: searchScope.value,
+      viewMode: viewMode.value
     }))
   } catch {
     // 瀏覽器停用儲存時仍可正常使用地圖
   }
+}
+
+const setViewMode = (mode) => {
+  if (mode !== 'contain' && mode !== 'cover') return
+  const changed = viewMode.value !== mode
+  viewMode.value = mode
+  if (changed) persistExplorerState()
+  nextTick(() => {
+    if (mode === 'contain') {
+      mapViewerRef.value?.fitWholeMap()
+    } else {
+      mapViewerRef.value?.focusSelectedLocations()
+    }
+  })
 }
 
 const setMonsterItemRef = (id, el) => {

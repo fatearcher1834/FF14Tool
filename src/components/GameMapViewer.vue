@@ -57,7 +57,8 @@ const props = defineProps({
   selectedMonsterId: { type: [String, Number], default: null },
   coloredMarkers: { type: Boolean, default: false },
   initialLocation: { type: Object, default: null },
-  height: { type: Number, default: 420 }
+  height: { type: Number, default: 420 },
+  viewMode: { type: String, default: 'cover' }
 })
 
 const emit = defineEmits(['select-location', 'select-monster'])
@@ -268,6 +269,28 @@ const toLatLng = (loc) => {
   return [MAP_IMAGE_SIZE - py, px]
 }
 
+const focusSelectedLocations = (animate = true) => {
+  if (!map || !leaflet || props.selectedMonsterId == null) return
+  const points = markerLocations.value
+    .map(entry => toLatLng(entry.loc))
+    .filter(Boolean)
+  if (!points.length) return
+
+  const bounds = leaflet.latLngBounds(points)
+  if (map.getBounds().contains(bounds)) return
+
+  if (points.length === 1) {
+    map.panTo(points[0], { animate })
+    return
+  }
+
+  map.fitBounds(bounds, {
+    padding: [48, 48],
+    maxZoom: map.getZoom(),
+    animate
+  })
+}
+
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;',
   '<': '&lt;',
@@ -368,14 +391,24 @@ const applyMapView = () => {
   const size = map.getSize()
   if (!size.x || !size.y) return
 
+  const containZoom = Math.floor((Math.log(Math.min(size.x, size.y) / MAP_IMAGE_SIZE) / Math.LN2) * 4) / 4
   const coverZoom = Math.ceil((Math.log(Math.max(size.x, size.y) / MAP_IMAGE_SIZE) / Math.LN2) * 4) / 4
-  const minZoom = Math.min(1, Math.max(-3, coverZoom))
+  const targetZoom = props.viewMode === 'contain' ? containZoom : coverZoom
+  const minZoom = Math.min(1, Math.max(-3, targetZoom))
   map.setMinZoom(minZoom)
   map.setMaxBounds([[0, 0], [MAP_IMAGE_SIZE, MAP_IMAGE_SIZE]])
   if (map.getZoom() < minZoom) {
     map.setView([MAP_IMAGE_SIZE / 2, MAP_IMAGE_SIZE / 2], minZoom, { animate: false })
   }
   updateRulers()
+}
+
+const fitWholeMap = () => {
+  if (!map) return
+  map.fitBounds([[0, 0], [MAP_IMAGE_SIZE, MAP_IMAGE_SIZE]], {
+    padding: [0, 0],
+    animate: false
+  })
 }
 
 const handleMapMouseMove = (event) => {
@@ -491,6 +524,21 @@ const buildMarkerLayer = () => {
       }
     })
     marker.addTo(markerLayer)
+
+    if (props.coloredMarkers && props.selectedMonsterId != null) {
+      const pulse = leaflet.marker(latlng, {
+        icon: leaflet.divIcon({
+          className: 'game-selected-pulse-wrap',
+          html: '<span class="game-selected-pulse"></span>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        }),
+        interactive: false,
+        keyboard: false,
+        zIndexOffset: 1000
+      })
+      pulse.addTo(markerLayer)
+    }
   })
 
   markerLayer.addTo(map)
@@ -586,8 +634,9 @@ const renderMap = async () => {
 
   buildMarkerLayer()
   applyMapView()
-  map.fitBounds(bounds, { padding: [0, 0], animate: false })
+  fitWholeMap()
   updateRulers()
+  focusSelectedLocations(false)
 
   renderedMapId = mapInfo.mapId
   mapLoading.value = false
@@ -633,7 +682,11 @@ onMounted(async () => {
   resizeObserver = new ResizeObserver(() => {
     if (!map) return
     map.invalidateSize()
+    const wasAtMinZoom = map.getZoom() <= map.getMinZoom() + 0.01
     applyMapView()
+    if (props.viewMode === 'contain' && wasAtMinZoom) {
+      fitWholeMap()
+    }
     updateRulers()
   })
   resizeObserver.observe(mapEl.value)
@@ -667,7 +720,17 @@ watch(() => props.initialLocation, () => {
 }, { deep: true })
 
 watch(() => props.selectedMonsterId, () => {
-  if (map) buildMarkerLayer()
+  if (!map) return
+  buildMarkerLayer()
+  focusSelectedLocations()
+})
+
+watch(() => props.viewMode, () => {
+  if (!map) return
+  applyMapView()
+  fitWholeMap()
+  focusSelectedLocations(false)
+  updateRulers()
 })
 
 watch(() => props.monsters, () => {
@@ -675,6 +738,11 @@ watch(() => props.monsters, () => {
   syncSelectedMap()
   buildMarkerLayer()
 }, { deep: true })
+
+defineExpose({
+  fitWholeMap,
+  focusSelectedLocations
+})
 
 onBeforeUnmount(() => {
   isDestroyed = true
@@ -815,5 +883,36 @@ onBeforeUnmount(() => {
 
 :deep(.game-map-tooltip.leaflet-tooltip-top:before) {
   border-top-color: #2c3d5a;
+}
+
+:deep(.game-selected-pulse-wrap) {
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+
+:deep(.game-selected-pulse) {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.35);
+  animation: game-selected-pulse 1.5s ease-out infinite;
+}
+
+@keyframes game-selected-pulse {
+  0% {
+    transform: scale(0.35);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.15);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
 }
 </style>
